@@ -1,0 +1,20 @@
+name: Types
+
+on: [push]
+
+jobs:
+  mypy:
+    runs-on: ubuntu-latest
+    name: Type check with mypy
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.13
+    - name: Install Dependencies
+      run: |
+        pip install .
+    - name: Run mypy
+      run: |
+        MYPYPATH=app mypy --disallow-untyped-defs --namespace-packages --explicit-package-bases app
