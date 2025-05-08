@@ -17,25 +17,25 @@ def scrape_meeting_calendar(start_date: str, end_date: str):
             f"https://www.europarl.europa.eu/plenary/en/meetings-search.html?isSubmitted=true&dateFrom={date_str}"
             "&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY&page=")
 
-    first_page_soup = fetch_and_process_page(first_page_url, check_no_results=True)
-    if first_page_soup is None:
-        return
+        page_number = 0
+        while True:
+            full_url = f"{base_url}{page_number}"
+            page_soup = fetch_and_process_page(full_url)
+            if page_soup is None:
+                break
+            page_number += 1
 
         current_date += timedelta(days=1)
 
 
-
-def fetch_and_process_page(url, check_no_results=False):
+def fetch_and_process_page(url):
     response = requests.get(url)
     if response.status_code != 200:
         return None
     soup = BeautifulSoup(response.text, 'html.parser')
-
-    if check_no_results:
-        error_message = soup.find('div', class_='message_error')
-        if error_message and "No result" in error_message.get_text(strip=True):
-            return None
-
+    error_message = soup.find('div', class_='message_error')
+    if error_message and "No result" in error_message.get_text(strip=True):
+        return None
     extract_meeting_info(soup)
     return soup
 
