@@ -49,7 +49,7 @@ def scrape_meps() -> List[Person]:
     response = requests.get(
         "https://data.europarl.europa.eu/api/v2/meps/show-current",
         params=params,
-        timeout=10,
+        timeout=15,
     )
     response.raise_for_status()
     json_data = response.json()
