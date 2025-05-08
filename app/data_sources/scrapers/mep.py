@@ -15,7 +15,7 @@ class Person(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     identifier: str  # unique MEP number
-    id: str  # "person/{identifier}""
+    id: str  # "person/{identifier}"
     type: str  # "Person"
     label: str  # Printable name
     familyName: str  # Last name
