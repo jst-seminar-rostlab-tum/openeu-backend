@@ -1,8 +1,7 @@
-import xml.etree.ElementTree as ET
-from typing import List
+from typing import List, Optional
 
 import requests
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Person(BaseModel):
@@ -15,11 +14,27 @@ class Person(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    id: str
-    full_name: str
-    country: str
-    political_group: str
-    national_political_group: str
+    identifier: str  # unique MEP number
+    id: str  # "person/{identifier}""
+    type: str  # "Person"
+    label: str  # Printable name
+    familyName: str  # Last name
+    givenName: str  # First name
+    sortLabel: str
+    country_of_representation: str = Field(
+        alias="api:country-of-representation"
+    )  # Country code, e.g. "DE"
+    political_group: str = Field(alias="api:political-group")
+    officialFamilyName: Optional[str] = (
+        None  # Last name in the official language of the MEP
+    )
+    officialGivenName: Optional[str] = (
+        None  # First name in the official language of the MEP
+    )
+
+
+class ResponseData(BaseModel):
+    data: List[Person]
 
 
 def scrape_meps() -> List[Person]:
@@ -27,24 +42,16 @@ def scrape_meps() -> List[Person]:
     Scrape MEP data from the European Parliament API.
     Returns a list of Person objects representing MEPs.
     """
-    url = "https://www.europarl.europa.eu/meps/en/full-list/xml"
-    response = requests.get(url, timeout=10)
+    params = {
+        "format": "application/ld+json",
+        "offset": 0,
+    }
+    response = requests.get(
+        "https://data.europarl.europa.eu/api/v2/meps/show-current",
+        params=params,
+        timeout=10,
+    )
     response.raise_for_status()
-
-    root = ET.fromstring(response.content)
-    meps = []
-
-    for mep_elem in root:
-        person = Person(
-            id=mep_elem.find("id").text,
-            full_name=mep_elem.find("fullName").text,
-            country=mep_elem.find("country").text,
-            political_group=mep_elem.find("politicalGroup").text,
-            national_political_group=mep_elem.find("nationalPoliticalGroup").text,
-        )
-        meps.append(person)
-
-    return meps
-
-
-print(scrape_meps())
+    json_data = response.json()
+    response = ResponseData(**json_data)
+    return response.data
