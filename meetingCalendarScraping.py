@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
@@ -8,30 +8,26 @@ def scrape_meeting_calendar(start_date: str, end_date: str):
     start_date = datetime.strptime(start_date, '%d-%m-%Y')
     end_date = datetime.strptime(end_date, '%d-%m-%Y')
 
-    first_page_url = (
-        "https://www.europarl.europa.eu/plenary/en/meetings-search.html?page=0&isSubmitted=true&dateFrom=29%2F06%2F2025&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY")
+    current_date = start_date
 
-    base_url = (
-        "https://www.europarl.europa.eu/plenary/en/meetings-search.html?isSubmitted=true&dateFrom=25%2F06%2F2025"
-        "&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY")
+    while current_date <= end_date:
+        date_str = current_date.strftime('%d%%2F%m%%2F%Y')
+
+        base_url = (
+            f"https://www.europarl.europa.eu/plenary/en/meetings-search.html?isSubmitted=true&dateFrom={date_str}"
+            "&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY&page=")
 
     first_page_soup = fetch_and_process_page(first_page_url, check_no_results=True)
     if first_page_soup is None:
         return
 
-    num_of_meetings = extract_num_of_meetings(first_page_soup)
-    meetings_per_page = 10
-    total_pages = (num_of_meetings + meetings_per_page - 1) // meetings_per_page
+        current_date += timedelta(days=1)
 
-    for page in range(1, total_pages):
-        full_url = f"{base_url}&page={page}"
-        fetch_and_process_page(full_url)
 
 
 def fetch_and_process_page(url, check_no_results=False):
     response = requests.get(url)
     if response.status_code != 200:
-        print(f"Failed to retrieve the webpage: {url}")
         return None
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -78,4 +74,4 @@ def extract_meeting_info(soup):
         print("---------------")
 
 
-scrape_meeting_calendar("25-06-2025", "25-06-2025")
+scrape_meeting_calendar("25-06-2025", "26-06-2025")
