@@ -275,9 +275,8 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
                 f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
     except Exception as e:
         print(f"Error while scraping and storing meetings: {e}")
-    finally:
-        # Close the Supabase client connection
-        supabase.close()
+
+    return meetings
 
 
 def insert_meeting(meeting: MEPMeeting, supabase: Client) -> str:
@@ -322,7 +321,7 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
     else:
         # Insert new attendee
         result = supabase.table(
-            "mep_meeting_attendees").insert(attendee).execute()
+            "mep_meeting_attendees").insert(attendee.model_dump()).execute()
         attendee_id = result.data[0]["id"]
 
     return attendee_id
@@ -338,7 +337,7 @@ if __name__ == "__main__":
 
     print("Scraping meetings...")
 
-    meetings = scrape_meetings(
+    meetings = scrape_and_store_meetings(
         start_date=datetime.date(2025, 3, 15),
         end_date=datetime.date(2025, 3, 18)
     )
