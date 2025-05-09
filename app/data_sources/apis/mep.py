@@ -3,7 +3,7 @@ from typing import List, Optional
 import requests
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...core.supabase_client import supabase
+from app.core.supabase_client import supabase
 
 CURRENT_MEPS_ENDPOINT = "https://data.europarl.europa.eu/api/v2/meps/show-current"
 MEPS_TABLE_NAME = "meps"
