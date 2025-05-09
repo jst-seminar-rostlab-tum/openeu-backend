@@ -33,8 +33,8 @@ def scrape_meeting_calendar(start_date: str, end_date: str):
         current_date += timedelta(days=1)
 
 
-def fetch_and_process_page(url):
-    response = requests.get(url)
+def fetch_and_process_page(full_url):
+    response = requests.get(full_url)
     if response.status_code != 200:
         return None
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -43,14 +43,6 @@ def fetch_and_process_page(url):
         return None
     extract_meeting_info(soup)
     return soup
-
-
-def extract_num_of_meetings(soup):
-    results_span = soup.find('span', class_='results')
-    if results_span:
-        results_text = results_span.getText(strip=True)
-        num_results = int(results_text.split(':')[1].strip())
-        return num_results
 
 
 def extract_meeting_info(soup):
