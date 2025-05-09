@@ -37,7 +37,7 @@ class ResponseData(BaseModel):
     data: List[Person]
 
 
-def scrape_meps() -> List[Person]:
+def fetch_current_meps() -> List[Person]:
     """
     Scrape MEP data from the European Parliament API.
     Returns a list of Person objects representing MEPs.
