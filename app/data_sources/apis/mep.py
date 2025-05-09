@@ -3,7 +3,10 @@ from typing import List, Optional
 import requests
 from pydantic import BaseModel, ConfigDict, Field
 
+from ...core.supabase_client import supabase
+
 CURRENT_MEPS_ENDPOINT = "https://data.europarl.europa.eu/api/v2/meps/show-current"
+MEPS_TABLE_NAME = "meps"
 
 
 class Person(BaseModel):
@@ -52,3 +55,18 @@ def fetch_current_meps() -> List[Person]:
     response.raise_for_status()
     json_data = response.json()
     return [Person(**item) for item in json_data["data"]]
+
+
+def fetch_and_store_current_meps() -> List[Person]:
+    """
+    Fetch current MEPs and store them in the database.
+    """
+    meps = fetch_current_meps()
+    meps_dicts = [meps_dict.model_dump() for meps_dict in meps]
+
+    supabase.table(MEPS_TABLE_NAME).insert(
+        meps_dicts,
+        upsert=True,
+    ).execute()
+
+    return meps
