@@ -3,6 +3,8 @@ from typing import List, Optional
 import requests
 from pydantic import BaseModel, ConfigDict, Field
 
+CURRENT_MEPS_ENDPOINT = "https://data.europarl.europa.eu/api/v2/meps/show-current"
+
 
 class Person(BaseModel):
     """
@@ -43,7 +45,7 @@ def fetch_current_meps() -> List[Person]:
         "offset": 0,
     }
     response = requests.get(
-        "https://data.europarl.europa.eu/api/v2/meps/show-current",
+        CURRENT_MEPS_ENDPOINT,
         params=params,
         timeout=15,
     )
