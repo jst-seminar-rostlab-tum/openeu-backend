@@ -3,7 +3,7 @@ import requests
 from dateutil.parser import parse as parse_date
 
 """
-### Important Note ###
+### Important Note - Script is discontinued ###
 This script fetches events from the European Parliament API and filters them based on a date range.
 The API is not practical to work with, as it does not provide a way to filter events by date range directly.
 Therefore, this script is discontinued and only checked into the repository for reference.

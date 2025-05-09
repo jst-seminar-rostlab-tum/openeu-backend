@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import TypedDict
 
 """
-### Important Note ###
+### Important Note - Script is discontinued ###
 This script fetches from the MEP meetings search CSV export and filters them based on a date range.
 The CSV export is not practical to work with, as it does not include the meeting location - despite location being shown in the search results UI.
 Therefore, this script is discontinued in favor of a scrapy scraper and only checked into the repository for reference.
