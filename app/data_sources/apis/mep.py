@@ -33,10 +33,6 @@ class Person(BaseModel):
     )
 
 
-class ResponseData(BaseModel):
-    data: List[Person]
-
-
 def fetch_current_meps() -> List[Person]:
     """
     Scrape MEP data from the European Parliament API.
@@ -53,5 +49,4 @@ def fetch_current_meps() -> List[Person]:
     )
     response.raise_for_status()
     json_data = response.json()
-    response = ResponseData(**json_data)
-    return response.data
+    return [Person(**item) for item in json_data["data"]]
