@@ -1,7 +1,12 @@
-from datetime import datetime, timedelta
-
-import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+from supabase import create_client, Client
+import requests
+import os
+
+url: str = os.environ.get('LOCAL_SUPABASE_URL')
+key: str = os.environ.get('LOCAL_ANON_KEY')
+supabase: Client = create_client(url, key)
 
 
 def scrape_meeting_calendar(start_date: str, end_date: str):
@@ -66,12 +71,13 @@ def extract_meeting_info(soup):
         hour = info_tag.find('p', class_='hour').get_text(strip=True) if info_tag else None
         place = info_tag.find('p', class_='place').get_text(strip=True) if info_tag else None
 
-        print(f"Title: {title}")
-        print(f"Date: {date}")
-        print(f"Hour: {hour}")
-        print(f"Place: {place}")
-        print(f"Additional Info: {subtitles}")
-        print("---------------")
+        datetime_obj = datetime.strptime(f"{date} {hour}", "%d-%m-%Y %H:%M")
 
+        data = {
+            "title": title,
+            "datetime": datetime_obj.isoformat(),
+            "place": place,
+            "subtitles": subtitles
+        }
 
-scrape_meeting_calendar("25-06-2025", "26-06-2025")
+        supabase.table("meeting_calendar").insert(data).execute()
