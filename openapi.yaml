@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: OpenEU Meetings API
+  version: 1.0.0
+paths:
+  /meetings:
+    get:
+      summary: Fetch filtered meetings
+      parameters:
+        - in: query
+          name: view
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+          required: false
+        - in: query
+          name: country
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: tags
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          required: false
+      responses:
+        '200':
+          description: List of meetings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Meeting'
+components:
+  schemas:
+    Meeting:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        country:
+          type: string
