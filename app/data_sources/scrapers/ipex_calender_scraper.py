@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
 import json
@@ -10,8 +10,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-
-# from app.core.supabase_client import supabase
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    TimeoutException,
+    ElementClickInterceptedException,
+)
 
 # Constants
 IPEX_CALENDAR_URL = "https://ipexl.europarl.europa.eu/IPEXL-WEB/calendar"
@@ -66,19 +69,23 @@ class IPEXCalendarScraper:
     def __init__(self):
         """Initialize the scraper with Selenium WebDriver."""
         self.events = []
+        self.processed_event_ids = set()  # Track already processed event IDs
         self.driver = self._setup_driver()
+        self.last_event_count = (
+            0  # Track number of events to detect when no new ones are loaded
+        )
 
     def _setup_driver(self) -> webdriver.Chrome:
         """
-        Set up and configure the Chrome WebDriver.
-
-        Returns:
-            Configured Chrome WebDriver instance
+        Set up and configure the Chrome WebDriver optimized for cloud/headless use.
         """
         chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Run in headless mode
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--window-size=1366,768")
         chrome_options.add_argument(f"user-agent={HEADERS['User-Agent']}")
 
         service = Service(ChromeDriverManager().install())
@@ -86,69 +93,179 @@ class IPEXCalendarScraper:
 
     def scrape(self):
         """
-        Scrape the calendar events from the IPEX website.
+        Scrape all calendar events from the IPEX website by loading more events
+        until all are retrieved.
         """
         try:
             # Load the page
             self.driver.get(IPEX_CALENDAR_URL)
 
-            # Wait for the event cards to be loaded
+            # Wait for the initial event cards to be loaded
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, ".ipx-card-list"))
             )
 
-            # Get all event cards
-            event_cards = self.driver.find_elements(
-                By.CSS_SELECTOR, ".ipx-card-content"
+            # Keep track of consecutive attempts with no new events
+            no_new_events_count = 0
+            max_no_new_events = (
+                3  # Stop after 3 consecutive attempts with no new events
             )
 
-            for card in event_cards:
-                try:
-                    # Extract event details
-                    title = card.find_element(By.CSS_SELECTOR, "h3.ipx-card-title").text
-                    description = card.find_element(
-                        By.CSS_SELECTOR, "p.ipx-card-description"
-                    ).text
-                    location = card.find_element(
-                        By.CSS_SELECTOR, ".ipx-card-footer span:last-child"
-                    ).text
-                    tags = [
-                        tag.text
-                        for tag in card.find_elements(
-                            By.CSS_SELECTOR, ".badge.badge-home"
-                        )
-                    ]
+            while True:
+                # Get the current count of processed events
+                current_count = len(self.processed_event_ids)
 
-                    # Extract event ID from the href attribute
-                    event_url = card.get_attribute("href")
-                    event_id = event_url.split("/")[-2] if event_url else None
+                # Process visible events
+                self._process_visible_events()
 
-                    # Parse date information
-                    date_info = (
-                        self._parse_date_info(description) if description else {}
+                # Check if we found new events
+                if len(self.processed_event_ids) > current_count:
+                    # Reset counter if we found new events
+                    no_new_events_count = 0
+                    print(
+                        f"Found {len(self.processed_event_ids) - current_count} new events"
+                    )
+                else:
+                    # Increment counter if no new events were found
+                    no_new_events_count += 1
+                    print(
+                        f"No new events found. Attempt {no_new_events_count}/{max_no_new_events}"
                     )
 
-                    # Create event object
-                    event = IPEXEvent(
-                        identifier=event_id,
-                        title=title.strip() if title else "",
-                        event_type="Meeting",
-                        meeting_location=location.strip() if location else None,
-                        tags=tags,
-                        **date_info,
+                # Try to click "LOAD MORE" button
+                if not self._click_load_more_button():
+                    print("No 'LOAD MORE' button found - reached the end")
+                    break
+
+                # Exit if we've had too many attempts with no new events
+                if no_new_events_count >= max_no_new_events:
+                    print(
+                        f"No new events after {max_no_new_events} attempts - stopping"
                     )
+                    break
 
-                    self.events.append(event.model_dump())
-
-                except Exception as e:
-                    print(f"Error processing event card: {e}")
-                    continue
+            print(f"Total events scraped: {len(self.events)}")
 
             # Save events to JSON file
             self._save_events()
 
         finally:
             self.driver.quit()
+
+    def _process_visible_events(self):
+        """
+        Process all currently visible event cards on the page.
+        Only processes events that haven't been processed before.
+        """
+        # Get all event cards
+        event_cards = self.driver.find_elements(By.CSS_SELECTOR, ".ipx-card-content")
+
+        print(f"Found {len(event_cards)} total visible event cards")
+
+        # Track how many new events we process in this batch
+        new_events_count = 0
+
+        for card in event_cards:
+            try:
+                # Extract event ID from the href attribute
+                event_url = card.get_attribute("href")
+                event_id = event_url.split("/")[-2] if event_url else None
+
+                # Skip if we've already processed this event
+                if not event_id or event_id in self.processed_event_ids:
+                    continue
+
+                # Add to processed set
+                self.processed_event_ids.add(event_id)
+                new_events_count += 1
+
+                # Extract event details
+                title = card.find_element(By.CSS_SELECTOR, "h3.ipx-card-title").text
+
+                try:
+                    description = card.find_element(
+                        By.CSS_SELECTOR, "p.ipx-card-description"
+                    ).text
+                except NoSuchElementException:
+                    description = ""
+
+                # Extract location - handle possible missing elements
+                try:
+                    location = card.find_element(
+                        By.CSS_SELECTOR, ".ipx-card-footer span:last-child"
+                    ).text
+                except NoSuchElementException:
+                    location = None
+
+                # Extract tags
+                tags = [
+                    tag.text
+                    for tag in card.find_elements(By.CSS_SELECTOR, ".badge.badge-home")
+                ]
+
+                # Parse date information
+                date_info = self._parse_date_info(description) if description else {}
+
+                # Create event object
+                event = IPEXEvent(
+                    identifier=event_id,
+                    title=title.strip() if title else "",
+                    event_type="Meeting",
+                    meeting_location=location.strip() if location else None,
+                    tags=tags,
+                    **date_info,
+                )
+
+                self.events.append(event.model_dump())
+
+            except Exception as e:
+                print(f"Error processing event card: {e}")
+                continue
+
+        print(f"Processed {new_events_count} new events in this batch")
+
+    def _click_load_more_button(self) -> bool:
+        """
+        Scroll to the bottom of the page and click the "LOAD MORE" button if available.
+
+        Returns:
+            True if the button was clicked successfully, False otherwise
+        """
+        try:
+            # Scroll down to the bottom to ensure the "LOAD MORE" button is in the viewport
+            self.driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);"
+            )
+
+            # Try to find the "LOAD MORE" button
+            load_more_button = WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn-load"))
+            )
+
+            # Scroll directly to the button
+            self.driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});", load_more_button
+            )
+
+            # Try to click the button
+            load_more_button.click()
+
+            return True
+
+        except (NoSuchElementException, TimeoutException):
+            # No more "LOAD MORE" button found
+            return False
+        except ElementClickInterceptedException:
+            # The button might be intercepted by another element
+            try:
+                # Try using JavaScript click as an alternative
+                load_more_button = self.driver.find_element(
+                    By.CSS_SELECTOR, ".loadMoreContainer button"
+                )
+                self.driver.execute_script("arguments[0].click();", load_more_button)
+                return True
+            except Exception:
+                return False
 
     def _parse_date_info(self, date_str: str) -> Dict[str, Optional[str]]:
         """
@@ -180,6 +297,8 @@ class IPEXCalendarScraper:
         output_file = os.path.join(output_dir, "ipex_events.json")
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.events, f, indent=2, ensure_ascii=False)
+
+        print(f"Saved {len(self.events)} events to {output_file}")
 
 
 def run_scraper():
