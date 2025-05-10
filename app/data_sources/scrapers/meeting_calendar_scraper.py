@@ -1,20 +1,15 @@
+from app.core.supabase_client import supabase
 from typing import Optional
 
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from urllib.parse import quote
-from supabase import create_client, Client
 import requests
-import os
 
 BASE_URL_TEMPLATE = (
     "https://www.europarl.europa.eu/plenary/en/meetings-search.html?isSubmitted=true&dateFrom={date}"
     "&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY&page={page}"
 )
-
-url: str = os.environ.get('LOCAL_SUPABASE_URL')
-key: str = os.environ.get('LOCAL_ANON_KEY')
-supabase: Client = create_client(url, key)
 
 
 def scrape_meeting_calendar(start_date: str, end_date: str) -> None:
