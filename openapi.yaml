@@ -18,15 +18,6 @@ paths:
           schema:
             type: string
           required: false
-        - in: query
-          name: tags
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-          required: false
       responses:
         '200':
           description: List of meetings
