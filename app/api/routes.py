@@ -5,6 +5,7 @@ from app.models.meeting import Meeting
 
 router = APIRouter()
 
+
 @router.get("/meetings", response_model=List[Meeting])
 def get_meetings(
         frequency: Optional[str] = Query(None, enum=["daily", "weekly", "monthly"]),
