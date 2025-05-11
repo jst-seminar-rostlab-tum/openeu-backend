@@ -19,7 +19,7 @@ call_count = 0
 lock = Lock()
 
 @router.get("/")
-async def dummyCrawl() -> object:
+async def dummy_crawl() -> object:
     global call_count
     with lock:
         call_count += 1
