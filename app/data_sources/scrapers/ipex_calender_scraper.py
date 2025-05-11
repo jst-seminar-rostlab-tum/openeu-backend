@@ -1,8 +1,6 @@
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
-import json
-import os
 import logging
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -16,6 +14,7 @@ from selenium.common.exceptions import (
     TimeoutException,
     ElementClickInterceptedException,
 )
+from app.core.supabase_client import supabase
 
 IPEX_CALENDAR_URL = "https://ipexl.europarl.europa.eu/IPEXL-WEB/calendar"
 EVENTS_TABLE_NAME = "ipex_events"
@@ -60,7 +59,7 @@ class IPEXEvent(BaseModel):
     )
     event_time: Optional[str] = None  # Time of the event (e.g., "14:30")
 
-    meeting_location: Optional[str] = None  # Location where the event takes place
+    meeting_location: str = None  # Location where the event takes place
 
     tags: Optional[List[str]] = None  # Tags/keywords shown as buttons on the event page
 
@@ -150,8 +149,8 @@ class IPEXCalendarScraper:
 
             logger.info(f"Total events scraped: {len(self.events)}")
 
-            # Save events to JSON file
-            self._save_events()
+            # Store events in DB
+            self._store_events()
 
         finally:
             self.driver.quit()
@@ -292,16 +291,20 @@ class IPEXCalendarScraper:
         else:  # Single date
             return {"single_date": date_str.strip()}
 
-    def _save_events(self):
-        """Save scraped events to a JSON file."""
-        output_dir = os.path.join(os.path.dirname(__file__), "output")
-        os.makedirs(output_dir, exist_ok=True)
+    def _store_events(self):
+        """Store scraped events in Supabase database."""
+        if not self.events:
+            logger.info("No events to store")
+            return
 
-        output_file = os.path.join(output_dir, "ipex_events.json")
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(self.events, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Saved {len(self.events)} events to {output_file}")
+        try:
+            supabase.table(EVENTS_TABLE_NAME).insert(
+                self.events,
+                upsert=True,
+            ).execute()
+            logger.info(f"Successfully stored {len(self.events)} events in Supabase")
+        except Exception as e:
+            logger.error(f"Error storing events in Supabase: {e}")
 
 
 def run_scraper():
