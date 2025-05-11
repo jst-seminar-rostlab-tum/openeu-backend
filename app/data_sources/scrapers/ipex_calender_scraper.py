@@ -3,6 +3,7 @@ from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
 import json
 import os
+import logging
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -16,7 +17,6 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException,
 )
 
-# Constants
 IPEX_CALENDAR_URL = "https://ipexl.europarl.europa.eu/IPEXL-WEB/calendar"
 EVENTS_TABLE_NAME = "ipex_events"
 
@@ -31,6 +31,15 @@ HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
 }
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+
+logger = logging.getLogger(__name__)
+
 
 class IPEXEvent(BaseModel):
     """
@@ -42,7 +51,6 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-    event_type: str  # Type of the event (e.g., "Meeting", "Conference")
 
     # Date fields - different events have different date formats
     start_date: Optional[str] = None  # Start date of the event
@@ -51,13 +59,9 @@ class IPEXEvent(BaseModel):
         None  # Used when event has a single date (not start/end)
     )
     event_time: Optional[str] = None  # Time of the event (e.g., "14:30")
-    registration_deadline: Optional[str] = None  # Deadline for registration if provided
 
-    # Location and organization fields
     meeting_location: Optional[str] = None  # Location where the event takes place
-    organizers: Optional[str] = None  # Event organizers
 
-    # Tags
     tags: Optional[List[str]] = None  # Tags/keywords shown as buttons on the event page
 
 
@@ -122,29 +126,29 @@ class IPEXCalendarScraper:
                 if len(self.processed_event_ids) > current_count:
                     # Reset counter if we found new events
                     no_new_events_count = 0
-                    print(
+                    logger.info(
                         f"Found {len(self.processed_event_ids) - current_count} new events"
                     )
                 else:
                     # Increment counter if no new events were found
                     no_new_events_count += 1
-                    print(
+                    logger.info(
                         f"No new events found. Attempt {no_new_events_count}/{max_no_new_events}"
                     )
 
                 # Try to click "LOAD MORE" button
                 if not self._click_load_more_button():
-                    print("No 'LOAD MORE' button found - reached the end")
+                    logger.info("No 'LOAD MORE' button found - reached the end")
                     break
 
                 # Exit if we've had too many attempts with no new events
                 if no_new_events_count >= max_no_new_events:
-                    print(
+                    logger.info(
                         f"No new events after {max_no_new_events} attempts - stopping"
                     )
                     break
 
-            print(f"Total events scraped: {len(self.events)}")
+            logger.info(f"Total events scraped: {len(self.events)}")
 
             # Save events to JSON file
             self._save_events()
@@ -159,8 +163,6 @@ class IPEXCalendarScraper:
         """
         # Get all event cards
         event_cards = self.driver.find_elements(By.CSS_SELECTOR, ".ipx-card-content")
-
-        print(f"Found {len(event_cards)} total visible event cards")
 
         # Track how many new events we process in this batch
         new_events_count = 0
@@ -219,10 +221,10 @@ class IPEXCalendarScraper:
                 self.events.append(event.model_dump())
 
             except Exception as e:
-                print(f"Error processing event card: {e}")
+                logger.error(f"Error processing event card: {e}")
                 continue
 
-        print(f"Processed {new_events_count} new events in this batch")
+        logger.info(f"Processed {new_events_count} new events in this batch")
 
     def _click_load_more_button(self) -> bool:
         """
@@ -264,7 +266,8 @@ class IPEXCalendarScraper:
                 )
                 self.driver.execute_script("arguments[0].click();", load_more_button)
                 return True
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to click 'LOAD MORE' button: {e}")
                 return False
 
     def _parse_date_info(self, date_str: str) -> Dict[str, Optional[str]]:
@@ -298,7 +301,7 @@ class IPEXCalendarScraper:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.events, f, indent=2, ensure_ascii=False)
 
-        print(f"Saved {len(self.events)} events to {output_file}")
+        logger.info(f"Saved {len(self.events)} events to {output_file}")
 
 
 def run_scraper():
