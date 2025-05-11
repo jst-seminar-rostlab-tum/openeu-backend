@@ -1,5 +1,4 @@
-from typing import List, Dict, Any, Optional, Set
-from datetime import datetime, date
+from typing import List, Dict, Optional
 from pydantic import BaseModel, ConfigDict, Field
 import logging
 from selenium import webdriver
@@ -211,7 +210,6 @@ class IPEXCalendarScraper:
                 event = IPEXEvent(
                     identifier=event_id,
                     title=title.strip() if title else "",
-                    event_type="Meeting",
                     meeting_location=location.strip() if location else None,
                     tags=tags,
                     **date_info,
