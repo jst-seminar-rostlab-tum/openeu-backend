@@ -1,5 +1,6 @@
 from datetime import datetime
 from threading import Lock
+from typing import Dict
 
 from fastapi import APIRouter
 from fastapi.params import Depends
@@ -19,7 +20,7 @@ call_count = 0
 lock = Lock()
 
 @router.get("/")
-async def dummy_crawl() -> object:
+async def dummy_crawl() -> Dict:
     global call_count
     with lock:
         call_count += 1
