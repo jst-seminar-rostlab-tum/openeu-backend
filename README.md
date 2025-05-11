@@ -20,3 +20,9 @@ In order to test the `crawler` endpoint you need to do the following:
    - Key: `token` 
    - Value: The same value you set for `CRAWLER_API_KEY` in your `.env` file 
  - Send the request
+
+## Backend Deployment
+The deployment of our backend application is fully automated using GitHub Actions.
+Each time a commit is pushed to the main branch, a deployment workflow is triggered to ensure that the latest changes are live without manual intervention.
+
+The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend.onrender.com```
