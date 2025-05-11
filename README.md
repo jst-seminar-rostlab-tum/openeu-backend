@@ -27,7 +27,7 @@ Each time a commit is pushed to the main branch, a deployment workflow is trigge
 
 The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend.onrender.com```
 
-### Background Jobs
+## Background Jobs
 In our project, each background job is associated with a dedicated API endpoint. 
 When the corresponding endpoint is triggered, the background job is executed.
 We use [cron-job](https://console.cron-job.org/) to automate this process, which invokes these endpoints at predefined intervals.
