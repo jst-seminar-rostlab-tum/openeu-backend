@@ -10,3 +10,13 @@
 - Generate a migration file by calling ```supabase db diff -f MIGRATION_NAME```
 - Stop all local instances of Supabase and then apply the migration by calling ```supabase start && supabase migration up```
 - Push the changes to the remote Supabase instance by calling ```supabase db push```
+
+## Testing the Crawler endpoint
+In order to test the `crawler` endpoint you need to do the following: 
+ - First assign `CRAWLER_API_KEY` an arbitrary string in the `.env` file
+ - Prepare a `GET` request in [Postman](https://www.postman.com/downloads/) to `localhost:8000/crawler/`
+ - Navigate in Postman to the Headers Tab
+ - Add a new header 
+   - Key: `token` 
+   - Value: The same value you set for `CRAWLER_API_KEY` in your `.env` file 
+ - Send the request
