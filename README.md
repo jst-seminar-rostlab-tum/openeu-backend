@@ -26,3 +26,12 @@ The deployment of our backend application is fully automated using GitHub Action
 Each time a commit is pushed to the main branch, a deployment workflow is triggered to ensure that the latest changes are live without manual intervention.
 
 The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend.onrender.com```
+
+### Background Jobs
+In our project, each background job is associated with a dedicated API endpoint. 
+When the corresponding endpoint is triggered, the background job is executed.
+We use [cron-job](https://console.cron-job.org/) to automate this process, which invokes these endpoints at predefined intervals.
+
+If you add a new background job, please make sure to: 
+- protect the endpoint using the `get_token_header` function from [dependencies.py](./app/dependencies.py) (an example can be found [here](./app/api/crawler.py))
+- after adding the cronjob, also add it to the status page [here](https://console.cron-job.org/statuspages/26586)
