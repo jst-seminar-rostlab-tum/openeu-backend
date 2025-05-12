@@ -49,7 +49,9 @@ def fetch_and_process_page(full_url: str) -> Optional[BeautifulSoup]:
 
 def extract_meeting_info(soup: BeautifulSoup) -> None:
     meetings_container = soup.find("div", class_="listcontent")
-    meetings = meetings_container.find_all("div", class_="notice")
+    meetings = []
+    if meetings_container is not None:
+        meetings = meetings_container.find_all("div", class_="notice")
 
     batch = []
 
