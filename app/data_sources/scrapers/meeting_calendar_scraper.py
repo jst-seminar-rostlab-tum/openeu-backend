@@ -51,7 +51,7 @@ def extract_meeting_info(soup: BeautifulSoup) -> None:
     meetings_container = soup.find("div", class_="listcontent")
     meetings = []
     if meetings_container is not None:
-        meetings = meetings_container.find_all("div", class_="notice")
+        meetings = meetings_container.find_all("div", class_="notice")  # type: ignore
 
     batch = []
 

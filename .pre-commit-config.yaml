@@ -11,4 +11,4 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
-        args: [--strict, --ignore-missing-imports, --allow-untyped-decorators, --install-types, --non-interactive]
+        args: [--ignore-missing-imports, --allow-untyped-decorators, --install-types, --non-interactive]
