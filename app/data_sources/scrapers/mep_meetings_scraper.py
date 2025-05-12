@@ -9,7 +9,9 @@ from parsel import Selector
 from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
-from supabase import Client, create_client
+
+from app.core.supabase_client import supabase
+from supabase import Client
 
 """
 This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
@@ -122,7 +124,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         NUM_RESULTS_PER_PAGE = 10
         MAX_RESULTS_PER_QUERY = 10000
         # although website states 10000 results maximum, &page=51 returns an error
-        INOFFICIAL_MAX_PAGES = 51
+        UNOFFICIAL_MAX_PAGES = 51
 
         result_text = response.css(
             "#meetingSearchResultCounterText::text").get()
@@ -138,10 +140,10 @@ class MEPMeetingsSpider(scrapy.Spider):
         if is_first_page and total_results == MAX_RESULTS_PER_QUERY:
             print(f"Warning: The number of results is the maximum possible ({MAX_RESULTS_PER_QUERY}). "
                   "This likely indicates that the date range is too large and that there are more results available.")
-        if is_first_page and total_pages > INOFFICIAL_MAX_PAGES:
-            print(f"Warning: The number of pages is larger than the unofficial maximum ({INOFFICIAL_MAX_PAGES}). "
+        if is_first_page and total_pages > UNOFFICIAL_MAX_PAGES:
+            print(f"Warning: The number of pages is larger than the unofficial maximum ({UNOFFICIAL_MAX_PAGES}). "
                   "This likely indicates that the date range is too large and that there are more results available.")
-            total_pages = INOFFICIAL_MAX_PAGES
+            total_pages = UNOFFICIAL_MAX_PAGES
 
         return total_pages
 
@@ -232,40 +234,7 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
     Scrape meetings and store them in the database.
     :param start_date: The start date for the meeting search.
     :param end_date: The end date for the meeting search.
-
-    Assumes these tables:
-    ```sql
-    CREATE TABLE IF NOT EXISTS mep_meetings (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        title text NOT NULL,
-        member_name text NOT NULL,
-        meeting_date date NOT NULL,
-        meeting_location text NOT NULL,
-        member_capacity text NOT NULL,
-        procedure_reference text,
-        associated_committee_or_delegation_code text,
-        associated_committee_or_delegation_name text
-    );
-
-    CREATE TABLE IF NOT EXISTS mep_meeting_attendees (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        name text NOT NULL,
-        transparency_register_url text UNIQUE
-    );
-
-    CREATE TABLE IF NOT EXISTS mep_meeting_attendee_mapping (
-        meeting_id uuid REFERENCES mep_meetings(id) ON DELETE CASCADE,
-        attendee_id uuid REFERENCES mep_meeting_attendees(id) ON DELETE CASCADE,
-        PRIMARY KEY (meeting_id, attendee_id)
-    );
-    ```
     """
-    # TODO: set correct Supabase URL and key, without this it won't work
-    raise NotImplementedError(
-        "Please set the correct Supabase URL and key in the code before running it.")
-    SUPABASE_URL = "https://your-project.supabase.co"
-    SUPABASE_KEY = "your-supabase-service-role-key"
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     try:
 
