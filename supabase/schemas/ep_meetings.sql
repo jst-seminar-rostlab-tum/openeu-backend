@@ -1,3 +1,4 @@
+-- EP Meetings
 CREATE TABLE IF NOT EXISTS ep_meetings (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
