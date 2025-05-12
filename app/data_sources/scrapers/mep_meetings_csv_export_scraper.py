@@ -14,33 +14,9 @@ Therefore, this script is discontinued in favor of a scrapy scraper and only che
 """
 
 
-class RawMEPMeeting(TypedDict):
-    """
-TypedDict representing raw meeting data from the MEP meetings search CSV export.
-
-Attributes:
-    title: The title or subject of the meeting.
-    member_id: The ID of the European Parliament member involved in the meeting.
-    member_name: The name of the European Parliament member.
-    meeting_date: Date of the meeting in "YYYY-MM-DD" format.
-    member_capacity: The role or capacity in which the member participated, e.g., "Member", "Committee chair", or "Shadow rapporteur"
-    procedure_reference: Reference to the parliamentary procedure related to the meeting, if any.
-        Typically an Interinstitutional Procedure Identifier like "2023/0001(COD)".
-    attendees: Pipe-separated string of organization or individual names who attended the meeting.
-    lobbyist_id: Pipe-separated string of transparency register IDs for lobbyists who attended.
-"""
-    title: str
-    member_id: str
-    member_name: str
-    meeting_date: str
-    member_capacity: str
-    procedure_reference: str
-    attendees: str
-    lobbyist_id: str
-
-
 class MEPMeeting(TypedDict):
     """
+    TypedDict for MEP Meeting data.
     """
     title: str
     member_id: str
@@ -53,7 +29,7 @@ class MEPMeeting(TypedDict):
     lobbyist_ids: list[str]
 
 
-def __parse_meeting(raw: RawMEPMeeting) -> MEPMeeting:
+def __parse_meeting(raw: dict[str, str]) -> MEPMeeting:
     return MEPMeeting(
         title=raw["title"],
         member_id=raw["member_id"],

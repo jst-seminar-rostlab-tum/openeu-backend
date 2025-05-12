@@ -1,12 +1,15 @@
 import math
-import scrapy
-from scrapy.crawler import CrawlerProcess
-from supabase import create_client, Client
-from typing import Generator, Optional, List
-from datetime import date
-from urllib.parse import urlencode
 import re
+from datetime import date
+from typing import Any, Callable, Generator, List, Optional
+from urllib.parse import urlencode
+
+import scrapy
+from parsel import Selector
 from pydantic import BaseModel
+from scrapy.crawler import CrawlerProcess
+from scrapy.http import Response
+from supabase import Client, create_client
 
 """
 This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
@@ -64,18 +67,19 @@ class MEPMeetingsSpider(scrapy.Spider):
     name = "meetings_spider"
     custom_settings = {'LOG_LEVEL': 'ERROR'}
 
-    def __init__(self, start_date, end_date, result_callback=None):
+    def __init__(self, start_date: date, end_date: date, result_callback: Optional[Callable[[List[MEPMeeting]], None]] = None):
         super().__init__()
-        self.start_date = start_date
-        self.end_date = end_date
         self.base_url = "https://www.europarl.europa.eu/meps/en/search-meetings?"
-        self.result_callback = result_callback
-        self.meetings = []
+        self.start_date: date = start_date
+        self.end_date: date = end_date
+        self.result_callback: Optional[Callable[[
+            List[MEPMeeting]], None]] = result_callback
+        self.meetings: List[MEPMeeting] = []
 
-    def start_requests(self):
+    def start_requests(self) -> Generator[scrapy.Request, Any, None]:
         yield self.scrape_page(0)
 
-    def scrape_page(self, page) -> scrapy.Request:
+    def scrape_page(self, page: int) -> scrapy.Request:
         """
         Initiate a request to scrape a specific page of meetings.
         :param page: The page number to scrape.
@@ -93,7 +97,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         if self.result_callback:
             self.result_callback(self.meetings)
 
-    def parse_search_results_page(self, response) -> Generator[scrapy.Request, None, None]:
+    def parse_search_results_page(self, response: Response) -> Generator[scrapy.Request, None, None]:
         """
         Parse the search results page and extract meeting information.
         :param response: The response object from the search results page.
@@ -109,7 +113,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         if current_page < total_pages:
             yield self.scrape_page(current_page + 1)
 
-    def parse_total_pages_num(self, response) -> int:
+    def parse_total_pages_num(self, response: Response) -> int:
         """
         Parse the total number of pages from the search results.
         :param response: The response object from the search results page.
@@ -123,8 +127,11 @@ class MEPMeetingsSpider(scrapy.Spider):
         result_text = response.css(
             "#meetingSearchResultCounterText::text").get()
         # example text: "Showing 10 of 100 results"
-        total_results = int(
-            re.search(r'of (\d+)', result_text).group(1)) if result_text else 0
+        total_results = 0
+        if result_text:
+            match = re.search(r'of (\d+)', result_text)
+            if match:
+                total_results = int(match.group(1))
         total_pages = math.ceil(total_results / NUM_RESULTS_PER_PAGE)
 
         is_first_page = response.meta['page'] == 0
@@ -138,7 +145,7 @@ class MEPMeetingsSpider(scrapy.Spider):
 
         return total_pages
 
-    def parse_meeting(self, sel) -> MEPMeeting:
+    def parse_meeting(self, sel: Selector) -> MEPMeeting:
         """
         Parse a meeting entry from the search results.
         :param sel: The selector for the meeting entry.
@@ -150,7 +157,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         # Extract general meeting details
         title = extract_text(".erpl_document-title .t-item")
         member_name = extract_text(".erpl_document-subtitle-member")
-        meeting_date = sel.css("time::attr(datetime)").get()
+        meeting_date = sel.css("time::attr(datetime)").get(default="").strip()
         meeting_location = extract_text(".erpl_document-subtitle-location")
         member_capacity = extract_text(".erpl_document-subtitle-capacity")
         procedure_code = extract_text(".erpl_document-subtitle-reference")
@@ -279,7 +286,7 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
     return meetings
 
 
-def insert_meeting(meeting: MEPMeeting, supabase: Client) -> str:
+def insert_meeting(meeting: MEPMeeting, supabase: Client):
     """
     Insert a meeting into the database and map attendees to it.
     :param meeting: The meeting object to insert.
@@ -332,8 +339,8 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
 
 
 if __name__ == "__main__":
-    from pprint import pprint
     import datetime
+    from pprint import pprint
 
     print("Scraping meetings...")
 
