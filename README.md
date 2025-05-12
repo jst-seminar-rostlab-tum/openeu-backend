@@ -10,3 +10,6 @@
 - Generate a migration file by calling ```supabase db diff -f MIGRATION_NAME```
 - Stop all local instances of Supabase and then apply the migration by calling ```supabase start && supabase migration up```
 - Push the changes to the remote Supabase instance by calling ```supabase db push```
+
+## Run server
+To start the server, run this command in the root directory: ```uvicorn main:app```
