@@ -1,3 +1,4 @@
 requests~=2.32.3
 beautifulsoup4~=4.13.4
 supabase~=2.15.1
+postgrest~=1.0.1
