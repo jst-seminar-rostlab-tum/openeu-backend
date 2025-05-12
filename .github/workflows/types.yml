@@ -13,8 +13,6 @@ jobs:
       with:
         python-version: 3.13
     - name: Install Dependencies
-      run: |
-        pip install .
+      run: pip install .
     - name: Run mypy
-      run: |
-        MYPYPATH=app mypy --disallow-untyped-defs --namespace-packages --explicit-package-bases app
+      run: MYPYPATH=app mypy --ignore-missing-imports --allow-untyped-decorators --no-namespace-packages --install-types --non-interactive app

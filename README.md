@@ -4,6 +4,9 @@
 - Run ```pip install .``` in root directory
 - Run ```pre-commit install```
 
+## Run server
+To start the server, run this command in the root directory: ```uvicorn main:app```
+
 ## Database Schemas
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
 - Start Docker on your computer

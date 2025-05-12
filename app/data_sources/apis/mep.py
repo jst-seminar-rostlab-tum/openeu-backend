@@ -1,0 +1,65 @@
+from typing import Optional
+
+import requests
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.core.supabase_client import supabase
+
+CURRENT_MEPS_ENDPOINT = "https://data.europarl.europa.eu/api/v2/meps/show-current"
+MEPS_TABLE_NAME = "meps"
+
+
+class Person(BaseModel):  # type: ignore
+    """
+    Model representing a Member of European Parliament (MEP).
+
+    This model contains detailed information about each MEP
+    as provided by the European Parliament API.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str = Field(alias="identifier")  # unique MEP number
+    type: str  # "Person"
+    label: str  # Printable name
+    family_name: str  # Last name
+    given_name: str  # First name
+    sort_label: str
+    country_of_representation: str = Field(alias="api:country-of-representation")  # Country code, e.g. "DE"
+    political_group: str = Field(alias="api:political-group")
+    official_family_name: Optional[str] = None  # Last name in the official language of the MEP
+    official_given_name: Optional[str] = None  # First name in the official language of the MEP
+
+
+def fetch_current_meps() -> list[Person]:
+    """
+    Scrape MEP data from the European Parliament API.
+    Returns a list of Person objects representing MEPs.
+    """
+    params = {
+        "format": "application/ld+json",
+        "offset": "0",
+    }
+    response = requests.get(
+        CURRENT_MEPS_ENDPOINT,
+        params=params,
+        timeout=15,
+    )
+    response.raise_for_status()
+    json_data = response.json()
+    return [Person(**item) for item in json_data["data"]]
+
+
+def fetch_and_store_current_meps() -> list[Person]:
+    """
+    Fetch current MEPs and store them in the database.
+    """
+    meps = fetch_current_meps()
+    meps_dicts = [meps_dict.model_dump() for meps_dict in meps]
+
+    supabase.table(MEPS_TABLE_NAME).insert(
+        meps_dicts,
+        upsert=True,
+    ).execute()
+
+    return meps

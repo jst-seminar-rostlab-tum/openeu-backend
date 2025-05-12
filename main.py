@@ -5,5 +5,5 @@ app = FastAPI()
 app.include_router(crawler.router)
 
 @app.get("/")
-async def root() -> object:
+async def root() -> dict[str, str]:
     return {"message": "Hello World"}
