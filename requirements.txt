@@ -1,6 +1,9 @@
 # 🛠 Core Dependencies
 python-dateutil==2.9.0.post0
 requests==2.32.3
+dotenv~=0.9.9
+python-dotenv~=1.1.0
+fastapi~=0.115.12
 
 # 🧰 Type Stubs
 types-python-dateutil==2.9.0.20241206
