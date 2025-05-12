@@ -1,5 +1,6 @@
-import requests
+import logging
 
+import requests
 from dateutil.parser import parse as parse_date
 
 """
@@ -14,29 +15,29 @@ api_url = "https://data.europarl.europa.eu/api/v2/events"
 
 
 def get_date_at_offset(offset):
-    print(f"Fetching date at offset {offset}")
+    logging.info(f"Fetching date at offset {offset}")
     params = {
         "format": "application/ld+json",
         "offset": offset,
         "limit": 1
     }
     response = requests.get(api_url, params=params)
-    print(f"Response status code: {response.status_code}")
+
     if response.status_code != 200:
         return None
     data = response.json().get('data', [])
-    print(f"Data at offset {offset}: {data}")
+
     if not data:
         return None
     lite_event = data[0]
     start_date = fetch_event_date(lite_event['activity_id'])
-    print(f"event start_date_str: {start_date}")
 
     return start_date
 
 
 def fetch_event_ids(offset, limit):
-    print(f"Fetching event IDs between offset {offset} and {offset + limit}")
+    logging.info(
+        f"Fetching event IDs between offset {offset} and {offset + limit}")
     params = {
         "format": "application/ld+json",
         "offset": offset,
@@ -49,7 +50,7 @@ def fetch_event_ids(offset, limit):
 
 
 def fetch_event_date(event_id):
-    print(f"Fetching date for event ID: {event_id}")
+    logging.info(f"Fetching date for event ID: {event_id}")
     params = {
         "format": "application/ld+json",
     }
@@ -61,7 +62,8 @@ def fetch_event_date(event_id):
 
 
 def binary_search(start_date, end_date, max_pages=125000):
-    print(f"Binary search for events between {start_date} and {end_date}")
+    logging.info(
+        f"Binary search for events between {start_date} and {end_date}")
     # Find the first page with date >= start_date
     low, high = 0, max_pages
     start_offset = None
@@ -69,7 +71,7 @@ def binary_search(start_date, end_date, max_pages=125000):
     while low <= high:
         mid = (low + high) // 2
         date_at_mid = get_date_at_offset(mid)
-        print(f"Checking mid offset {mid}: date {date_at_mid}")
+
         if date_at_mid is None:
             high = mid - 1
             continue
@@ -79,7 +81,6 @@ def binary_search(start_date, end_date, max_pages=125000):
             start_offset = mid
             high = mid - 1
     if start_offset is None:
-        print("No start offset found.")
         return None, None
     # Find the last page with date <= end_date
     low, high = start_offset, max_pages
@@ -87,7 +88,6 @@ def binary_search(start_date, end_date, max_pages=125000):
     while low <= high:
         mid = (low + high) // 2
         date_at_mid = get_date_at_offset(mid)
-        print(f"Checking mid offset {mid}: date {date_at_mid}")
         if date_at_mid is None:
             high = mid - 1
             continue
@@ -97,14 +97,14 @@ def binary_search(start_date, end_date, max_pages=125000):
             end_offset = mid
             low = mid + 1
     if end_offset is None:
-        print("No end offset found.")
         return None, None
 
     return start_offset, end_offset
 
 
 def fetch_events_between(start_offset, end_offset):
-    print(f"Fetching events between offsets {start_offset} and {end_offset}")
+    logging.info(
+        f"Fetching events between offsets {start_offset} and {end_offset}")
     all_events = []
     limit = 100
     for offset in range(start_offset, end_offset + 1, limit):
@@ -113,16 +113,19 @@ def fetch_events_between(start_offset, end_offset):
     return all_events
 
 
-# Example usage
-start_date = parse_date("2023-01-01")
-end_date = parse_date("2023-01-31")
+if __name__ == "__main__":
+    # Example usage
+    start_date = parse_date("2023-01-01")
+    end_date = parse_date("2023-01-31")
 
-start_offset, end_offset = 30562, 30612  # binary_search(start_date, end_date)
+    # binary_search(start_date, end_date)
+    start_offset, end_offset = 30562, 30612
 
-if start_offset is not None and end_offset is not None:
-    events = fetch_events_between(start_offset, end_offset)
-    print(f"Fetched {len(events)} events between {start_date} and {end_date}")
-    for event in events:
-        print(event)
-else:
-    print("No events found in the given date range.")
+    if start_offset is not None and end_offset is not None:
+        events = fetch_events_between(start_offset, end_offset)
+        print(
+            f"Fetched {len(events)} events between {start_date} and {end_date}")
+        for event in events:
+            print(event)
+    else:
+        print("No events found in the given date range.")

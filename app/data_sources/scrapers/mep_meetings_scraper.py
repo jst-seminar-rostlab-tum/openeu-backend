@@ -1,3 +1,4 @@
+import logging
 import math
 import re
 from datetime import date
@@ -138,11 +139,11 @@ class MEPMeetingsSpider(scrapy.Spider):
 
         is_first_page = response.meta['page'] == 0
         if is_first_page and total_results == MAX_RESULTS_PER_QUERY:
-            print(f"Warning: The number of results is the maximum possible ({MAX_RESULTS_PER_QUERY}). "
-                  "This likely indicates that the date range is too large and that there are more results available.")
+            logging.warning(f"Warning: The number of results is the maximum possible ({MAX_RESULTS_PER_QUERY}). "
+                            "This likely indicates that the date range is too large and that there are more results available.")
         if is_first_page and total_pages > UNOFFICIAL_MAX_PAGES:
-            print(f"Warning: The number of pages is larger than the unofficial maximum ({UNOFFICIAL_MAX_PAGES}). "
-                  "This likely indicates that the date range is too large and that there are more results available.")
+            logging.warning(f"Warning: The number of pages is larger than the unofficial maximum ({UNOFFICIAL_MAX_PAGES}). "
+                            "This likely indicates that the date range is too large and that there are more results available.")
             total_pages = UNOFFICIAL_MAX_PAGES
 
         return total_pages
@@ -235,9 +236,7 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
     :param start_date: The start date for the meeting search.
     :param end_date: The end date for the meeting search.
     """
-
     try:
-
         meetings = scrape_meetings(start_date, end_date)
 
         # Delete existing meetings in the date range and their attendee_mappings via on delete cascade
@@ -247,12 +246,11 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
         for meeting in meetings:
             # Insert each meeting into the database
             insert_meeting(meeting, supabase)
-            print(
+            logging.info(
                 f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
+        return meetings
     except Exception as e:
-        print(f"Error while scraping and storing meetings: {e}")
-
-    return meetings
+        logging.error(f"Error while scraping and storing meetings: {e}")
 
 
 def insert_meeting(meeting: MEPMeeting, supabase: Client):
@@ -315,8 +313,8 @@ if __name__ == "__main__":
 
     meetings = scrape_and_store_meetings(
         start_date=datetime.date(2025, 3, 15),
-        end_date=datetime.date(2025, 3, 18)
+        end_date=datetime.date(2023, 3, 16)
     )
 
     # pprint(meetings)
-    print(f"Total meetings scraped: {len(meetings)}")
+    print(f"Total meetings scraped: {len(meetings) if meetings else 0}")

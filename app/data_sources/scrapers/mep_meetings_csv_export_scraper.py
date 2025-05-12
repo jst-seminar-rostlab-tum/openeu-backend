@@ -1,10 +1,10 @@
-import requests
-
 import csv
+import logging
 import os
 from datetime import date, datetime
-
 from typing import TypedDict
+
+import requests
 
 """
 ### Important Note - Script is discontinued ###
@@ -46,10 +46,10 @@ def __parse_meeting(raw: dict[str, str]) -> MEPMeeting:
 
 def __is_valid_date_range(start_date: date, end_date: date) -> bool:
     if not start_date or not end_date:
-        print("Invalid date range")
+        logging.error("Invalid date range")
         return False
     if start_date > end_date:
-        print("Start date is after end date")
+        logging.error("Start date is after end date")
         return False
     return True
 
@@ -68,11 +68,11 @@ def __build_meeting_url(start_date: date, end_date: date) -> str:
 def __download_csv(url: str, filename: str) -> bool:
     response = requests.get(url)
     if response.status_code != 200:
-        print(f"Failed to fetch meetings: {response.status_code}")
+        logging.error(f"Failed to fetch meetings: {response.status_code}")
         return False
     with open(filename, "wb") as f:
         f.write(response.content)
-    print(f"CSV file saved as {filename}")
+    logging.info(f"CSV file saved as {filename}")
     return True
 
 
@@ -85,7 +85,7 @@ def __parse_csv_to_meetings(filename: str) -> list:
             raw_meeting = {headers[i]: row[i] for i in range(len(headers))}
             meeting = __parse_meeting(raw_meeting)
             meetings.append(meeting)
-    print(f"Parsed {len(meetings)} meetings")
+    logging.info(f"Parsed {len(meetings)} meetings")
     return meetings
 
 
@@ -93,9 +93,9 @@ def __get_meetings_in_timespan(start_date: date, end_date: date) -> list[MEPMeet
     if not __is_valid_date_range(start_date, end_date):
         return []
 
-    print(f"Fetching meetings between {start_date} and {end_date}")
+    logging.info(f"Fetching meetings between {start_date} and {end_date}")
     url = __build_meeting_url(start_date, end_date)
-    print(f"Fetching meetings from URL: {url}")
+    logging.info(f"Fetching meetings from URL: {url}")
 
     filename = "meetings.csv"
     if not __download_csv(url, filename):
@@ -105,7 +105,7 @@ def __get_meetings_in_timespan(start_date: date, end_date: date) -> list[MEPMeet
 
     # clean up
     os.remove(filename)
-    print(f"CSV file {filename} removed")
+    logging.info(f"CSV file {filename} removed")
 
     return meetings
 
