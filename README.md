@@ -27,6 +27,10 @@ Each time a commit is pushed to the main branch, a deployment workflow is trigge
 
 The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend.onrender.com```
 
+### Environment Variables
+Please ensure that you added all necessary environment variables to production before pushing to main.
+You can add the environment variables for production [here](https://dashboard.render.com/web/srv-d0fpj1idbo4c73ankui0/env).
+
 ## Background Jobs
 In our project, each background job is associated with a dedicated API endpoint. 
 When the corresponding endpoint is triggered, the background job is executed.
