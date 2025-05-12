@@ -15,4 +15,4 @@ jobs:
     - name: Install Dependencies
       run: pip install .
     - name: Run mypy
-      run: MYPYPATH=app mypy --disallow-untyped-defs --namespace-packages --explicit-package-bases app
+      run: MYPYPATH=app mypy --disallow-untyped-defs --explicit-package-bases app
