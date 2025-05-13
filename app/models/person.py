@@ -16,10 +16,14 @@ class Person(BaseModel):  # type: ignore
     id: str = Field(alias="identifier")  # unique MEP number
     type: str  # "Person"
     label: str  # Printable name
-    family_name: str  # Last name
-    given_name: str  # First name
-    sort_label: str
+    family_name: str = Field(alias="familyName")  # Last name
+    given_name: str = Field(alias="givenName")  # First name
+    sort_label: str = Field(alias="sortLabel")
     country_of_representation: str = Field(alias="api:country-of-representation")  # Country code, e.g. "DE"
     political_group: str = Field(alias="api:political-group")
-    official_family_name: Optional[str] = None  # Last name in the official language of the MEP
-    official_given_name: Optional[str] = None  # First name in the official language of the MEP
+    official_family_name: Optional[str] = Field(
+        alias="officialFamilyName", default=None
+    )  # Last name in the official language of the MEP
+    official_given_name: Optional[str] = Field(
+        alias="officialGivenName", default=None
+    )  # First name in the official language of the MEP
