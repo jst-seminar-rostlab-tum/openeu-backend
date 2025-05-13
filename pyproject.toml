@@ -44,11 +44,6 @@ parsel = "1.10.0"
 [tool.mypy]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-files = ["app/data_sources/scrapers/bundestag_plenarprotocol_scraper.py"]
-ignore_errors = true
-
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
