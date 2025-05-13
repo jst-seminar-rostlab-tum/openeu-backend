@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Query
 
@@ -8,7 +8,7 @@ from app.models.meeting import Meeting
 router = APIRouter()
 
 
-@router.get("/meetings", response_model=List[Meeting])
+@router.get("/meetings", response_model=list[Meeting])
 def get_meetings(
     frequency: Optional[str] = Query(None, enum=["daily", "weekly", "monthly"]),
     country: Optional[str] = None,
