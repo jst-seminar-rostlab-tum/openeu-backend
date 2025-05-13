@@ -1,5 +1,5 @@
-create table people
+CREATE TABLE IF NOT EXISTS people
 (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL
 )

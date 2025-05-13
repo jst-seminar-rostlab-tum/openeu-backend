@@ -1,17 +1,32 @@
-# openeu-backend
+# ProjectEurope - OpenEU - Backend
+
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+
+[![All Contributors](https://img.shields.io/badge/all_contributors-16-orange.svg?style=flat-square)](#contributors-)
+
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 ## Installing dependencies
-- Run ```pip install .``` in root directory
+This project uses Poetry for dependency management and packaging. So in order to install all dependencies, you need to install Poetry first. To do so, follow these steps:
+- Install pipx on your computer as described [here](https://pipx.pypa.io/stable/installation/)
+- Install Poetry by running ```pipx install poetry```
+
+After that, you can install the dependencies of this project by following these steps:
+
+- Run ```pip install .```
 - Run ```pre-commit install```
 
 ## Run server
 To start the server, run this command in the root directory: ```uvicorn main:app```
 
 ## Database Schemas
+The database schema is defined inside this project and must be pushed to Supabase once 
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
 - Start Docker on your computer
-- Generate a migration file by calling ```supabase db diff -f MIGRATION_NAME```
+- Generate a migration file by calling ```supabase db diff -f <MIGRATION_NAME>```
 - Stop all local instances of Supabase and then apply the migration by calling ```supabase start && supabase migration up```
+- Login to Supabase by calling ```supabase login```
+- Link the local project to the remote database by calling ```supabase link```
 - Push the changes to the remote Supabase instance by calling ```supabase db push```
 
 ## Testing the Crawler endpoint
@@ -42,3 +57,6 @@ We use [cron-job](https://console.cron-job.org/) to automate this process, which
 If you add a new background job, please make sure to: 
 - protect the endpoint using the `get_token_header` function from [dependencies.py](./app/dependencies.py) (an example can be found [here](./app/api/crawler.py))
 - after adding the cronjob, also add it to the status page [here](https://console.cron-job.org/statuspages/26586)
+
+## Run the application
+To start the FastAPI server, run this command in the root directory inside the virtual environment: ```uvicorn main:app```

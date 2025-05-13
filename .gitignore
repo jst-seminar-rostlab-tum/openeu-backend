@@ -2,5 +2,7 @@
 .idea/
 __pycache__/
 
+supabase/.temp
+
 .env
 .DS_Store
