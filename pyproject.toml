@@ -38,6 +38,15 @@ mypy = "1.15.0"
 requests = "2.32.3"
 types-requests = "2.32.0.20250328"
 bs4 = "0.0.2"
+scrapy = "2.13.0"
+parsel = "1.10.0"
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.data_sources.*"
+ignore_errors = true
 
 
 [build-system]

@@ -1,9 +1,9 @@
-from pydantic import BaseModel
 from datetime import date
-from typing import List
+
+from pydantic import BaseModel
 
 
 class Meeting(BaseModel):
     date: date
     name: str
-    tags: List[str]
+    tags: list[str]

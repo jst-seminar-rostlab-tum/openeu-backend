@@ -24,9 +24,6 @@ After that, you can install the dependencies of this project by following these 
 - Run ```pip install .```
 - Run ```pre-commit install```
 
-## Run server
-To start the server, run this command in the root directory: ```uvicorn main:app```
-
 ## Database Schemas
 The database schema is defined inside this project and must be pushed to Supabase once 
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
