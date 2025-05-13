@@ -6,3 +6,7 @@ from app.api.crawler import router as api_crawler
 app = FastAPI()
 app.include_router(api_meetings)
 app.include_router(api_crawler)
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"message": "Hello World"}
