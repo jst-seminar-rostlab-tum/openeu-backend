@@ -45,7 +45,7 @@ parsel = "1.10.0"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "app.data_sources.*"
+files = ["app/data_sources/scrapers/bundestag_plenarprotocol_scraper.py"]
 ignore_errors = true
 
 
