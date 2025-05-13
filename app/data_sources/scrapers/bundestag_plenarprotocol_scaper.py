@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from time import sleep
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import requests
 from postgrest.exceptions import APIError
@@ -25,7 +25,7 @@ def fetch_plenarprotokolle(
     cursor: Optional[int] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch a page of plenary-protocol metadata, optionally filtered by update timestamps.
     """
