@@ -2,7 +2,7 @@
 .idea/
 __pycache__/
 supabase/.temp
-
+venv
 .env
 .DS_Store
 poetry.lock
