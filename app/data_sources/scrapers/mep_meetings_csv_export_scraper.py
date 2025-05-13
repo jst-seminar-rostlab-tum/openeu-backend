@@ -9,8 +9,9 @@ import requests
 """
 ### Important Note - Script is discontinued ###
 This script fetches from the MEP meetings search CSV export and filters them based on a date range.
-The CSV export is not practical to work with, as it does not include the meeting location - despite location being shown in the search results UI.
-Therefore, this script is discontinued in favor of a scrapy scraper and only checked into the repository for reference.
+The CSV export is not practical to work with, as it does not include the meeting location - despite location being 
+shown in the search results UI. Therefore, this script is discontinued in favor of a scrapy scraper and only checked 
+into the repository for reference.
 """
 
 
@@ -18,6 +19,7 @@ class MEPMeeting(TypedDict):
     """
     TypedDict for MEP Meeting data.
     """
+
     title: str
     member_id: str
     member_name: str
@@ -36,11 +38,9 @@ def __parse_meeting(raw: dict[str, str]) -> MEPMeeting:
         member_name=raw["member_name"],
         meeting_date=datetime.strptime(raw["meeting_date"], "%Y-%m-%d").date(),
         member_capacity=raw["member_capacity"],
-        procedure_reference=raw["procedure_reference"] if raw["procedure_reference"] != '' else None,
-        attendees=[] if raw["attendees"] == ''
-        else [a.strip() for a in raw["attendees"].split("|")],
-        lobbyist_ids=[] if raw["lobbyist_id"] == ''
-        else [a.strip() for a in raw["lobbyist_id"].split("|")],
+        procedure_reference=raw["procedure_reference"] if raw["procedure_reference"] != "" else None,
+        attendees=[] if raw["attendees"] == "" else [a.strip() for a in raw["attendees"].split("|")],
+        lobbyist_ids=[] if raw["lobbyist_id"] == "" else [a.strip() for a in raw["lobbyist_id"].split("|")],
     )
 
 
@@ -60,9 +60,7 @@ def __build_meeting_url(start_date: date, end_date: date) -> str:
         "https://www.europarl.europa.eu/meps/en/search-meetings?"
         "textualSearch=&fromDate={}&toDate={}&exportFormat=CSV"
     )
-    return url_template.format(
-        start_date.strftime(date_format), end_date.strftime(date_format)
-    )
+    return url_template.format(start_date.strftime(date_format), end_date.strftime(date_format))
 
 
 def __download_csv(url: str, filename: str) -> bool:
@@ -78,7 +76,7 @@ def __download_csv(url: str, filename: str) -> bool:
 
 def __parse_csv_to_meetings(filename: str) -> list:
     meetings = []
-    with open(filename, "r") as f:
+    with open(filename) as f:
         reader = csv.reader(f)
         headers = next(reader)
         for row in reader:
@@ -124,4 +122,4 @@ if __name__ == "__main__":
         print(f"Procedure Reference: {meeting['procedure_reference']}")
         print(f"Attendees: {meeting['attendees']}")
         print(f"Lobbyist IDs: {meeting['lobbyist_ids']}")
-        print('------------')
+        print("------------")
