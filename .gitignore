@@ -5,3 +5,4 @@ supabase/.temp
 
 .env
 .DS_Store
+poetry.lock

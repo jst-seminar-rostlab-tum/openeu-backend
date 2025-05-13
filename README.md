@@ -19,9 +19,15 @@ This project uses Poetry for dependency management and packaging. So in order to
 - Install pipx on your computer as described [here](https://pipx.pypa.io/stable/installation/)
 - Install Poetry by running ```pipx install poetry```
 
-After that, you can install the dependencies of this project by following these steps:
+After that, you can install the dependencies of this project:
 
-- Run ```pip install .```
+- Run ```poetry install```
+
+This command creates a virtual environment (if one doesn’t exist) and installs all dependencies defined in pyproject.toml. 
+To run the project, run 
+```poetry run uvicorn main:app```
+
+In order to activate pre commit hooks, you need to run the following command:
 - Run ```pre-commit install```
 
 ## Database Schemas
@@ -62,6 +68,3 @@ We use [cron-job](https://console.cron-job.org/) to automate this process, which
 If you add a new background job, please make sure to: 
 - protect the endpoint using the `get_token_header` function from [dependencies.py](./app/dependencies.py) (an example can be found [here](./app/api/crawler.py))
 - after adding the cronjob, also add it to the status page [here](https://console.cron-job.org/statuspages/26586)
-
-## Run the application
-To start the FastAPI server, run this command in the root directory inside the virtual environment: ```uvicorn main:app```
