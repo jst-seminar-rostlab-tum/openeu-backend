@@ -20,15 +20,25 @@ This project uses Poetry for dependency management and packaging. So in order to
 - Install Poetry by running ```pipx install poetry```
 
 After that, you can install the dependencies of this project:
-
-- Run ```poetry install```
+```
+poetry install
+```
 
 This command creates a virtual environment (if one doesn’t exist) and installs all dependencies defined in pyproject.toml. 
 To run the project, run 
-```poetry run uvicorn main:app```
+```
+poetry run uvicorn main:app
+```
 
 In order to activate pre commit hooks, you need to run the following command:
-- Run ```pre-commit install```
+```
+pre-commit install
+```
+
+If you want to install dependencies from `requirements.txt`, you can generate it using:
+```
+poetry export --without-hashes --format=requirements.txt --output requirements.txt
+```
 
 ## Database Schemas
 The database schema is defined inside this project and must be pushed to Supabase once 
