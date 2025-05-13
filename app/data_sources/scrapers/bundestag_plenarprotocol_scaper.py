@@ -1,9 +1,8 @@
-# mypy: ignore-errors
 import logging
 import os
 from datetime import datetime
 from time import sleep
-from typing import Any
+from typing import Any, Optional, Union
 
 import requests
 from postgrest.exceptions import APIError
@@ -16,14 +15,26 @@ API_BASE = "https://search.dip.bundestag.de/api/v1"
 API_KEY = os.getenv("BUNDESTAG_KEY")
 headers = {"Authorization": f"ApiKey {API_KEY}"}
 
+# Type aliases:
+QueryParamValue = Union[str, int, float, None]
+
 
 def fetch_plenarprotokolle(
-    page: int = 1, size: int = 100, cursor: int = None, start_date: datetime = None, end_date: datetime = None
+    page: int = 1,
+    size: int = 100,
+    cursor: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> dict[str, Any]:
     """
     Fetch a page of plenary-protocol metadata, optionally filtered by update timestamps.
     """
-    params = {"page": page, "size": size, "f.datum.start": "", "f.datum.end": ""}
+    params: dict[str, QueryParamValue] = {
+        "page": page,
+        "size": size,
+        "f.datum.start": "",
+        "f.datum.end": "",
+    }
     if cursor:
         params["cursor"] = cursor
 
@@ -67,7 +78,9 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
 
-    page, size, cursor = 1, 50, -1
+    page: int = 1
+    size: int = 50
+    cursor: Optional[int] = None
 
     while True:
         data = fetch_plenarprotokolle(page, size, cursor, start_date=start, end_date=end)
@@ -95,5 +108,6 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             upsert_record(meta)
             sleep(0.1)
 
-        cursor = data.get("cursor")
+        raw_cursor = data.get("cursor")
+        cursor = raw_cursor if isinstance(raw_cursor, int) else None
         page += 1
