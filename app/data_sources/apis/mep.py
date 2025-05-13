@@ -1,34 +1,10 @@
-from typing import Optional
-
 import requests
-from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.supabase_client import supabase
+from app.models.person import Person
 
 CURRENT_MEPS_ENDPOINT = "https://data.europarl.europa.eu/api/v2/meps/show-current"
 MEPS_TABLE_NAME = "meps"
-
-
-class Person(BaseModel):  # type: ignore
-    """
-    Model representing a Member of European Parliament (MEP).
-
-    This model contains detailed information about each MEP
-    as provided by the European Parliament API.
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str = Field(alias="identifier")  # unique MEP number
-    type: str  # "Person"
-    label: str  # Printable name
-    family_name: str  # Last name
-    given_name: str  # First name
-    sort_label: str
-    country_of_representation: str = Field(alias="api:country-of-representation")  # Country code, e.g. "DE"
-    political_group: str = Field(alias="api:political-group")
-    official_family_name: Optional[str] = None  # Last name in the official language of the MEP
-    official_given_name: Optional[str] = None  # First name in the official language of the MEP
 
 
 def fetch_current_meps() -> list[Person]:
