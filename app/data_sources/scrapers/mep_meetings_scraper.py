@@ -1,8 +1,9 @@
 import logging
 import math
 import re
+from collections.abc import Generator
 from datetime import date
-from typing import Any, Callable, Generator, List, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlencode
 
 import scrapy
@@ -12,7 +13,7 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
 from app.core.supabase_client import supabase
-from supabase import Client
+from supabase import Client  # type: ignore[attr-defined]
 
 """
 This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
@@ -45,12 +46,13 @@ class MEPMeeting(BaseModel):
         member_name: The name of the European Parliament member involved in the meeting.
         meeting_date: Date of the meeting in "YYYY-MM-DD" format.
         meeting_location: The location where the meeting took place.
-        member_capacity: The role or capacity in which the member participated, e.g., "Member", "Committee chair", or "Shadow rapporteur"
-        procedure_reference: Reference to the parliamentary procedure related to the meeting, if any.
+        member_capacity: The role or capacity in which the member participated, e.g., "Member", "Committee chair", or
+        "Shadow rapporteur" procedure_reference: Reference to the parliamentary procedure related to the meeting, if any
             Typically an Interinstitutional Procedure Identifier like "2023/0001(COD)".
         associated_committee_or_delegation: The committee or delegation associated with the meeting.
         attendees: List of attendees at the meeting.
     """
+
     title: str
     member_name: str
     meeting_date: str
@@ -59,7 +61,8 @@ class MEPMeeting(BaseModel):
     procedure_reference: Optional[str]
     associated_committee_or_delegation_code: Optional[str]
     associated_committee_or_delegation_name: Optional[str]
-    attendees: List[MEPMeetingAttendee]
+    attendees: list[MEPMeetingAttendee]
+
 
 # ------------------------------
 # Scrapy Spider
@@ -68,16 +71,17 @@ class MEPMeeting(BaseModel):
 
 class MEPMeetingsSpider(scrapy.Spider):
     name = "meetings_spider"
-    custom_settings = {'LOG_LEVEL': 'ERROR'}
+    custom_settings = {"LOG_LEVEL": "ERROR"}
 
-    def __init__(self, start_date: date, end_date: date, result_callback: Optional[Callable[[List[MEPMeeting]], None]] = None):
+    def __init__(
+        self, start_date: date, end_date: date, result_callback: Optional[Callable[[list[MEPMeeting]], None]] = None
+    ):
         super().__init__()
         self.base_url = "https://www.europarl.europa.eu/meps/en/search-meetings?"
         self.start_date: date = start_date
         self.end_date: date = end_date
-        self.result_callback: Optional[Callable[[
-            List[MEPMeeting]], None]] = result_callback
-        self.meetings: List[MEPMeeting] = []
+        self.result_callback: Optional[Callable[[list[MEPMeeting]], None]] = result_callback
+        self.meetings: list[MEPMeeting] = []
 
     def start_requests(self) -> Generator[scrapy.Request, Any, None]:
         yield self.scrape_page(0)
@@ -93,7 +97,9 @@ class MEPMeetingsSpider(scrapy.Spider):
             "toDate": self.end_date.strftime("%d/%m/%Y"),
             "page": page,
         }
-        return scrapy.Request(url=self.base_url + urlencode(params), callback=self.parse_search_results_page, meta={'page': page})
+        return scrapy.Request(
+            url=self.base_url + urlencode(params), callback=self.parse_search_results_page, meta={"page": page}
+        )
 
     def closed(self, reason):
         """Called when the spider is closed. Returns the results via the result_callback."""
@@ -112,7 +118,7 @@ class MEPMeetingsSpider(scrapy.Spider):
             meeting = self.parse_meeting(meeting_sel)
             self.meetings.append(meeting)
 
-        current_page = response.meta['page']
+        current_page = response.meta["page"]
         if current_page < total_pages:
             yield self.scrape_page(current_page + 1)
 
@@ -122,29 +128,35 @@ class MEPMeetingsSpider(scrapy.Spider):
         :param response: The response object from the search results page.
         :return: The total number of pages.
         """
-        NUM_RESULTS_PER_PAGE = 10
-        MAX_RESULTS_PER_QUERY = 10000
+        num_results_per_page = 10
+        max_results_per_query = 10000
         # although website states 10000 results maximum, &page=51 returns an error
-        UNOFFICIAL_MAX_PAGES = 51
+        unofficial_max_pages = 51
 
-        result_text = response.css(
-            "#meetingSearchResultCounterText::text").get()
+        result_text = response.css("#meetingSearchResultCounterText::text").get()
         # example text: "Showing 10 of 100 results"
         total_results = 0
         if result_text:
-            match = re.search(r'of (\d+)', result_text)
+            match = re.search(r"of (\d+)", result_text)
             if match:
                 total_results = int(match.group(1))
-        total_pages = math.ceil(total_results / NUM_RESULTS_PER_PAGE)
+        total_pages = math.ceil(total_results / num_results_per_page)
 
-        is_first_page = response.meta['page'] == 0
-        if is_first_page and total_results == MAX_RESULTS_PER_QUERY:
-            logging.warning(f"Warning: The number of results is the maximum possible ({MAX_RESULTS_PER_QUERY}). "
-                            "This likely indicates that the date range is too large and that there are more results available.")
-        if is_first_page and total_pages > UNOFFICIAL_MAX_PAGES:
-            logging.warning(f"Warning: The number of pages is larger than the unofficial maximum ({UNOFFICIAL_MAX_PAGES}). "
-                            "This likely indicates that the date range is too large and that there are more results available.")
-            total_pages = UNOFFICIAL_MAX_PAGES
+        is_first_page = response.meta["page"] == 0
+        if is_first_page and total_results == max_results_per_query:
+            logging.warning(
+                f"Warning: The number of results is the maximum possible ({max_results_per_query}). "
+                "This likely indicates that the date range is too large and that there are more results "
+                "available."
+            )
+        if is_first_page and total_pages > unofficial_max_pages:
+            logging.warning(
+                f"Warning: The number of pages is larger than the unofficial maximum "
+                f"({unofficial_max_pages}). "
+                "This likely indicates that the date range is too large and that there are more results"
+                " available."
+            )
+            total_pages = unofficial_max_pages
 
         return total_pages
 
@@ -154,6 +166,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         :param sel: The selector for the meeting entry.
         :return: A Meeting object.
         """
+
         def extract_text(css_sel):
             return sel.css(css_sel + "::text").get(default="").strip()
 
@@ -179,8 +192,7 @@ class MEPMeetingsSpider(scrapy.Spider):
             name_from_span = node.css("::text").get(default="").strip()
             name = name_from_link or name_from_span
 
-            attendees.append(
-                MEPMeetingAttendee(name=name, transparency_register_url=transparancy_register_url))
+            attendees.append(MEPMeetingAttendee(name=name, transparency_register_url=transparancy_register_url))
 
         return MEPMeeting(
             title=title,
@@ -191,15 +203,16 @@ class MEPMeetingsSpider(scrapy.Spider):
             procedure_reference=procedure_code if procedure_code else None,
             associated_committee_or_delegation_code=associated_cmte_code if associated_cmte_code else None,
             associated_committee_or_delegation_name=associated_cmte_name if associated_cmte_name else None,
-            attendees=attendees
+            attendees=attendees,
         )
+
 
 # ------------------------------
 # Scraping Function
 # ------------------------------
 
 
-def scrape_meetings(start_date: date, end_date: date) -> List[MEPMeeting]:
+def scrape_meetings(start_date: date, end_date: date) -> list[MEPMeeting]:
     """
     Scrape meetings from the European Parliament website.
 
@@ -216,11 +229,8 @@ def scrape_meetings(start_date: date, end_date: date) -> List[MEPMeeting]:
     def collect_results(meetings):
         results.extend(meetings)
 
-    process = CrawlerProcess(settings={'USER_AGENT': 'Mozilla/5.0'})
-    process.crawl(MEPMeetingsSpider,
-                  start_date=start_date,
-                  end_date=end_date,
-                  result_callback=collect_results)
+    process = CrawlerProcess(settings={"USER_AGENT": "Mozilla/5.0"})
+    process.crawl(MEPMeetingsSpider, start_date=start_date, end_date=end_date, result_callback=collect_results)
     process.start()
 
     return results
@@ -229,6 +239,7 @@ def scrape_meetings(start_date: date, end_date: date) -> List[MEPMeeting]:
 # ------------------------------
 # Database Functions
 # ------------------------------
+
 
 def scrape_and_store_meetings(start_date: date, end_date: date):
     """
@@ -240,14 +251,12 @@ def scrape_and_store_meetings(start_date: date, end_date: date):
         meetings = scrape_meetings(start_date, end_date)
 
         # Delete existing meetings in the date range and their attendee_mappings via on delete cascade
-        supabase.table("mep_meetings").delete().gte(
-            "meeting_date", start_date).lte("meeting_date", end_date).execute()
+        supabase.table("mep_meetings").delete().gte("meeting_date", start_date).lte("meeting_date", end_date).execute()
 
         for meeting in meetings:
             # Insert each meeting into the database
             insert_meeting(meeting, supabase)
-            logging.info(
-                f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
+            logging.info(f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
         return meetings
     except Exception as e:
         logging.error(f"Error while scraping and storing meetings: {e}")
@@ -270,10 +279,9 @@ def insert_meeting(meeting: MEPMeeting, supabase: Client):
         attendee_id = create_or_get_existing_attendee_id(attendee, supabase)
 
         # Map attendee to meeting
-        supabase.table("mep_meeting_attendee_mapping").insert({
-            "meeting_id": meeting_id,
-            "attendee_id": attendee_id
-        }).execute()
+        supabase.table("mep_meeting_attendee_mapping").insert(
+            {"meeting_id": meeting_id, "attendee_id": attendee_id}
+        ).execute()
 
 
 def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: Client) -> str:
@@ -283,22 +291,28 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
     :return: The ID of the attendee.
     """
     if attendee.transparency_register_url:
-        existing_attendee_id = supabase.table("mep_meeting_attendees").select("id").eq(
-            "transparency_register_url", attendee.transparency_register_url).limit(1).execute()
+        existing_attendee_id = (
+            supabase.table("mep_meeting_attendees")
+            .select("id")
+            .eq("transparency_register_url", attendee.transparency_register_url)
+            .limit(1)
+            .execute()
+        )
     else:
         # Fallback: try by name if URL missing (not ideal for deduplication)
-        existing_attendee_id = supabase.table("mep_meeting_attendees").select(
-            "id").eq("name", attendee.name).limit(1).execute()
+        existing_attendee_id = (
+            supabase.table("mep_meeting_attendees").select("id").eq("name", attendee.name).limit(1).execute()
+        )
 
     if existing_attendee_id.data:
         attendee_id = existing_attendee_id.data[0]["id"]
     else:
         # Insert new attendee
-        result = supabase.table(
-            "mep_meeting_attendees").insert(attendee.model_dump()).execute()
+        result = supabase.table("mep_meeting_attendees").insert(attendee.model_dump()).execute()
         attendee_id = result.data[0]["id"]
 
     return attendee_id
+
 
 # ------------------------------
 # Main Function for Testing
@@ -307,14 +321,10 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
 
 if __name__ == "__main__":
     import datetime
-    from pprint import pprint
 
     print("Scraping meetings...")
 
-    meetings = scrape_and_store_meetings(
-        start_date=datetime.date(2025, 3, 15),
-        end_date=datetime.date(2023, 3, 16)
-    )
+    meetings = scrape_and_store_meetings(start_date=datetime.date(2025, 3, 15), end_date=datetime.date(2023, 3, 16))
 
     # pprint(meetings)
     print(f"Total meetings scraped: {len(meetings) if meetings else 0}")

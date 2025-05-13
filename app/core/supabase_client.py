@@ -1,11 +1,6 @@
-import os
+from app.core.config import Settings
+from supabase import Client, create_client  # type: ignore[attr-defined]
 
-from dotenv import load_dotenv
-from supabase import Client, create_client
+settings = Settings()
 
-load_dotenv()
-
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-
-supabase: Client = create_client(url, key)
+supabase: Client = create_client(settings.get_supabase_project_url(), settings.get_supabase_api_key())
