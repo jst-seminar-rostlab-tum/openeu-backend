@@ -6,6 +6,14 @@
 
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
+## 📘 Swagger UI & OpenAPI Docs
+
+You can test and explore the API via:
+
+- 🧪 Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- 📕 ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- 🧾 OpenAPI JSON: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+
 ## Installing dependencies
 This project uses Poetry for dependency management and packaging. So in order to install all dependencies, you need to install Poetry first. To do so, follow these steps:
 - Install pipx on your computer as described [here](https://pipx.pypa.io/stable/installation/)

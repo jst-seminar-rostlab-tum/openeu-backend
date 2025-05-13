@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-from app.api import crawler
+
+from app.api.routes import router as api_router
 
 app = FastAPI()
-app.include_router(crawler.router)
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    return {"message": "Hello World"}
+app.include_router(api_router)
