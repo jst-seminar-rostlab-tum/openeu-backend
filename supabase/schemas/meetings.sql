@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS meetings
+(
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+)
