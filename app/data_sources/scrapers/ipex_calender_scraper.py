@@ -1,33 +1,15 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Any, Optional
+from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
+import json
+import os
 import logging
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    TimeoutException,
-    ElementClickInterceptedException,
-)
+import requests
 from app.core.supabase_client import supabase
 
-IPEX_CALENDAR_URL = "https://ipexl.europarl.europa.eu/IPEXL-WEB/calendar"
+# Endpoint for calendar events
+IPEX_BASE_URL = "https://ipex.eu/IPEXL-WEB/api/search/event?appLng=EN"
 EVENTS_TABLE_NAME = "ipex_events"
-
-# Request headers to mimic normal browser
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Cache-Control": "max-age=0",
-    "X-Requested-With": "XMLHttpRequest",
-}
 
 # Configure logging
 logging.basicConfig(
@@ -49,245 +31,182 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-
-    # Date fields - different events have different date formats
     start_date: Optional[str] = None  # Start date of the event
     end_date: Optional[str] = None  # End date of the event
-    single_date: Optional[str] = (
-        None  # Used when event has a single date (not start/end)
-    )
-    event_time: Optional[str] = None  # Time of the event (e.g., "14:30")
-
-    meeting_location: str = None  # Location where the event takes place
-
-    tags: Optional[List[str]] = None  # Tags/keywords shown as buttons on the event page
+    meeting_location: Optional[str] = None  # Location where the event takes place
+    tags: Optional[List[str]] = None  # Tags/keywords from shared labels
 
 
-class IPEXCalendarScraper:
+class IPEXCalendarAPIScraper:
     """
-    Scraper for calendar events from the IPEX website using Selenium.
+    Scraper for calendar events from the IPEX API using POST requests.
     """
 
-    def __init__(self):
-        """Initialize the scraper with Selenium WebDriver."""
+    def __init__(
+        self, start_date: Optional[date] = None, end_date: Optional[date] = None
+    ):
+        """Initialize the scraper."""
         self.events = []
-        self.processed_event_ids = set()  # Track already processed event IDs
-        self.driver = self._setup_driver()
-        self.last_event_count = (
-            0  # Track number of events to detect when no new ones are loaded
+        self.start_date = start_date
+        self.end_date = end_date
+        self.session = requests.Session()
+
+        # Configure Request headers
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            }
         )
 
-    def _setup_driver(self) -> webdriver.Chrome:
+    def _build_request_payload(self, page_number: int) -> Dict[str, Any]:
         """
-        Set up and configure the Chrome WebDriver optimized for cloud/headless use.
-        """
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--window-size=1366,768")
-        chrome_options.add_argument(f"user-agent={HEADERS['User-Agent']}")
+        Build the POST request payload for fetching events.
 
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=chrome_options)
+        Args:
+            page_number: The page number to fetch
+
+        Returns:
+            Dictionary containing the request payload
+        """
+        payload = {
+            "pageNumber": page_number,
+            "filters": {"type": ["calendarevent"]},
+            "sort": {"startDate": "DESC"},
+        }
+
+        # Add date range filter if provided
+        if self.start_date and self.end_date:
+            date_range = [
+                self.start_date.strftime("%Y-%m-%d"),
+                self.end_date.strftime("%Y-%m-%d"),
+            ]
+            payload["filters"]["startDateByDateRange"] = date_range
+
+        return payload
+
+    def _parse_event(self, event_data: Dict[str, Any]) -> Optional[IPEXEvent]:
+        """
+        Parse a single event from the API response.
+
+        Args:
+            event_data: Raw event data from API response
+
+        Returns:
+            Parsed IPEXEvent object or None if parsing fails
+        """
+        try:
+            source_map = event_data.get("sourceAsMap", {})
+            fields = event_data.get("fields", {})
+
+            # Extract event ID from link field
+            link_field = fields.get("link", {})
+            link_value = link_field.get("value", "")
+            event_id = link_value.split("/")[-1] if link_value else ""
+
+            # Extract title
+            titles = source_map.get("titles", [])
+            title = ""
+            if titles and len(titles) > 0:
+                title = titles[0].get("message", "")
+
+            # Extract dates and remove time component
+            start_date = source_map.get("startDate")
+            if start_date:
+                start_date = start_date.split(" ")[0]  # Keep only date part
+
+            end_date = source_map.get("endDate")
+            if end_date:
+                end_date = end_date.split(" ")[0]  # Keep only date part
+
+            # Extract location
+            address = source_map.get("address")
+
+            # Extract tags from shared labels
+            shared_items = source_map.get("shared", [])
+            tags = []
+            for shared_item in shared_items:
+                labels = shared_item.get("labels", [])
+                for label in labels:
+                    if label.get("language") == "EN":
+                        tags.append(label.get("message", ""))
+
+            return IPEXEvent(
+                identifier=event_id,
+                title=title.strip() if title else "",
+                start_date=start_date,
+                end_date=end_date,
+                meeting_location=address.strip() if address else None,
+                tags=tags if tags else None,
+            )
+
+        except Exception as e:
+            logger.error(f"Error parsing event: {e}")
+            return None
 
     def scrape(self):
         """
-        Scrape all calendar events from the IPEX website by loading more events
-        until all are retrieved.
+        Scrape all calendar events from IPEX using POST requests.
         """
-        try:
-            # Load the page
-            self.driver.get(IPEX_CALENDAR_URL)
+        page_number = 1
+        total_events_processed = 0
 
-            # Wait for the initial event cards to be loaded
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".ipx-card-list"))
-            )
+        logger.info("Starting IPEX calendar scraping via API...")
 
-            # Keep track of consecutive attempts with no new events
-            no_new_events_count = 0
-            max_no_new_events = (
-                3  # Stop after 3 consecutive attempts with no new events
-            )
+        while True:
+            try:
+                # Build request payload
+                payload = self._build_request_payload(page_number)
 
-            while True:
-                # Get the current count of processed events
-                current_count = len(self.processed_event_ids)
+                # Make POST request
+                response = self.session.post(IPEX_BASE_URL, json=payload)
+                response.raise_for_status()
 
-                # Process visible events
-                self._process_visible_events()
+                # Parse response
+                data = response.json()
+                hits = data.get("hits", {}).get("hits", [])
 
-                # Check if we found new events
-                if len(self.processed_event_ids) > current_count:
-                    # Reset counter if we found new events
-                    no_new_events_count = 0
-                    logger.info(
-                        f"Found {len(self.processed_event_ids) - current_count} new events"
-                    )
-                else:
-                    # Increment counter if no new events were found
-                    no_new_events_count += 1
-                    logger.info(
-                        f"No new events found. Attempt {no_new_events_count}/{max_no_new_events}"
-                    )
-
-                # Try to click "LOAD MORE" button
-                if not self._click_load_more_button():
-                    logger.info("No 'LOAD MORE' button found - reached the end")
+                # If no hits, we've reached the end
+                if not hits:
+                    logger.info(f"No more events found at page {page_number}")
                     break
 
-                # Exit if we've had too many attempts with no new events
-                if no_new_events_count >= max_no_new_events:
+                # Process events from this page
+                events_on_page = 0
+                for i, event_data in enumerate(hits):
                     logger.info(
-                        f"No new events after {max_no_new_events} attempts - stopping"
+                        f"Processing event {i+1}/{len(hits)} on page {page_number}"
                     )
-                    break
+                    parsed_event = self._parse_event(event_data)
+                    if parsed_event:
+                        self.events.append(parsed_event.model_dump())
+                        events_on_page += 1
 
-            logger.info(f"Total events scraped: {len(self.events)}")
-
-            # Store events in DB
-            self._store_events()
-
-        finally:
-            self.driver.quit()
-
-    def _process_visible_events(self):
-        """
-        Process all currently visible event cards on the page.
-        Only processes events that haven't been processed before.
-        """
-        # Get all event cards
-        event_cards = self.driver.find_elements(By.CSS_SELECTOR, ".ipx-card-content")
-
-        # Track how many new events we process in this batch
-        new_events_count = 0
-
-        for card in event_cards:
-            try:
-                # Extract event ID from the href attribute
-                event_url = card.get_attribute("href")
-                event_id = event_url.split("/")[-2] if event_url else None
-
-                # Skip if we've already processed this event
-                if not event_id or event_id in self.processed_event_ids:
-                    continue
-
-                # Add to processed set
-                self.processed_event_ids.add(event_id)
-                new_events_count += 1
-
-                # Extract event details
-                title = card.find_element(By.CSS_SELECTOR, "h3.ipx-card-title").text
-
-                try:
-                    description = card.find_element(
-                        By.CSS_SELECTOR, "p.ipx-card-description"
-                    ).text
-                except NoSuchElementException:
-                    description = ""
-
-                # Extract location - handle possible missing elements
-                try:
-                    location = card.find_element(
-                        By.CSS_SELECTOR, ".ipx-card-footer span:last-child"
-                    ).text
-                except NoSuchElementException:
-                    location = None
-
-                # Extract tags
-                tags = [
-                    tag.text
-                    for tag in card.find_elements(By.CSS_SELECTOR, ".badge.badge-home")
-                ]
-
-                # Parse date information
-                date_info = self._parse_date_info(description) if description else {}
-
-                # Create event object
-                event = IPEXEvent(
-                    identifier=event_id,
-                    title=title.strip() if title else "",
-                    meeting_location=location.strip() if location else None,
-                    tags=tags,
-                    **date_info,
+                total_events_processed += events_on_page
+                logger.info(
+                    f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})"
                 )
 
-                self.events.append(event.model_dump())
+                # Move to next page
+                page_number += 1
 
+            except requests.RequestException as e:
+                logger.error(f"Network error on page {page_number}: {e}")
+                break
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error on page {page_number}: {e}")
+                break
             except Exception as e:
-                logger.error(f"Error processing event card: {e}")
-                continue
+                logger.error(f"Unexpected error on page {page_number}: {e}")
+                break
 
-        logger.info(f"Processed {new_events_count} new events in this batch")
+        logger.info(f"Scraping completed. Total events: {len(self.events)}")
 
-    def _click_load_more_button(self) -> bool:
-        """
-        Scroll to the bottom of the page and click the "LOAD MORE" button if available.
-
-        Returns:
-            True if the button was clicked successfully, False otherwise
-        """
-        try:
-            # Scroll down to the bottom to ensure the "LOAD MORE" button is in the viewport
-            self.driver.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);"
-            )
-
-            # Try to find the "LOAD MORE" button
-            load_more_button = WebDriverWait(self.driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn-load"))
-            )
-
-            # Scroll directly to the button
-            self.driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", load_more_button
-            )
-
-            # Try to click the button
-            load_more_button.click()
-
-            return True
-
-        except (NoSuchElementException, TimeoutException):
-            # No more "LOAD MORE" button found
-            return False
-        except ElementClickInterceptedException:
-            # The button might be intercepted by another element
-            try:
-                # Try using JavaScript click as an alternative
-                load_more_button = self.driver.find_element(
-                    By.CSS_SELECTOR, ".loadMoreContainer button"
-                )
-                self.driver.execute_script("arguments[0].click();", load_more_button)
-                return True
-            except Exception as e:
-                logger.error(f"Failed to click 'LOAD MORE' button: {e}")
-                return False
-
-    def _parse_date_info(self, date_str: str) -> Dict[str, Optional[str]]:
-        """
-        Parse the date string from the event description.
-
-        Args:
-            date_str: String containing date information
-
-        Returns:
-            Dictionary containing parsed date information
-        """
-        date_str = date_str.strip()
-
-        # Handle different date formats
-        if " - " in date_str:  # Single date with time
-            date_part, time_part = date_str.split(" - ")
-            return {"single_date": date_part.strip(), "event_time": time_part.strip()}
-        elif "-" in date_str:  # Date range
-            start, end = date_str.split("-")
-            return {"start_date": start.strip(), "end_date": end.strip()}
-        else:  # Single date
-            return {"single_date": date_str.strip()}
+        # Store events in database
+        self._store_events()
 
     def _store_events(self):
         """Store scraped events in Supabase database."""
@@ -305,11 +224,23 @@ class IPEXCalendarScraper:
             logger.error(f"Error storing events in Supabase: {e}")
 
 
-def run_scraper():
-    """Run the IPEX calendar scraper."""
-    scraper = IPEXCalendarScraper()
+def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
+    """
+    Run the IPEX calendar API scraper with optional date range filtering.
+
+    Args:
+        start_date: Optional start date for filtering events
+        end_date: Optional end date for filtering events
+    """
+    scraper = IPEXCalendarAPIScraper(start_date=start_date, end_date=end_date)
     scraper.scrape()
 
 
 if __name__ == "__main__":
+    # Example usage with date range
+    # start = date(2025, 5, 1)
+    # end = date(2025, 5, 31)
+    # run_scraper(start_date=start, end_date=end)
+
+    # Or run without date range to get all events
     run_scraper()
