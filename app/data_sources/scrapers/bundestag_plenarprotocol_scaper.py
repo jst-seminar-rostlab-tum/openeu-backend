@@ -20,6 +20,7 @@ QueryParamValue = Union[str, int, float, None]
 
 
 def fetch_plenarprotokolle(
+    endpoint: str,
     page: int = 1,
     size: int = 100,
     cursor: Optional[int] = None,
@@ -44,34 +45,28 @@ def fetch_plenarprotokolle(
     if end_date:
         params["f.datum.end"] = end_date.strftime("%Y-%m-%d")
 
-    resp = requests.get(f"{API_BASE}/plenarprotokoll", headers=headers, params=params)
+    resp = requests.get(f"{API_BASE}/{endpoint}", headers=headers, params=params)
     resp.raise_for_status()
     return resp.json()
 
 
-def fetch_protocol_text(protocol_id: str) -> dict[str, Any]:
-    resp = requests.get(f"{API_BASE}/plenarprotokoll-text/{protocol_id}", headers=headers)
+def fetch_protocol_text(
+    protocol_id: str,
+    endpoint: str,
+) -> dict[str, Any]:
+    resp = requests.get(f"{API_BASE}/{endpoint}/{protocol_id}", headers=headers)
     resp.raise_for_status()
     return resp.json()
 
 
-def upsert_record(record: dict[str, Any]) -> None:
+def upsert_record(record: dict[str, Any], table: str) -> None:
     try:
-        supabase.table("plenarprotokolle").upsert(record).execute()
+        supabase.table(table).upsert(record).execute()
         logging.info(f"Upserted {record['id']}")
     except APIError as e:
         logging.error(f"Supabase APIError: {e}")
     except Exception as e:
         logging.error(f"Unexpected error during upsert for {record.get('id', '?')}: {e}")
-
-
-def in_date_range(datum_str: str, start: datetime, end: datetime) -> bool:
-    try:
-        d = datetime.fromisoformat(datum_str).date()
-    except ValueError:
-        logging.warning(f"Invalid date format: {datum_str}")
-        return False
-    return start.date() <= d <= end.date()
 
 
 def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
@@ -83,7 +78,9 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
     cursor: Optional[int] = None
 
     while True:
-        data = fetch_plenarprotokolle(page, size, cursor, start_date=start, end_date=end)
+        data = fetch_plenarprotokolle(
+            endpoint="plenarprotokoll", page=page, size=size, cursor=cursor, start_date=start, end_date=end
+        )
         items = data.get("documents", [])
         if not items:
             logging.info("Finished: no more documents.")
@@ -92,7 +89,7 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
         for item in items:
             pid = item["id"]
             datum_str = item.get("datum")
-            if not datum_str or not in_date_range(datum_str, start, end):
+            if not datum_str:
                 continue
 
             meta = {
@@ -102,10 +99,10 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
                 "sitzungsbemerkung": item.get("sitzungsbemerkung") or None,
             }
 
-            text_json = fetch_protocol_text(pid)
+            text_json = fetch_protocol_text(pid, endpoint="plenarprotokoll-text")
             meta["text"] = text_json.get("text", "")
 
-            upsert_record(meta)
+            upsert_record(meta, "bt_plenarprotokolle")
             sleep(0.1)
 
         raw_cursor = data.get("cursor")
