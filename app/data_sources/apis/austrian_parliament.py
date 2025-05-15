@@ -65,25 +65,22 @@ class AustrianParliamentAPI:
         params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"}
 
         # Prepare request body
-        body: dict[str, list[str]] = {"SICHT": ["S"], "VERFUEGBAR": ["J"]}
+        body: dict[str, list[str]] = {"DATERANGE": [None, None]}
 
         # Add date range if specified
         if start_date or end_date:
-            date_range = []
 
             if start_date:
-                date_range.append(start_date.isoformat())
-                logger.info(f"Using start date: {start_date.isoformat()}")
-            else:
-                date_range.append(None)
+                # Format start date with T22:00:00.000Z suffix as required by the API
+                start_date_str = f"{start_date.isoformat()}T22:00:00.000Z"
+                body["DATERANGE"][0] = start_date_str
+                logger.info(f"Using start date: {start_date_str}")
 
             if end_date:
-                date_range.append(end_date.isoformat())
-                logger.info(f"Using end date: {end_date.isoformat()}")
-            else:
-                date_range.append(None)
-
-            body["DATERANGE"] = date_range
+                # Format end date with T23:59:59.999Z suffix as required by the API
+                end_date_str = f"{end_date.isoformat()}T23:59:59.999Z"
+                body["DATERANGE"][1] = end_date_str
+                logger.info(f"Using end date: {end_date_str}")
 
         try:
             # Make request to API
@@ -236,5 +233,5 @@ def run_client(start_date: Optional[date] = None, end_date: Optional[date] = Non
 
 if __name__ == "__main__":
     # Example usage
-    run_client(start_date=date(2025, 5, 1), end_date=date(2025, 5, 2))
-    #run_client()
+    run_client(start_date=date(2020, 1, 1))
+    # run_client()
