@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -113,7 +114,7 @@ class AustrianParliamentAPI:
 
         Args:
             response_text: Raw API response text
-
+            
         Returns:
             List of Meeting objects
         """
@@ -135,9 +136,9 @@ class AustrianParliamentAPI:
             if not meetings_data:
                 logger.info("No meetings found in the response")
                 return []
-
+                
             logger.info(f"Found {len(meetings_data)} meetings in the response")
-
+            
             # Process each meeting
             for i, meeting_data in enumerate(meetings_data):
                 if len(meeting_data) >= 4:
@@ -145,26 +146,52 @@ class AustrianParliamentAPI:
                         # Extract date (first element) and title (fourth element)
                         date_str = meeting_data[0]
                         title = meeting_data[3]
-
+                        
+                        # Clean up the title
+                        title = self._clean_title(title)
+                        
                         # Parse date from DD.MM.YYYY format
                         day, month, year = map(int, date_str.split("."))
                         meeting_date = date(year, month, day)
-
+                        
                         meetings.append(Meeting(date=meeting_date, name=title, tags=[]))
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing meeting at index {i}: {e}")
                         continue
                 else:
                     logger.warning(f"Meeting data at index {i} has insufficient elements")
-
+            
             return meetings
-
+            
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
 
         except Exception as e:
             logger.error(f"Error parsing response: {e}")
             return []
+
+    def _clean_title(self, title: str) -> str:
+        """Clean up the meeting title.
+        
+        Args:
+            title: Raw meeting title
+            
+        Returns:
+            Cleaned meeting title
+        """
+        if not title:
+            return ""
+            
+        # Replace HTML non-breaking space entities with regular spaces
+        title = title.replace("&nbsp;", " ")
+        
+        # Remove leading dot and space (e.g., ". Sitzung")
+        title = re.sub(r'^(\. )', '', title)
+        
+        # Remove any extra whitespace
+        title = " ".join(title.split())
+        
+        return title
 
     def _save_to_json(self, meetings: list[Meeting]) -> None:
         """Save meetings to a JSON file.
@@ -209,5 +236,5 @@ def run_client(start_date: Optional[date] = None, end_date: Optional[date] = Non
 
 if __name__ == "__main__":
     # Example usage
-    # run_client(start_date=date(2025, 5, 15), end_date=date(2025, 6, 30))
-    run_client()
+    run_client(start_date=date(2025, 5, 1), end_date=date(2025, 5, 2))
+    #run_client()
