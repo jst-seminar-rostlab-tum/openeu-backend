@@ -1,10 +1,11 @@
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
-from pydantic import BaseModel, ConfigDict, Field
 import json
-import os
 import logging
+from datetime import date
+from typing import Any, Optional
+
 import requests
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.supabase_client import supabase
 
 # Endpoint for calendar events
@@ -34,7 +35,7 @@ class IPEXEvent(BaseModel):
     start_date: Optional[str] = None  # Start date of the event
     end_date: Optional[str] = None  # End date of the event
     meeting_location: Optional[str] = None  # Location where the event takes place
-    tags: Optional[List[str]] = None  # Tags/keywords from shared labels
+    tags: Optional[list[str]] = None  # Tags/keywords from shared labels
 
 
 class IPEXCalendarAPIScraper:
@@ -46,7 +47,7 @@ class IPEXCalendarAPIScraper:
         self, start_date: Optional[date] = None, end_date: Optional[date] = None
     ):
         """Initialize the scraper."""
-        self.events = []
+        self.events: list[dict[str, Any]] = []
         self.start_date = start_date
         self.end_date = end_date
         self.session = requests.Session()
@@ -54,7 +55,8 @@ class IPEXCalendarAPIScraper:
         # Configure Request headers
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                      (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Accept": "application/json, text/plain, */*",
                 "Accept-Language": "en-US,en;q=0.5",
                 "Content-Type": "application/json",
@@ -62,7 +64,7 @@ class IPEXCalendarAPIScraper:
             }
         )
 
-    def _build_request_payload(self, page_number: int) -> Dict[str, Any]:
+    def _build_request_payload(self, page_number: int) -> dict[str, Any]:
         """
         Build the POST request payload for fetching events.
 
@@ -72,7 +74,7 @@ class IPEXCalendarAPIScraper:
         Returns:
             Dictionary containing the request payload
         """
-        payload = {
+        payload: dict[str, Any] = {
             "pageNumber": page_number,
             "filters": {"type": ["calendarevent"]},
             "sort": {"startDate": "DESC"},
@@ -88,7 +90,7 @@ class IPEXCalendarAPIScraper:
 
         return payload
 
-    def _parse_event(self, event_data: Dict[str, Any]) -> Optional[IPEXEvent]:
+    def _parse_event(self, event_data: dict[str, Any]) -> Optional[IPEXEvent]:
         """
         Parse a single event from the API response.
 
