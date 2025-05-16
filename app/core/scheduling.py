@@ -33,11 +33,15 @@ class ScheduledJob:
 class JobScheduler:
     def __init__(self):
         self.jobs: dict[str, ScheduledJob] = {}
+        self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def register(self, name: str, func: Callable, interval_minutes: int):
         if interval_minutes % 10 != 0:
             raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
+        if name in self.job_names:
+            raise ValueError(f"Job '{name}' is already registered, name must be unique.")
+        self.job_names.add(name)
         self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes))
         self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
 
