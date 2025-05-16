@@ -1,4 +1,5 @@
 import re
+from typing import cast
 
 from deepl import TextResult, Translator
 
@@ -28,4 +29,4 @@ class DeepLBatchTranslator:
     def translate(self, text: str) -> TextResult:
         cleaned_text = TextPreprocessor.clean(text)
         result = self.translator.translate_text(cleaned_text, target_lang="EN-US")
-        return result
+        return cast(TextResult, result)
