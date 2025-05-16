@@ -14,6 +14,34 @@ You can test and explore the API via:
 - 📕 ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 - 🧾 OpenAPI JSON: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
 
+## 📦 Project Structure
+
+```
+openeu-backend/
+├── app/
+│   ├── api/
+│   │   └── meetings.py              # REST API endpoints using FastAPI
+│   ├── core/
+│   │   ├── config.py              # Loads environment variables, has a Settings class that contains all env vars we need
+│   │   └── supabase_client.py     # Initializes Supabase client
+│   ├── data_sources/
+│   │   ├── scrapers/
+│   │   │   └── site1-scraper.py           # Scraper for website 1
+│   │   ├── apis/
+│   │   │   └── source1_api.py     # Fetcher for API-based source 1
+│   │   └── task_runner.py        # Aggregates all sources (scrapers + APIs)
+├── scripts/
+│   └── run_job.py               # script for running task_runner
+├── supabase/
+│   ├── schemas/
+│   │   ├── meetings.sql
+├── main.py                        # FastAPI application entrypoint
+├── .gitignore
+├── .env
+├── pyproject.toml                  # Poetry configuration file
+└── README.md
+```
+
 ## Installing dependencies
 This project uses Poetry for dependency management and packaging. So in order to install all dependencies, you need to install Poetry first. To do so, follow these steps:
 - Install pipx on your computer as described [here](https://pipx.pypa.io/stable/installation/)
