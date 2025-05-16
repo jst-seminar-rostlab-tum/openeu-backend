@@ -17,10 +17,16 @@ class TextPreprocessor:
         return text
 
 
-class DeepLBatchTranslator:
+class DeepLTranslator:
     """
     Translates arbitrary text to English using DeepL.
-    Handles batching and cost optimization.
+
+    Applies basic pre-cleaning to reduce character count and optimize API usage.
+
+    DeepL API usage constraints:
+    - Header size: max 16 KiB
+    - Request size: max 128 KiB
+    - Free tier: 500,000 characters/month
     """
 
     def __init__(self, deepl_translator: Translator):
