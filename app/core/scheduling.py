@@ -10,6 +10,7 @@ class ScheduledJob:
         self.func = func
         self.interval = interval
         self.grace = timedelta(seconds=grace_seconds)
+        # TODO: Load from/persist in DB
         self.last_run: datetime | None = None
         self.logger = logging.getLogger(self.__class__.__name__)
 
