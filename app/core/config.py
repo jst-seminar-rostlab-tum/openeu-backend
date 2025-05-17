@@ -18,9 +18,15 @@ class Settings:
         if value is None:
             value = ""
         return value
-    
+
     def get_crawler_api_key(self) -> str:
         value = os.getenv("CRAWLER_API_KEY")
+        if value is None:
+            value = ""
+        return value
+
+    def get_openai_api_key(self) -> str:
+        value = os.getenv("OPENAI_API_KEY")  # TODO:Message Pascal to add the OPENAI API-KEY
         if value is None:
             value = ""
         return value
