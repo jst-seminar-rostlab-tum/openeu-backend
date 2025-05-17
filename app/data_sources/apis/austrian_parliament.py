@@ -5,9 +5,11 @@ from datetime import date
 from typing import Optional
 
 import requests
+from pydantic import BaseModel
 
+from app.core.deepl_translator import translator
 from app.core.supabase_client import supabase
-from app.models.meeting import Meeting
+from app.data_sources.translator.translator import DeepLTranslator
 
 # Configure logging
 logging.basicConfig(
@@ -19,8 +21,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # API endpoint
+BASE_URL = "https://www.parlament.gv.at/"
 PARLIAMENT_API_URL = "https://www.parlament.gv.at/Filter/api/filter/data/600"
 MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
+
+
+class AustrianParliamentMeeting(BaseModel):
+    """Model representing a meeting from the Austrian Parliament API."""
+    title: str
+    type: str
+    date: date
+    location: str
+    url: str
 
 
 class AustrianParliamentAPI:
@@ -29,6 +41,8 @@ class AustrianParliamentAPI:
     def __init__(self):
         """Initialize the API client."""
         self.session = requests.Session()
+
+        self.translator = DeepLTranslator(translator)
 
         # Configure headers for request
         self.session.headers.update(
@@ -44,7 +58,7 @@ class AustrianParliamentAPI:
         self,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-    ) -> list[Meeting]:
+    ) -> list[AustrianParliamentMeeting]:
         """Retrieve meetings from the Austrian Parliament API.
 
         Args:
@@ -52,7 +66,7 @@ class AustrianParliamentAPI:
             end_date: Optional end date for filtering meetings
 
         Returns:
-            List of Meeting objects
+            List of AustrianParliamentMeeting objects
         """
         logger.info("Retrieving meetings from Austrian Parliament API")
 
@@ -101,18 +115,18 @@ class AustrianParliamentAPI:
             logger.error(f"Unexpected error: {e}")
             return []
 
-    def _parse_meetings(self, response_text: str) -> list[Meeting]:
-        """Parse the API response into Meeting objects.
+    def _parse_meetings(self, response_text: str) -> list[AustrianParliamentMeeting]:
+        """Parse the API response into AustrianParliamentMeeting objects.
 
         Args:
             response_text: Raw API response text
             
         Returns:
-            List of Meeting objects
+            List of AustrianParliamentMeeting objects
         """
         logger.info("Parsing response from Austrian Parliament API")
 
-        meetings: list[Meeting] = []
+        meetings: list[AustrianParliamentMeeting] = []
 
         try:
             # Try to parse the JSON-like response
@@ -133,20 +147,38 @@ class AustrianParliamentAPI:
             
             # Process each meeting
             for i, meeting_data in enumerate(meetings_data):
-                if len(meeting_data) >= 4:
+                # Skip if it's a "Führung Parlament" event
+                if "Führung Parlament" in meeting_data:
+                    continue
+            
+                if len(meeting_data) >= 9:
                     try:
-                        # Extract date (first element) and title (fourth element)
+                        # Extract required fields
                         date_str = meeting_data[0]
                         title = meeting_data[3]
+                        type_str = meeting_data[5]
+                        location = meeting_data[8]
+                        url_path = meeting_data[4]
                         
                         # Clean up the title
-                        title = self._clean_title(title)
+                        title = self._clean_and_translate_title(title)
                         
                         # Parse date from DD.MM.YYYY format
                         day, month, year = map(int, date_str.split("."))
                         meeting_date = date(year, month, day)
                         
-                        meetings.append(Meeting(date=meeting_date, name=title, tags=[]))
+                        # Construct full URL
+                        url = BASE_URL + url_path if url_path else ""
+                        
+                        meetings.append(
+                            AustrianParliamentMeeting(
+                                title=title,
+                                type=type_str,
+                                date=meeting_date,
+                                location=location,
+                                url=url
+                            )
+                        )
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing meeting at index {i}: {e}")
                         continue
@@ -163,7 +195,7 @@ class AustrianParliamentAPI:
             logger.error(f"Error parsing response: {e}")
             return []
 
-    def _clean_title(self, title: str) -> str:
+    def _clean_and_translate_title(self, title: str) -> str:
         """Clean up the meeting title.
         
         Args:
@@ -184,13 +216,16 @@ class AustrianParliamentAPI:
         # Remove any extra whitespace
         title = " ".join(title.split())
         
-        return title
+        # Translate the title using DeepLTranslator
+        translation_result = self.translator.translate(title)
+        
+        return translation_result.text
 
-    def _store_meetings(self, meetings: list[Meeting]) -> None:
+    def _store_meetings(self, meetings: list[AustrianParliamentMeeting]) -> None:
         """Store meetings in Supabase database.
 
         Args:
-            meetings: List of Meeting objects to store
+            meetings: List of AustrianParliamentMeeting objects to store
         """
         if not meetings:
             logger.info("No meetings to store")
@@ -224,5 +259,5 @@ def run_client(start_date: Optional[date] = None, end_date: Optional[date] = Non
 
 if __name__ == "__main__":
     # Example usage
-    run_client(start_date=date(2020, 1, 1))
+    run_client(start_date=date(2025, 1, 1))
     # run_client()
