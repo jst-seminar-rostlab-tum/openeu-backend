@@ -9,8 +9,6 @@ from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
     upsert_record,
 )
 
-logging.basicConfig(level=logging.INFO)
-
 
 def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
     start = datetime.fromisoformat(start_date)

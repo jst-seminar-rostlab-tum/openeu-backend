@@ -9,8 +9,6 @@ from postgrest.exceptions import APIError
 
 from app.core.supabase_client import supabase
 
-logging.basicConfig(level=logging.INFO)
-
 API_BASE = "https://search.dip.bundestag.de/api/v1"
 API_KEY = os.getenv("BUNDESTAG_KEY")
 headers = {"Authorization": f"ApiKey {API_KEY}"}

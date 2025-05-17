@@ -55,7 +55,7 @@ poetry install
 This command creates a virtual environment (if one doesn’t exist) and installs all dependencies defined in pyproject.toml. 
 To run the project, run 
 ```
-poetry run uvicorn main:app
+poetry run uvicorn main:app --reload --log-config log_conf.yaml
 ```
 
 In order to activate pre commit hooks, you need to run the following command:

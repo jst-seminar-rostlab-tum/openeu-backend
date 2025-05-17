@@ -12,12 +12,6 @@ from app.core.supabase_client import supabase
 IPEX_BASE_URL = "https://ipex.eu/IPEXL-WEB/api/search/event?appLng=EN"
 EVENTS_TABLE_NAME = "ipex_events"
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +37,7 @@ class IPEXCalendarAPIScraper:
     Scraper for calendar events from the IPEX API using POST requests.
     """
 
-    def __init__(
-        self, start_date: Optional[date] = None, end_date: Optional[date] = None
-    ):
+    def __init__(self, start_date: Optional[date] = None, end_date: Optional[date] = None):
         """Initialize the scraper."""
         self.events: list[dict[str, Any]] = []
         self.start_date = start_date
@@ -179,18 +171,14 @@ class IPEXCalendarAPIScraper:
                 # Process events from this page
                 events_on_page = 0
                 for i, event_data in enumerate(hits):
-                    logger.info(
-                        f"Processing event {i+1}/{len(hits)} on page {page_number}"
-                    )
+                    logger.info(f"Processing event {i + 1}/{len(hits)} on page {page_number}")
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
                         self.events.append(parsed_event.model_dump())
                         events_on_page += 1
 
                 total_events_processed += events_on_page
-                logger.info(
-                    f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})"
-                )
+                logger.info(f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})")
 
                 # Move to next page
                 page_number += 1
