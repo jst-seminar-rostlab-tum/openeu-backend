@@ -41,6 +41,7 @@ bs4 = "0.0.2"
 scrapy = "2.13.0"
 parsel = "1.10.0"
 uvicorn = "^0.34.2"
+deepl = "^1.22.0"
 
 [tool.mypy]
 ignore_missing_imports = true
