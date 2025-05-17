@@ -3,7 +3,7 @@ import calendar
 import re
 from datetime import date
 from pprint import pprint
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
@@ -42,7 +42,7 @@ class MECSummitMinisterialMeeting(BaseModel):
 # ------------------------------
 
 
-def parse_meeting_dates(year_str: str, month_str: str, day_range_str: str) -> Tuple[date, Optional[date]]:
+def parse_meeting_dates(year_str: str, month_str: str, day_range_str: str) -> tuple[date, Optional[date]]:
     """
     Parses meeting start and optional end dates from a year, month, and day range string.
 
@@ -52,7 +52,7 @@ def parse_meeting_dates(year_str: str, month_str: str, day_range_str: str) -> Tu
         day_range (str): A day or range like "3" or "30-2".
 
     Returns:
-        Tuple[date, Optional[date]]: (start_date, end_date)
+        tuple[date, Optional[date]]: (start_date, end_date)
     """
     year = int(year_str)
     month = int(month_str)
