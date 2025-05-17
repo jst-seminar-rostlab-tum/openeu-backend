@@ -5,18 +5,17 @@ import tiktoken
 from openai import OpenAI
 from postgrest.exceptions import APIError
 
-from app.core.config import Settings
 from app.core.supabase_client import supabase
 
-settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
-openai = OpenAI(api_key=settings.get_openai_api_key())
+
+openai = OpenAI(api_key="TODO")
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
-MAX_TOKENS = 500  
-BATCH_SZ = 100 
+MAX_TOKENS = 500  # chunk size
+BATCH_SZ = 100  # embedding batch size
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
@@ -30,44 +29,45 @@ def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
 
 
 def embed_batch(texts: List[str]) -> List[List[float]]:
-    resp = openai.embeddings.create(model=EMBED_MODEL, input=texts)
+    resp = openai.embeddings.create(model="text-embedding-ada-002", input=texts)
     data = resp.data
     embs = [d.embedding for d in data]
     return embs
 
 
-def embed_row(source_table: str, row_id: str, content_column: str, content_text: str) -> None:
-    """
-    Generates and stores OpenAI embeddings for content_text in the doucments_embedding table
+def embed(source_table: str, id_column: str, text_column: str):
+    # 1) load all existing source_ids in embeddings table
+    existing_resp = (
+        supabase.table("documents_embeddings").select("source_id").eq("source_table", source_table).execute()
+    )
 
-    - Chunks text, batches requests to OpenAI, embeds, and upserts results.
-    - Writes to `documents_embeddings` with unique (source_table, source_id, content_text).
+    existing_ids = {item["source_id"] for item in existing_resp.data}
 
-    Args:
-        source_table (str): Name of the source table (e.g. 'bt_documents').
-        row_id (str): Primary key column in the source table.
-        content_column (str): Column containing text to embed.
-        content_text   (str): Content to generate embedding for
+    # 2) load all rows from the source table
+    raw_resp = supabase.table(source_table).select(f"{id_column}, {text_column}").execute()
 
-    Returns:
-        None. Writes results directly to Supabase.
+    raw_rows = raw_resp.data or []
 
-    Logs and skips errors; continues with next batch.
-    """
-        
+    to_process = []
+    for row in raw_rows:
+        source_id = row.get(id_column)
+        text = row.get(text_column)
+        if (source_id not in existing_ids) and text:
+            to_process.append({"source_id": source_id, "text": text})
+
     upsert_rows: List[Dict] = []
-
-    chunks = chunk_text(content_text)
-    for chunk in chunks:
-        upsert_rows.append(
-            {
-                "source_table": source_table,
-                "source_id": row_id,
-                "content_column": content_column,
-                "content_text": chunk,
-                "embedding": None,
-            }
-        )
+    for item in to_process:
+        chunks = chunk_text(item["text"])
+        for chunk in chunks:
+            upsert_rows.append(
+                {
+                    "source_table": source_table,
+                    "source_id": item["source_id"],
+                    "content_type": source_table,
+                    "content_text": chunk,
+                    "embedding": None,
+                }
+            )
 
     for i in range(0, len(upsert_rows), BATCH_SZ):
         batch = upsert_rows[i : i + BATCH_SZ]
