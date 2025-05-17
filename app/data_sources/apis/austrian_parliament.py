@@ -60,7 +60,7 @@ class AustrianParliamentAPI:
         params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"}
 
         # Prepare request body
-        body: dict[str, list[str]] = {"DATERANGE": [None, None]}
+        body: dict[str, list[Optional[str]]] = {"DATERANGE": [None, None]}
 
         # Add date range if specified
         if start_date or end_date:
@@ -157,6 +157,7 @@ class AustrianParliamentAPI:
             
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
+            return []
 
         except Exception as e:
             logger.error(f"Error parsing response: {e}")
