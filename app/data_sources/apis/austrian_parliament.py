@@ -2,11 +2,11 @@ import json
 import logging
 import re
 from datetime import date
-from pathlib import Path
 from typing import Optional
 
 import requests
 
+from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
 
 # Configure logging
@@ -20,19 +20,14 @@ logger = logging.getLogger(__name__)
 
 # API endpoint
 PARLIAMENT_API_URL = "https://www.parlament.gv.at/Filter/api/filter/data/600"
+MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 
 class AustrianParliamentAPI:
     """Client for retrieving data from the Austrian Parliament API."""
 
-    def __init__(self, cache_dir: str = "data"):
-        """Initialize the API client.
-
-        Args:
-            cache_dir: Directory where JSON data will be stored
-        """
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+    def __init__(self):
+        """Initialize the API client."""
         self.session = requests.Session()
 
         # Configure headers for request
@@ -90,8 +85,8 @@ class AustrianParliamentAPI:
             # Parse response
             meetings = self._parse_meetings(response.text)
 
-            # Save to JSON file
-            self._save_to_json(meetings)
+            # Store meetings in Supabase
+            self._store_meetings(meetings)
 
             logger.info(f"Successfully retrieved {len(meetings)} meetings")
             return meetings
@@ -190,33 +185,28 @@ class AustrianParliamentAPI:
         
         return title
 
-    def _save_to_json(self, meetings: list[Meeting]) -> None:
-        """Save meetings to a JSON file.
+    def _store_meetings(self, meetings: list[Meeting]) -> None:
+        """Store meetings in Supabase database.
 
         Args:
-            meetings: List of Meeting objects to save
+            meetings: List of Meeting objects to store
         """
         if not meetings:
-            logger.info("No meetings to save to JSON")
+            logger.info("No meetings to store")
             return
 
         try:
-            # Convert meetings to dict for JSON serialization
+            # Convert meetings to dict for database storage
             meetings_data = [meeting.model_dump() for meeting in meetings]
 
-            # Convert date objects to strings for JSON serialization
-            for meeting_data in meetings_data:
-                if isinstance(meeting_data["date"], date):
-                    meeting_data["date"] = meeting_data["date"].isoformat()
-
-            # Save to file
-            output_path = self.cache_dir / "austrian_parliament_meetings.json"
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(meetings_data, f, ensure_ascii=False, indent=2)
-
-            logger.info(f"Saved {len(meetings)} meetings to {output_path}")
+            # Store in Supabase
+            supabase.table(MEETINGS_TABLE_NAME).insert(
+                meetings_data,
+                upsert=True,
+            ).execute()
+            logger.info(f"Successfully stored {len(meetings)} meetings in Supabase")
         except Exception as e:
-            logger.error(f"Error saving meetings to JSON: {e}")
+            logger.error(f"Error storing meetings in Supabase: {e}")
 
 
 def run_client(start_date: Optional[date] = None, end_date: Optional[date] = None):
