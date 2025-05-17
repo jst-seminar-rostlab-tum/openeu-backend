@@ -5,12 +5,13 @@ import tiktoken
 from openai import OpenAI
 from postgrest.exceptions import APIError
 
+from app.core.config import Settings
 from app.core.supabase_client import supabase
 
+settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
-
-openai = OpenAI(api_key="TODO")
+openai = OpenAI(api_key=settings.get_openai_api_key())
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
@@ -38,10 +39,13 @@ def embed_batch(texts: List[str]) -> List[List[float]]:
 def embed(source_table: str, id_column: str, text_column: str):
     # 1) load all existing source_ids in embeddings table
     existing_resp = (
-        supabase.table("documents_embeddings").select("source_id").eq("source_table", source_table).execute()
+        supabase.table("documents_embeddings")
+        .select({"source_id,content_colom"})
+        .eq("source_table", source_table)
+        .execute()
     )
 
-    existing_ids = {item["source_id"] for item in existing_resp.data}
+    existing = {(item["source_id"], item["content_colom"]) for item in existing_resp.data}
 
     # 2) load all rows from the source table
     raw_resp = supabase.table(source_table).select(f"{id_column}, {text_column}").execute()
@@ -52,7 +56,7 @@ def embed(source_table: str, id_column: str, text_column: str):
     for row in raw_rows:
         source_id = row.get(id_column)
         text = row.get(text_column)
-        if (source_id not in existing_ids) and text:
+        if ((source_id, text_column) not in existing) and text:
             to_process.append({"source_id": source_id, "text": text})
 
     upsert_rows: List[Dict] = []
@@ -63,7 +67,7 @@ def embed(source_table: str, id_column: str, text_column: str):
                 {
                     "source_table": source_table,
                     "source_id": item["source_id"],
-                    "content_type": source_table,
+                    "content_colom": text_column,
                     "content_text": chunk,
                     "embedding": None,
                 }
