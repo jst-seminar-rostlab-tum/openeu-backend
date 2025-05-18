@@ -3,22 +3,47 @@ import threading
 from datetime import datetime, timedelta
 from typing import Callable
 
+from app.core.supabase_client import supabase
+
+TABLE_NAME = "scheduled_job_runs"
+
 
 class ScheduledJob:
     def __init__(self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
         self.interval = interval
         self.grace = timedelta(seconds=grace_seconds)
-        # TODO: Load from/persist in DB
-        self.last_run: datetime | None = None
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.last_run_at: datetime | None = None
+
+        try:
+            result = supabase.table(TABLE_NAME).select("last_run_at").eq("name", name).execute()
+            if result.data and len(result.data) == 1 and result.data[0].get("last_run_at"):
+                self.last_run_at = datetime.fromisoformat(result.data[0]["last_run_at"])
+                self.logger.info(f"Loaded last run for '{name}': {self.last_run_at}")
+        except Exception as e:
+            self.logger.error(f"Failed to load last run for job '{name}': {e}")
 
     def should_run(self, now: datetime) -> bool:
-        if self.last_run is None:
+        if self.last_run_at is None:
             return True
-        elapsed = now - self.last_run
+        elapsed = now - self.last_run_at
         return elapsed + self.grace >= self.interval
+
+    def mark_just_ran(self):
+        now = datetime.now()
+        self.last_run_at = now
+        try:
+            supabase.table(TABLE_NAME).upsert(
+                {
+                    "name": self.name,
+                    "last_run_at": now.isoformat(),
+                },
+                on_conflict=["name"],
+            ).execute()
+        except Exception as e:
+            self.logger.error(f"Failed to update last run time for job '{self.name}': {e}")
 
     def run_async(self):
         def _run():
@@ -27,6 +52,8 @@ class ScheduledJob:
                 self.func()
             except Exception as e:
                 self.logger.error(f"Error in job '{self.name}': {e}")
+            finally:
+                self.mark_just_ran()
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -50,7 +77,6 @@ class JobScheduler:
         now = datetime.now()
         for job in self.jobs.values():
             if job.should_run(now):
-                job.last_run = now
                 job.run_async()
 
 
