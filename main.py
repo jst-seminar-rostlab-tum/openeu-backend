@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
 
 from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
