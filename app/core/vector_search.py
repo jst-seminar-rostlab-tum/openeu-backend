@@ -1,6 +1,5 @@
 # app/core/vector_search.py
 
-from typing import Dict, List
 
 from openai import OpenAI
 
@@ -14,7 +13,7 @@ EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
 
 
-def get_top_k_neighbors(query: str, allowed_sources: Dict[str, str], k: int = 5) -> List[Dict]:
+def get_top_k_neighbors(query: str, allowed_sources: dict[str, str], k: int = 5) -> list[dict]:
     """
     allowed_sources = {
         "table":"colom"
