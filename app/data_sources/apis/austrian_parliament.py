@@ -207,7 +207,7 @@ class AustrianParliamentAPI:
             Cleaned meeting title
         """
         if not title:
-            return ""
+            return "", ""
             
         # Replace HTML non-breaking space entities with regular spaces
         title = title.replace("&nbsp;", " ")
