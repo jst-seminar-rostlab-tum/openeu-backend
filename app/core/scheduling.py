@@ -79,5 +79,10 @@ class JobScheduler:
             if job.should_run(now):
                 job.run_async()
 
+    def run_job(self, name: str):
+        if name not in self.jobs:
+            raise ValueError(f"Job '{name}' is not registered.")
+        self.jobs[name].run_async()
+
 
 scheduler = JobScheduler()
