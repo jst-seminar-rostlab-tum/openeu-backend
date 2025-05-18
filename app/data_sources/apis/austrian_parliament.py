@@ -29,10 +29,11 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
     title: str
-    type: str
-    date: date
-    location: str
-    url: str
+    title_de: str
+    meeting_type: str
+    meeting_date: date
+    meeting_location: str
+    meeting_url: str
 
 
 class AustrianParliamentAPI:
@@ -147,8 +148,9 @@ class AustrianParliamentAPI:
             
             # Process each meeting
             for i, meeting_data in enumerate(meetings_data):
-                # Skip if it's a "Führung Parlament" event
-                if "Führung Parlament" in meeting_data:
+                # Skip if it's some sort of a Guided Tour
+                if any(keyword in meeting_data for keyword 
+                       in ["Führung Parlament", "Führung", "Guided Tour"]):
                     continue
             
                 if len(meeting_data) >= 9:
@@ -156,13 +158,12 @@ class AustrianParliamentAPI:
                         # Extract required fields
                         date_str = meeting_data[0]
                         title = meeting_data[3]
-                        type_str = meeting_data[5]
+                        meeting_type = meeting_data[5]
                         location = meeting_data[8]
                         url_path = meeting_data[4]
                         
                         # Clean up the title
-                        title = self._clean_and_translate_title(title)
-                        
+                        title, title_de = self._clean_and_translate_title(title)
                         # Parse date from DD.MM.YYYY format
                         day, month, year = map(int, date_str.split("."))
                         meeting_date = date(year, month, day)
@@ -173,10 +174,11 @@ class AustrianParliamentAPI:
                         meetings.append(
                             AustrianParliamentMeeting(
                                 title=title,
-                                type=type_str,
-                                date=meeting_date,
-                                location=location,
-                                url=url
+                                title_de=title_de,
+                                meeting_type=meeting_type,
+                                meeting_date=meeting_date,
+                                meeting_location=location,
+                                meeting_url=url
                             )
                         )
                     except (ValueError, IndexError) as e:
@@ -195,7 +197,7 @@ class AustrianParliamentAPI:
             logger.error(f"Error parsing response: {e}")
             return []
 
-    def _clean_and_translate_title(self, title: str) -> str:
+    def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
         """Clean up the meeting title.
         
         Args:
@@ -219,7 +221,7 @@ class AustrianParliamentAPI:
         # Translate the title using DeepLTranslator
         translation_result = self.translator.translate(title)
         
-        return translation_result.text
+        return title, translation_result.text
 
     def _store_meetings(self, meetings: list[AustrianParliamentMeeting]) -> None:
         """Store meetings in Supabase database.
