@@ -8,11 +8,9 @@ logger = logging.getLogger(__name__)
 class ScraperResult:
     def __init__(self,
                  success: bool,
-                 data: Any = None,
                  error: Optional[Exception] = None,
                  last_entry: Optional[Any] = None) -> None:
         self.success = success
-        self.data = data
         self.error = error
         self.last_entry = last_entry
 
