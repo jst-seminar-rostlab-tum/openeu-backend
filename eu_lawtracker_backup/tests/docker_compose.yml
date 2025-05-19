@@ -1,0 +1,14 @@
+
+
+version: "3.9"
+services:
+  pg:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: legis_test
+    ports: ["5433:5432"]     # avoid clashing with dev db
+
+
+
