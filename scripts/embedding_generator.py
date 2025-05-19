@@ -30,7 +30,7 @@ def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
 
 
 def embed_batch(texts: List[str]) -> List[List[float]]:
-    resp = openai.embeddings.create(model="text-embedding-ada-002", input=texts)
+    resp = openai.embeddings.create(model=EMBED_MODEL, input=texts)
     data = resp.data
     embs = [d.embedding for d in data]
     return embs
