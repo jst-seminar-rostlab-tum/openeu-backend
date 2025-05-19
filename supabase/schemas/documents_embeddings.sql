@@ -75,7 +75,7 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 
 create or replace function public.match_filtered(
   src_tables      text[],
-  content_coloms   text[],
+  content_columns   text[],
   query_embedding vector,
   match_count     int
 )
@@ -97,7 +97,7 @@ begin
     from documents_embeddings e
     where
       e.source_table = any(src_tables)
-      and e.content_colom = any(content_coloms)
+      and e.content_column = any(content_columns)
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
