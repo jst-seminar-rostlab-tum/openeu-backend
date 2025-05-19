@@ -1,5 +1,6 @@
 import json
 import logging
+from abc import ABC
 from datetime import date
 from typing import Any, Optional
 
@@ -7,6 +8,7 @@ import requests
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
 # Endpoint for calendar events
 IPEX_BASE_URL = "https://ipex.eu/IPEXL-WEB/api/search/event?appLng=EN"
@@ -38,15 +40,19 @@ class IPEXEvent(BaseModel):
     tags: Optional[list[str]] = None  # Tags/keywords from shared labels
 
 
-class IPEXCalendarAPIScraper:
+class IPEXCalendarAPIScraper(ScraperBase, ABC):
     """
     Scraper for calendar events from the IPEX API using POST requests.
     """
 
     def __init__(
-        self, start_date: Optional[date] = None, end_date: Optional[date] = None
+        self, start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        max_retries: int = 3,
+        retry_delay: float = 2.0
     ):
         """Initialize the scraper."""
+        super().__init__(max_retries, retry_delay)
         self.events: list[dict[str, Any]] = []
         self.start_date = start_date
         self.end_date = end_date
@@ -149,7 +155,7 @@ class IPEXCalendarAPIScraper:
             logger.error(f"Error parsing event: {e}")
             return None
 
-    def scrape(self):
+    def scrape_once(self, last_entry, *args) -> ScraperResult:
         """
         Scrape all calendar events from IPEX using POST requests.
         """
@@ -179,12 +185,17 @@ class IPEXCalendarAPIScraper:
                 # Process events from this page
                 events_on_page = 0
                 for i, event_data in enumerate(hits):
+                    if last_entry == event_data:
+                        continue
                     logger.info(
                         f"Processing event {i+1}/{len(hits)} on page {page_number}"
                     )
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
-                        self.events.append(parsed_event.model_dump())
+                        result = self.store_event(parsed_event.model_dump())
+                        if result:
+                            return result
+                        last_entry = event_data
                         events_on_page += 1
 
                 total_events_processed += events_on_page
@@ -197,33 +208,29 @@ class IPEXCalendarAPIScraper:
 
             except requests.RequestException as e:
                 logger.error(f"Network error on page {page_number}: {e}")
-                break
+                return ScraperResult(False, e, self.last_entry)
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error on page {page_number}: {e}")
-                break
+                return ScraperResult(False, e, self.last_entry)
             except Exception as e:
                 logger.error(f"Unexpected error on page {page_number}: {e}")
-                break
+                return ScraperResult(False, e, self.last_entry)
 
         logger.info(f"Scraping completed. Total events: {len(self.events)}")
 
         # Store events in database
-        self._store_events()
+        return ScraperResult(True)
 
-    def _store_events(self):
-        """Store scraped events in Supabase database."""
-        if not self.events:
-            logger.info("No events to store")
-            return
-
+    def store_event(self, event) -> Optional[ScraperResult]:
         try:
             supabase.table(EVENTS_TABLE_NAME).insert(
-                self.events,
+                event,
                 upsert=True,
             ).execute()
             logger.info(f"Successfully stored {len(self.events)} events in Supabase")
         except Exception as e:
             logger.error(f"Error storing events in Supabase: {e}")
+            return ScraperResult(False, e, self.last_entry)
 
 
 def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
