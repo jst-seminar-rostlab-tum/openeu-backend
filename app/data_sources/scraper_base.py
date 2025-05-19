@@ -62,6 +62,7 @@ class ScraperBase(ABC):
                 entry,
                 upsert=True,
             ).execute()
+            return
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
             return ScraperResult(False, e, self.last_entry)
