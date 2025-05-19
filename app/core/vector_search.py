@@ -1,13 +1,10 @@
-# app/core/vector_search.py
-
-
 from openai import OpenAI
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
 
 setting = Settings()
-openai = OpenAI(api_key=setting.get_supabase_api_key())
+openai = OpenAI(api_key=setting.get_openai_api_key())
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
