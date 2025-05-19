@@ -15,8 +15,8 @@ openai = OpenAI(api_key=settings.get_openai_api_key())
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
-MAX_TOKENS = 500  # chunk size
-BATCH_SZ = 100  # embedding batch size
+MAX_TOKENS = 500  
+BATCH_SZ = 100 
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
@@ -36,7 +36,25 @@ def embed_batch(texts: List[str]) -> List[List[float]]:
     return embs
 
 
-def embed(source_table: str, id_column: str, text_column: str):
+def embed(source_table: str, id_column: str, text_column: str) -> None:
+    """
+    Generates and stores OpenAI embeddings for text rows from a given table.
+
+    - Skips rows already embedded (based on source_id and column).
+    - Loads all rows from `source_table`, extracts text from `text_column`.
+    - Chunks text, batches requests to OpenAI, embeds, and upserts results.
+    - Writes to `documents_embeddings` with unique (source_table, source_id, content_text).
+
+    Args:
+        source_table (str): Name of the source table (e.g. 'bt_documents').
+        id_column (str): Primary key column in the source table.
+        text_column (str): Column containing text to embed.
+
+    Returns:
+        None. Writes results directly to Supabase.
+
+    Logs and skips errors; continues with next batch.
+    """
     # 1) load all existing source_ids in embeddings table
     existing_resp = (
         supabase.table("documents_embeddings")
@@ -58,6 +76,7 @@ def embed(source_table: str, id_column: str, text_column: str):
         text = row.get(text_column)
         if ((source_id, text_column) not in existing) and text:
             to_process.append({"source_id": source_id, "text": text})
+
 
     upsert_rows: List[Dict] = []
     for item in to_process:

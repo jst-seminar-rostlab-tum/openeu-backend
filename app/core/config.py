@@ -25,8 +25,10 @@ class Settings:
             value = ""
         return value
 
-    def get_deepl_api_key(self) -> str:
-        value = os.getenv("DEEPL_API_KEY")
+    def get_openai_api_key(self) -> str:
+        value = os.getenv("OPENAI_API_KEY")
         if value is None:
             value = ""
         return value
+        
+    
