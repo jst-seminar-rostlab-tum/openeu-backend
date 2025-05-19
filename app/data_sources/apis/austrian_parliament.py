@@ -150,7 +150,7 @@ class AustrianParliamentAPI:
             for i, meeting_data in enumerate(meetings_data):
                 # Skip if it's some sort of a Guided Tour
                 if any(keyword in meeting_data for keyword 
-                       in ["Führung Parlament", "Führung", "Guided Tour"]):
+                       in ["Führung Parlament", "Führung", "Guided Tour", "Galeriebesuch Nationalrat"]):
                     continue
             
                 if len(meeting_data) >= 9:
