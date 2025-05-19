@@ -40,12 +40,12 @@ def embed(source_table: str, id_column: str, text_column: str):
     # 1) load all existing source_ids in embeddings table
     existing_resp = (
         supabase.table("documents_embeddings")
-        .select({"source_id,content_colom"})
+        .select({"source_id,content_column"})
         .eq("source_table", source_table)
         .execute()
     )
 
-    existing = {(item["source_id"], item["content_colom"]) for item in existing_resp.data}
+    existing = {(item["source_id"], item["content_column"]) for item in existing_resp.data}
 
     # 2) load all rows from the source table
     raw_resp = supabase.table(source_table).select(f"{id_column}, {text_column}").execute()
@@ -67,7 +67,7 @@ def embed(source_table: str, id_column: str, text_column: str):
                 {
                     "source_table": source_table,
                     "source_id": item["source_id"],
-                    "content_colom": text_column,
+                    "content_column": text_column,
                     "content_text": chunk,
                     "embedding": None,
                 }
