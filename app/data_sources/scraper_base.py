@@ -1,7 +1,7 @@
+import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Optional
-import time
-import logging
 
 logger = logging.getLogger(__name__)
 
