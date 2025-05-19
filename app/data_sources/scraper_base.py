@@ -2,6 +2,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+
 from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)

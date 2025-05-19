@@ -162,9 +162,9 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
         logger.info("Starting IPEX calendar scraping via API...")
 
-        if not "start_date" in args:
+        if "start_date" not in args:
             return ScraperResult(False, Exception("Missing parameter \"start_date\""))
-        if not "end_date" in args:
+        if "end_date" not in args:
             return ScraperResult(False, Exception("Missing parameter \"end_date\""))
 
         start_date = args.get("start_date")
