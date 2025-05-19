@@ -36,61 +36,38 @@ def embed_batch(texts: List[str]) -> List[List[float]]:
     return embs
 
 
-def embed(source_table: str, id_column: str, text_column: str) -> None:
+def embed_row(source_table: str, row_id: str, content_column: str, content_text: str) -> None:
     """
-    Generates and stores OpenAI embeddings for text rows from a given table.
+    Generates and stores OpenAI embeddings for content_text in the doucments_embedding table
 
-    - Skips rows already embedded (based on source_id and column).
-    - Loads all rows from `source_table`, extracts text from `text_column`.
     - Chunks text, batches requests to OpenAI, embeds, and upserts results.
     - Writes to `documents_embeddings` with unique (source_table, source_id, content_text).
 
     Args:
         source_table (str): Name of the source table (e.g. 'bt_documents').
-        id_column (str): Primary key column in the source table.
-        text_column (str): Column containing text to embed.
+        row_id (str): Primary key column in the source table.
+        content_column (str): Column containing text to embed.
+        content_text   (str): Content to generate embedding for
 
     Returns:
         None. Writes results directly to Supabase.
 
     Logs and skips errors; continues with next batch.
     """
-    # 1) load all existing source_ids in embeddings table
-    existing_resp = (
-        supabase.table("documents_embeddings")
-        .select({"source_id,content_column"})
-        .eq("source_table", source_table)
-        .execute()
-    )
-
-    existing = {(item["source_id"], item["content_column"]) for item in existing_resp.data}
-
-    # 2) load all rows from the source table
-    raw_resp = supabase.table(source_table).select(f"{id_column}, {text_column}").execute()
-
-    raw_rows = raw_resp.data or []
-
-    to_process = []
-    for row in raw_rows:
-        source_id = row.get(id_column)
-        text = row.get(text_column)
-        if ((source_id, text_column) not in existing) and text:
-            to_process.append({"source_id": source_id, "text": text})
-
-
+        
     upsert_rows: List[Dict] = []
-    for item in to_process:
-        chunks = chunk_text(item["text"])
-        for chunk in chunks:
-            upsert_rows.append(
-                {
-                    "source_table": source_table,
-                    "source_id": item["source_id"],
-                    "content_column": text_column,
-                    "content_text": chunk,
-                    "embedding": None,
-                }
-            )
+
+    chunks = chunk_text(content_text)
+    for chunk in chunks:
+        upsert_rows.append(
+            {
+                "source_table": source_table,
+                "source_id": row_id,
+                "content_column": content_column,
+                "content_text": chunk,
+                "embedding": None,
+            }
+        )
 
     for i in range(0, len(upsert_rows), BATCH_SZ):
         batch = upsert_rows[i : i + BATCH_SZ]
