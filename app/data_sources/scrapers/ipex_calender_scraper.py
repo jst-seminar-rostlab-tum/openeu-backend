@@ -32,8 +32,8 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-    start_date: Optional[str] = None  # Start date of the event
-    end_date: Optional[str] = None  # End date of the event
+    start_date: Optional[date] = None  # Start date of the event
+    end_date: Optional[date] = None  # End date of the event
     meeting_location: Optional[str] = None  # Location where the event takes place
     tags: Optional[list[str]] = None  # Tags/keywords from shared labels
 
@@ -119,10 +119,12 @@ class IPEXCalendarAPIScraper:
             start_date = source_map.get("startDate")
             if start_date:
                 start_date = start_date.split(" ")[0]  # Keep only date part
+                start_date = date.fromisoformat(start_date)
 
             end_date = source_map.get("endDate")
             if end_date:
                 end_date = end_date.split(" ")[0]  # Keep only date part
+                end_date = date.fromisoformat(end_date)
 
             # Extract location
             address = source_map.get("address")
