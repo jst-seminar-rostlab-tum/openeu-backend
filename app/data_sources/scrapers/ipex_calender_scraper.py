@@ -12,12 +12,6 @@ from app.data_sources.scraper_base import ScraperBase, ScraperResult
 IPEX_BASE_URL = "https://ipex.eu/IPEXL-WEB/api/search/event?appLng=EN"
 EVENTS_TABLE_NAME = "ipex_events"
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +26,8 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-    start_date: Optional[str] = None  # Start date of the event
-    end_date: Optional[str] = None  # End date of the event
+    start_date: Optional[date] = None  # Start date of the event
+    end_date: Optional[date] = None  # End date of the event
     meeting_location: Optional[str] = None  # Location where the event takes place
     tags: Optional[list[str]] = None  # Tags/keywords from shared labels
 
@@ -123,10 +117,12 @@ class IPEXCalendarAPIScraper(ScraperBase):
             start_date = source_map.get("startDate")
             if start_date:
                 start_date = start_date.split(" ")[0]  # Keep only date part
+                start_date = date.fromisoformat(start_date)
 
             end_date = source_map.get("endDate")
             if end_date:
                 end_date = end_date.split(" ")[0]  # Keep only date part
+                end_date = date.fromisoformat(end_date)
 
             # Extract location
             address = source_map.get("address")
@@ -204,9 +200,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                         events_on_page += 1
 
                 total_events_processed += events_on_page
-                logger.info(
-                    f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})"
-                )
+                logger.info(f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})")
 
                 # Move to next page
                 page_number += 1
