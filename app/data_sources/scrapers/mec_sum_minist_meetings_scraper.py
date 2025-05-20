@@ -1,5 +1,6 @@
 import asyncio
 import calendar
+import logging
 import re
 from datetime import date
 from pprint import pprint
@@ -11,14 +12,18 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 # from app.core.supabase_client import supabase
 from pydantic import BaseModel
 
+from app.core.supabase_client import supabase
+from supabase import Client  # type: ignore[attr-defined]
+
 """
-This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
+This file contains a Scrapy spider to scrape the European Council's website for MEC Summit Ministerial Meeting data.
+The spider extracts meeting URLs, titles, and dates, and stores them in a Supabase database.
 The file can be run as a standalone script to test the scraping functionality.
 
 Table of contents:
-1. Data Models
-2. Scrapy Spider
-3. Scraping Function
+1. Data Model
+2. Util Functions
+3. Scraping Logic
 4. Database Functions
 5. Main Function for Testing
 """
@@ -32,8 +37,8 @@ Table of contents:
 class MECSummitMinisterialMeeting(BaseModel):
     url: str
     title: str
-    meeting_date: date
-    meeting_end_date: Optional[date]
+    meeting_date: str
+    meeting_end_date: Optional[str]
     category_abbr: Optional[str]
 
 
@@ -145,7 +150,7 @@ def get_largest_page_number(links: list[dict]) -> int:
 
 
 async def scrape_meetings_by_page(start_date: date, end_date: date, page: int, crawler: AsyncWebCrawler):
-    print(f"Scraping page {page} for meetings between {start_date} and {end_date}")
+    logging.info(f"Scraping page {page} for meetings between {start_date} and {end_date}")
     found_meetings = []
     params = {
         "DateFrom": start_date.strftime("%Y/%m/%d"),
@@ -177,8 +182,8 @@ async def scrape_meetings_by_page(start_date: date, end_date: date, page: int, c
                 MECSummitMinisterialMeeting(
                     url=link["href"],
                     title=link["text"],
-                    meeting_date=meeting_date,
-                    meeting_end_date=meeting_end_date,
+                    meeting_date=meeting_date.isoformat(),
+                    meeting_end_date=meeting_end_date.isoformat() if meeting_end_date else None,
                     category_abbr=match.group(1),
                 )
             )
@@ -207,21 +212,66 @@ async def scrape_meetings(start_date: date, end_date: date) -> list[MECSummitMin
     # Remove duplicates based on URL and title
     found_meetings = list({(meeting.url, meeting.title): meeting for meeting in found_meetings}.values())
 
-    print(f"Found {len(found_meetings)} meetings.")
     return found_meetings
+
+
+# ------------------------------
+# Database Functions
+# ------------------------------
+
+
+async def scrape_and_store_meetings(start_date: date, end_date: date) -> list[MECSummitMinisterialMeeting]:
+    """
+    Scrape mec meetings and store them in the database.
+    :param start_date: The start date for the meeting search.
+    :param end_date: The end date for the meeting search.
+    """
+    try:
+        meetings = await scrape_meetings(start_date, end_date)
+
+        # Delete existing meetings in the date range
+        supabase.table("mec_summit_ministerial_meeting").delete().gte("meeting_date", start_date).lte(
+            "meeting_date", end_date
+        ).execute()
+
+        for meeting in meetings:
+            # Insert each meeting into the database
+            insert_meeting(meeting, supabase)
+            logging.info(f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
+        return meetings
+    except Exception as e:
+        logging.error(f"Error while scraping and storing meetings: {e}")
+        return []
+
+
+def insert_meeting(meeting: MECSummitMinisterialMeeting, supabase: Client):
+    """
+    Insert a meeting into the database and map attendees to it.
+    :param meeting: The meeting object to insert.
+    :return: The ID of the inserted meeting.
+    """
+    # Insert meeting
+    meeting_dict = meeting.model_dump()
+    response = supabase.table("mec_summit_ministerial_meeting").insert(meeting_dict).execute()
+
+    meeting_id = response.data[0]["id"]
+    logging.info(f"Inserted meeting with ID: {meeting_id}")
 
 
 # ------------------------------
 # Main Function for Testing
 # ------------------------------
 
+
 if __name__ == "__main__":
 
     async def main():
-        meetings = await scrape_meetings(
+        print("Scraping and storing mec meetings...")
+        meetings = await scrape_and_store_meetings(
             start_date=date(2025, 5, 17),
             end_date=date(2025, 6, 17),
         )
         pprint(meetings)
+        print(f"Total mec meetings found: {len(meetings)}")
 
     asyncio.run(main())
