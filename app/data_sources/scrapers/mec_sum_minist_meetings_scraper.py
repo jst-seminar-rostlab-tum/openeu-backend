@@ -16,7 +16,7 @@ from app.core.supabase_client import supabase
 from supabase import Client  # type: ignore[attr-defined]
 
 """
-This file contains a Scrapy spider to scrape the European Council's website for MEC Summit Ministerial Meeting data.
+This file contains a crawl4ai-scraper to scrape the European Council's website for MEC Summit Ministerial Meeting data.
 The spider extracts meeting URLs, titles, and dates, and stores them in a Supabase database.
 The file can be run as a standalone script to test the scraping functionality.
 
@@ -30,7 +30,7 @@ Table of contents:
 
 
 # ------------------------------
-# Data Models
+# Data Model
 # ------------------------------
 
 
@@ -126,30 +126,17 @@ def test_parse_meeting_dates():
 # ------------------------------
 
 
-def get_largest_page_number(links: list[dict]) -> int:
-    """
-    Extracts the largest page number from a list of links.
-
-    Args:
-        links (list[dict]): List of link dictionaries.
-
-    Returns:
-        int: The largest page number found, or 0 if none found.
-    """
-    page_number_pattern = re.compile(r"page=(\d+)")
-    largest_page = max(
-        (
-            int(match.group(1))
-            for link in links
-            if "page=" in link["href"]
-            if (match := page_number_pattern.search(link["href"]))
-        ),
-        default=0,
-    )
-    return largest_page
-
-
 async def scrape_meetings_by_page(start_date: date, end_date: date, page: int, crawler: AsyncWebCrawler):
+    """
+    Scrape meetings on page <page> from the European Council's website for a specific date range.
+    Args:
+        start_date (date): The start date for the meeting search.
+        end_date (date): The end date for the meeting search.
+        page (int): The page number to scrape.
+        crawler (AsyncWebCrawler): The web crawler instance.
+    Returns:
+        tuple: A tuple containing a list of found meetings and the largest page number.
+    """
     logging.info(f"Scraping page {page} for meetings between {start_date} and {end_date}")
     found_meetings = []
     params = {
@@ -193,7 +180,38 @@ async def scrape_meetings_by_page(start_date: date, end_date: date, page: int, c
     return (found_meetings, largest_page)
 
 
+def get_largest_page_number(links: list[dict]) -> int:
+    """
+    Extracts the largest page number from a list of links.
+
+    Args:
+        links (list[dict]): List of link dictionaries.
+
+    Returns:
+        int: The largest page number found, or 0 if none found.
+    """
+    page_number_pattern = re.compile(r"page=(\d+)")
+    largest_page = max(
+        (
+            int(match.group(1))
+            for link in links
+            if "page=" in link["href"]
+            if (match := page_number_pattern.search(link["href"]))
+        ),
+        default=0,
+    )
+    return largest_page
+
+
 async def scrape_meetings(start_date: date, end_date: date) -> list[MECSummitMinisterialMeeting]:
+    """
+    Scrape meetings from the European Council's website for a specific date range.
+    Args:
+        start_date (date): The start date for the meeting search.
+        end_date (date): The end date for the meeting search.
+    Returns:
+        list[MECSummitMinisterialMeeting]: A list of found meetings.
+    """
     found_meetings: list[MECSummitMinisterialMeeting] = []
     current_page = 1
     largest_known_page = 1
@@ -210,6 +228,7 @@ async def scrape_meetings(start_date: date, end_date: date) -> list[MECSummitMin
             current_page += 1
 
     # Remove duplicates based on URL and title
+    # duplicates occurr when a meeting spans multiple days and is therefore listed multiple times
     found_meetings = list({(meeting.url, meeting.title): meeting for meeting in found_meetings}.values())
 
     return found_meetings
