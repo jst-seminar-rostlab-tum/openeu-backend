@@ -1,5 +1,5 @@
 .venv/
-venv
+venv/
 .idea/
 __pycache__/
 supabase/.temp
