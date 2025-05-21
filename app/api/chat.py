@@ -19,11 +19,11 @@ class NewSessionItem(BaseModel):
 
 
 class ChatResponseItem(BaseModel):
-    session_id: str
+    session_id: int
     message: str
 
 
-def get_response_openai(prompt: str, session_id: str):
+def get_response_openai(prompt: str, session_id: int):
     try:
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
@@ -48,6 +48,21 @@ def get_response_openai(prompt: str, session_id: str):
 
 @router.post("/")
 async def get_chat_response(chat_response_item: ChatResponseItem):
+    data = {
+        "chat_session": chat_response_item.session_id,
+        "content": chat_response_item.message,
+        "author": "user",
+    }
+
+    try:
+        supabase.table("chat_messages").upsert(data).execute()
+    except APIError as e:
+        logging.error(f"Supabase APIError: {e}")
+        raise HTTPException(503, "Failed send messsage, try again later") from None
+    except Exception as e:
+        logging.error(f"Unexpected error during upsert: {e}")
+        raise HTTPException(503, "Failed to send message, try again later") from None
+
     return StreamingResponse(
         get_response_openai(chat_response_item.message, chat_response_item.session_id), media_type="text/event-stream"
     )
@@ -73,10 +88,28 @@ def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
 
 
 @router.get("/sessions/{session_id}")
-def get_all_messages(session_id: str) -> dict[str, str]:
-    return {"session_id": session_id}
+def get_all_messages(session_id: int) -> list[dict[str, str | int]]:
+    try:
+        response = supabase.table("chat_messages").select("*").eq("chat_session", session_id).execute()
+    except APIError as e:
+        logging.error(f"Supabase APIError: {e}")
+        raise HTTPException(503, "Failed to get chat sessions, try again later") from None
+    except Exception as e:
+        logging.error(f"Unexpected error during select: {e}")
+        raise HTTPException(503, "Failed to get chat sessions, try again later") from None
+
+    return response.data
 
 
 @router.get("/sessions")
-def get_user_sessions(user_id: str) -> dict[str, str]:
-    return {"user_id": user_id}
+def get_user_sessions(user_id: str) -> list[dict[str, str | int]]:
+    try:
+        response = supabase.table("chat_sessions").select("*").eq("user_id", user_id).execute()
+    except APIError as e:
+        logging.error(f"Supabase APIError: {e}")
+        raise HTTPException(503, "Failed to get chat sessions, try again later") from None
+    except Exception as e:
+        logging.error(f"Unexpected error during select: {e}")
+        raise HTTPException(503, "Failed to get chat sessions, try again later") from None
+
+    return response.data
