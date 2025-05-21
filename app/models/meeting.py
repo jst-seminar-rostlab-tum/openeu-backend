@@ -11,4 +11,5 @@ class Meeting(BaseModel):
     description: Optional[str] = None
     tags: List[str] = []
 
+
     
