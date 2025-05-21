@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import quote
@@ -6,6 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.core.supabase_client import supabase
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 BASE_URL_TEMPLATE = (
     "https://www.europarl.europa.eu/plenary/en/meetings-search.html?isSubmitted=true&dateFrom={date}"
@@ -22,6 +25,7 @@ def scrape_meeting_calendar(start_date: str, end_date: str) -> None:
     while current_date <= end_date_dated:
         date_str = quote(current_date.strftime("%d/%m/%Y"))
         page_number = 0
+        logging.info(f"Scraping meetings for date {current_date.strftime('%d-%m-%Y')}")
         while True:
             full_url = BASE_URL_TEMPLATE.format(date=date_str, page=page_number)
             page_soup = fetch_and_process_page(full_url)
@@ -35,14 +39,19 @@ def scrape_meeting_calendar(start_date: str, end_date: str) -> None:
 def fetch_and_process_page(full_url: str) -> Optional[BeautifulSoup]:
     try:
         response = requests.get(full_url, timeout=60)
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed for URL {full_url}: {e}")
         return None
+
     if response.status_code != 200:
+        logging.error(f"Non-200 response ({response.status_code}) for URL {full_url}")
         return None
     soup = BeautifulSoup(response.text, "html.parser")
     error_message = soup.find("div", class_="message_error")
     if error_message and "No result" in error_message.get_text(strip=True):
+        logging.info(f"No results found on page: {full_url}")
         return None
+
     extract_meeting_info(soup)
     return soup
 
@@ -87,9 +96,19 @@ def extract_meeting_info(soup: BeautifulSoup) -> None:
         try:
             datetime_obj = datetime.strptime(f"{date} {hour}", "%d-%m-%Y %H:%M")
         except ValueError:
+            logging.warning(f"Failed to parse datetime from date='{date}' and hour='{hour}'")
             continue
 
         batch.append({"title": title, "datetime": datetime_obj.isoformat(), "place": place, "subtitles": subtitles})
 
     if batch:
-        supabase.table("ep_meetings").insert(batch).execute()
+        try:
+            supabase.table("ep_meetings").insert(batch).execute()
+            logging.info(f"Inserted {len(batch)} meeting(s) into ep_meetings")
+        except Exception as e:
+            logging.error(f"Error inserting meetings into Supabase: {e}")
+    else:
+        logging.info("No meetings found on this page")
+
+
+scrape_meeting_calendar("21-05-2025", "26-05-2025")
