@@ -10,7 +10,7 @@ from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
 )
 
 
-def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
+def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
 
