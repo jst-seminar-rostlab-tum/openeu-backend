@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, HTTPException
 from dateutil.relativedelta import relativedelta   # pip install python-dateutil
 
 from app.models.meeting import Meeting
-from app.supabase_client import supabase
+from app.core.supabase_client import supabase
 
 router = APIRouter()
 
