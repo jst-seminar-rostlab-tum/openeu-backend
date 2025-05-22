@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -11,7 +11,7 @@ class Meeting(BaseModel):
     meeting_end_datetime: Optional[datetime] = None
     location: Optional[str] = None
     description: Optional[str] = None
-    tags: List[str] = []
+    tags: list[str] = []
 
 
     
