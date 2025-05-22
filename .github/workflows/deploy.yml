@@ -18,11 +18,8 @@ jobs:
 
       - name: Link Supabase Project
         run: supabase link --project-ref $SUPABASE_PROJECT_ID --debug
-
       - name: Push Supabase Migrations
-        if: github.ref == 'refs/heads/main'
         run: supabase db push
 
       - name: Deploy Backend to Render
-        if: github.ref == 'refs/heads/main'
         run: curl "$RENDER_DEPLOY_HOOK_URL"
