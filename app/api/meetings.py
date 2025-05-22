@@ -9,17 +9,12 @@ from app.core.supabase_client import supabase
 router = APIRouter()
 
 
-_LIMIT = Query(20, gt=1)
 _START = Query(None, description="Start datetime (ISO8601)")
-_END   = Query(None, description="End datetime (ISO8601)")
+_END = Query(None, description="End datetime (ISO8601)")
 
 
 @router.get("/meetings")
-def get_meetings(
-    limit: _LIMIT, # type: ignore
-    start: Optional[datetime] = _START,
-    end:   Optional[datetime] = _END
-):
+def get_meetings(limit: int = Query(100, gt=1), start: Optional[datetime] = _START, end: Optional[datetime] = _END):
     try:
         # build base query
         query = supabase.table("v_meetings").select("*")
@@ -31,12 +26,7 @@ def get_meetings(
             query = query.lte("meeting_start_datetime", end.isoformat())
 
         # finalize
-        result = (
-            query
-            .order("meeting_start_datetime", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        result = query.order("meeting_start_datetime", desc=True).limit(limit).execute()
 
         data = result.data
 
