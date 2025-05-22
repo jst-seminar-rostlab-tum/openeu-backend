@@ -1,4 +1,5 @@
 import os
+
 from app.core.config import Settings
 from supabase import Client, create_client  # type: ignore[attr-defined]
 
