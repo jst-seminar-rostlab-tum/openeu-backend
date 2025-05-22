@@ -1,12 +1,7 @@
-from datetime import datetime, timedelta
-from typing import Optional, List
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from dateutil.relativedelta import relativedelta
-
-from app.models.meeting import Meeting
 from app.core.supabase_client import supabase
 
 router = APIRouter()
@@ -32,4 +27,4 @@ def get_meetings(limit: int = 20):
 
     except Exception as e:
         print("INTERNAL ERROR:", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
