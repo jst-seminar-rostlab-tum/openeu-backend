@@ -268,7 +268,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
             entry = AgendaEntry(
                 date=date.isoformat(),
                 time=time.strip() if time else None,
-                title=title.strip(),
+                title=title.strip() if title else "Untitled",
                 type=event_type,
                 committee=committee.strip() if committee else None,
                 location=location.strip() if location else None,
@@ -366,7 +366,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 type=event_type,
                 date=date.isoformat(),
                 time=time.strip() if time else None,
-                title=title.strip(),
+                title=title.strip() if title else "Untitled",
                 committee=committee.strip() if committee else None,
                 location=location.strip() if location else None,
                 description="; ".join(t.strip() for t in topics) if topics else None,
