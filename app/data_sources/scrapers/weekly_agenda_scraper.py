@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from typing import Callable, Optional
 
 import scrapy
+from parsel import Selector
 from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
@@ -116,7 +117,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
                         # Uncomment to store in supabase:
                         # supabase.table("WEEKLY_AGENDA").upsert(item.model_dump()).execute()
 
-    def get_event_type(self, event: scrapy.Selector) -> str:
+    def get_event_type(self, event: Selector) -> str:
         """
         Extract the event type from the event's class attribute.
         The event type is determined by the class name that starts with "ep-layout_event_".
@@ -145,7 +146,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
             "solemn-sittings": self.parse_default_event,
         }.get(event_type, self.parse_default_event)
 
-    def parse_plenary_session(self, event: scrapy.Selector, date: date, event_type: str) -> list[AgendaEntry]:
+    def parse_plenary_session(self, event: Selector, date: date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
         time_range = event.css("div.ep-layout_date time::text").get()
@@ -182,7 +183,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_president_diary(self, event: scrapy.Selector, date: date, event_type: str) -> list[AgendaEntry]:
+    def parse_president_diary(self, event: Selector, date: date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
         for p in event.css("p.ep-wysiwig_paragraph::text"):
@@ -211,9 +212,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_press_conferences(
-        self, event: scrapy.Selector, date: datetime.date, event_type: str
-    ) -> list[AgendaEntry]:
+    def parse_press_conferences(self, event: Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
         for item in event.css("ol.ep_gridcolumn.ep-m_product > li.ep_gridrow"):
@@ -233,7 +232,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
             entry = AgendaEntry(
                 date=date.isoformat(),
                 time=time.strip() if time else None,
-                title=title.strip() if title else None,
+                title=title.strip() if title else "Untitled",
                 type=event_type,
                 committee=None,
                 location=location,
@@ -243,9 +242,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_committee_meetings(
-        self, event: scrapy.Selector, date: datetime.date, event_type: str
-    ) -> list[AgendaEntry]:
+    def parse_committee_meetings(self, event: Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
         for item in event.css("ol.ep_gridcolumn.ep-m_product > li.ep_gridrow"):
@@ -282,7 +279,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_delegation_event(self, event: scrapy.Selector, date: date, event_type: str) -> Optional[AgendaEntry]:
+    def parse_delegation_event(self, event: Selector, date: date, event_type: str) -> Optional[AgendaEntry]:
         """
         Parses a 'Delegations' agenda event.
         Extracts the event title and descriptive paragraphs.
@@ -311,7 +308,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
             self.logger.error(f"Failed to parse delegation event: {e}")
             return None
 
-    def parse_other_event(self, event: scrapy.Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
+    def parse_other_event(self, event: Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
         # Each <li class="ep_gridrow"> represents a sub-event
@@ -339,7 +336,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
             entry = AgendaEntry(
                 date=date.isoformat(),
                 time=time_text.strip() if time_text else None,
-                title=title.strip() if title else None,
+                title=title.strip() if title else "Untitled",
                 type=event_type,
                 committee=None,
                 location=None,
@@ -349,7 +346,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_default_event(self, event: scrapy.Selector, date: date, event_type: str) -> Optional[AgendaEntry]:
+    def parse_default_event(self, event: Selector, date: date, event_type: str) -> Optional[AgendaEntry]:
         """
         Parses a default event type from the agenda.
         """
