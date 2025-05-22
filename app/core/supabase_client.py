@@ -1,7 +1,5 @@
-import os
-
 from app.core.config import Settings
-from supabase import Client, create_client  
+from supabase import Client, create_client
 
 settings = Settings()
 
