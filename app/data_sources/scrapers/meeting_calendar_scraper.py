@@ -77,7 +77,7 @@ class EPMeetingCalendarScraper(ScraperBase):
 
     def _extract_meetings(self, soup: BeautifulSoup) -> None:
         meetings_container = soup.find("div", class_="listcontent")
-        meetings = []
+        meetings: list[Tag] = []
         if isinstance(meetings_container, Tag):
             meetings = meetings_container.find_all("div", class_="notice")
 
