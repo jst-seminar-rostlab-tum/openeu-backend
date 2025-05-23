@@ -52,3 +52,29 @@ begin
     limit match_count;
 end;
 $$;
+
+
+create or replace function public.match_default(
+  query_embedding vector,
+  match_count     int
+)
+returns table(
+  source_table  text,
+  source_id     text,
+  content_text  text,
+  similarity    float
+)
+language plpgsql
+as $$
+begin
+  return query
+    select
+      e.source_table,
+      e.source_id,
+      e.content_text,
+      1 - (e.embedding <#> query_embedding) as similarity
+    from documents_embeddings e
+    order by e.embedding <#> query_embedding
+    limit match_count;
+end;
+$$;
