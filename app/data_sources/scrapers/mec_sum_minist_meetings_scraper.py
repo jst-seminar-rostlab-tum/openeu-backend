@@ -189,8 +189,8 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         }
         url = MEC_MEETINGS_BASE_URL + "?" + urlencode(params)
         config = CrawlerRunConfig()
-        scraper_error_result = await crawler.arun(url=url, crawler_config=config)
-        internal_links = scraper_error_result.links.get("internal", [])
+        crawler_result = await crawler.arun(url=url, crawler_config=config)
+        internal_links = crawler_result.links.get("internal", [])
         links_to_meetings = [x for x in internal_links if x["href"].startswith(MEETINGS_DETAIL_URL_PREFIX)]
 
         largest_page = self._get_largest_page_number(links_to_meetings)
