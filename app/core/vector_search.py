@@ -22,12 +22,20 @@ def get_top_k_neighbors(query: str, allowed_sources: dict[str, str], k: int = 5)
     tables = list(allowed_sources.keys())
     cols = list(allowed_sources.values())
 
-    resp = supabase.rpc(
-        "match_filtered", 
-        {
-            "src_tables": tables, "content_columns": cols,
-            "query_embedding": embedding, "match_count": k
-        }
-    ).execute()
+    if allowed_sources:
+        resp = supabase.rpc(
+            "match_filtered", 
+            {
+                "src_tables": tables, "content_columns": cols,
+                "query_embedding": embedding, "match_count": k
+            }
+        ).execute()
+    else:
+         resp = supabase.rpc(
+            "match_default", 
+            {
+                "query_embedding": embedding, "match_count": k
+            }
+        ).execute()
 
     return resp.data
