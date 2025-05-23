@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.core.supabase_client import supabase
+from app.models.meeting import Meeting
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
 
 
-@router.get("/meetings")
+@router.get("/meetings", response_model=list[Meeting])
 def get_meetings(limit: int = Query(100, gt=1), start: Optional[datetime] = _START, end: Optional[datetime] = _END):
     try:
         query = supabase.table("v_meetings").select("*")
