@@ -31,5 +31,4 @@ class Settings:
         if value is None:
             value = ""
         return value
-        
-    
+
