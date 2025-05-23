@@ -91,7 +91,7 @@ SELECT
 FROM   public.austrian_parliament_meetings a
 */ --END block comment for IPEX events !!
 
-
+;
 GRANT SELECT ON public.v_meetings TO anon, authenticated, service_role;
 
 -- +supabase_down
