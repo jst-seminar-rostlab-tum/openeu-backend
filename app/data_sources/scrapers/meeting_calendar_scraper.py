@@ -22,25 +22,24 @@ class EPMeetingCalendarScraper(ScraperBase):
     Scraper for all Meetings of the EP.
     """
 
-    def __init__(self, start_date: date, end_date: date, max_retries: int = 3, retry_delay: float = 2.0):
+    def __init__(
+        self,
+        start_date: date,
+        end_date: date,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+    ):
         """Initialize the scraper."""
         super().__init__(EVENTS_TABLE_NAME, max_retries, retry_delay)
-        self.events: list[dict[str, Any]] = []
         self.start_date = start_date
         self.end_date = end_date
+        self.events: list[dict[str, Any]] = []
         self.session = requests.Session()
 
     def scrape_once(self, last_entry, **args) -> ScraperResult:
         """
         Scrape all Meetings of the EP.
         """
-
-        logger.info("Starting scraping EP Meeting calendar...")
-
-        if "start_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "start_date"'))
-        if "end_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "end_date"'))
 
         current_date = self.start_date
 
@@ -136,11 +135,11 @@ def run_scraper(start_date: date, end_date: date):
         end_date: End date for filtering events
     """
     scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date)
-    scraper.scrape(start_date=start_date, end_date=end_date)
+    scraper.scrape()
 
 
 if __name__ == "__main__":
     # Example usage
     # start_date = date(2025, 5, 1)
     # end_date = date(2025, 5, 31)
-    run_scraper(date(2025, 5, 21), date(2025, 5, 26))
+    run_scraper(date(2025, 5, 23), date(2025, 5, 28))
