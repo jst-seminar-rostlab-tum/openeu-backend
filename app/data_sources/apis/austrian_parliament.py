@@ -2,13 +2,13 @@ import json
 import logging
 import re
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from pydantic import BaseModel
 
 from app.core.deepl_translator import translator
-from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
 # Configure logging
@@ -32,18 +32,26 @@ class AustrianParliamentMeeting(BaseModel):
     title: str
     title_de: str
     meeting_type: str
-    meeting_date: date
+    meeting_date: str
     meeting_location: str
     meeting_url: str
 
 
-class AustrianParliamentAPI:
-    """Client for retrieving data from the Austrian Parliament API."""
+class AustrianParliamentScraper(ScraperBase):
+    """Scraper for retrieving data from the Austrian Parliament API."""
 
-    def __init__(self):
-        """Initialize the API client."""
+    def __init__(
+        self,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+    ):
+        """Initialize the scraper."""
+        super().__init__(MEETINGS_TABLE_NAME, max_retries, retry_delay)
+        self.start_date = start_date
+        self.end_date = end_date
         self.session = requests.Session()
-
         self.translator = DeepLTranslator(translator)
 
         # Configure headers for request
@@ -56,126 +64,66 @@ class AustrianParliamentAPI:
             }
         )
 
-    def get_meetings(
-        self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> list[AustrianParliamentMeeting]:
-        """Retrieve meetings from the Austrian Parliament API.
-
-        Args:
-            start_date: Optional start date for filtering meetings
-            end_date: Optional end date for filtering meetings
-
-        Returns:
-            List of AustrianParliamentMeeting objects
-        """
-        logger.info("Retrieving meetings from Austrian Parliament API")
-
-        # Prepare request parameters
+    def _build_request_payload(self) -> dict[str, Any]:
+        """Build the request payload for the API."""
         params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"}
-
-        # Prepare request body
         body: dict[str, list[Optional[str]]] = {"DATERANGE": [None, None]}
 
-        # Add date range if specified
-        if start_date or end_date:
-            if start_date:
-                # Format start date with T22:00:00.000Z suffix as required by the API
-                start_date_str = f"{start_date.isoformat()}T22:00:00.000Z"
+        if self.start_date or self.end_date:
+            if self.start_date:
+                start_date_str = f"{self.start_date.isoformat()}T22:00:00.000Z"
                 body["DATERANGE"][0] = start_date_str
                 logger.info(f"Using start date: {start_date_str}")
 
-            if end_date:
-                # Format end date with T23:59:59.999Z suffix as required by the API
-                end_date_str = f"{end_date.isoformat()}T23:59:59.999Z"
+            if self.end_date:
+                end_date_str = f"{self.end_date.isoformat()}T23:59:59.999Z"
                 body["DATERANGE"][1] = end_date_str
                 logger.info(f"Using end date: {end_date_str}")
 
-        try:
-            # Make request to API
-            response = self.session.post(PARLIAMENT_API_URL, params=params, json=body)
-            response.raise_for_status()
-
-            # Parse response
-            meetings = self._parse_meetings(response.text)
-
-            # Store meetings in Supabase
-            self._store_meetings(meetings)
-
-            logger.info(f"Successfully retrieved {len(meetings)} meetings")
-            return meetings
-
-        except requests.RequestException as e:
-            logger.error(f"Network error: {e}")
-            return []
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            return []
+        return {"params": params, "body": body}
 
     def _parse_meetings(self, response_text: str) -> list[AustrianParliamentMeeting]:
-        """Parse the API response into AustrianParliamentMeeting objects.
-
-        Args:
-            response_text: Raw API response text
-
-        Returns:
-            List of AustrianParliamentMeeting objects
-        """
+        """Parse the API response into AustrianParliamentMeeting objects."""
         logger.info("Parsing response from Austrian Parliament API")
-
         meetings: list[AustrianParliamentMeeting] = []
 
         try:
-            # Try to parse the JSON-like response
-            # First find the data row array in the response
             response_json = json.loads(response_text)
-
             if not isinstance(response_json, dict) or "rows" not in response_json:
                 logger.error("Invalid response format: 'rows' field not found")
                 return []
 
             meetings_data = response_json.get("rows", [])
-
             if not meetings_data:
                 logger.info("No meetings found in the response")
                 return []
 
             logger.info(f"Found {len(meetings_data)} meetings in the response")
 
-            # Process each meeting
             for i, meeting_data in enumerate(meetings_data):
-                # Skip if it's some sort of a Guided Tour
                 if any(
                     keyword in meeting_data
-                    for keyword in ["Führung Parlament", "Führung", "Guided Tour", "Galeriebesuch Nationalrat"]
+                    for keyword in ["Führung Parlament", "Führung", "Guided Tour", 
+                                    "Galeriebesuch Nationalrat", "Photo Tour"]
                 ):
                     continue
 
                 if len(meeting_data) >= 9:
                     try:
-                        # Extract required fields
                         date_str = meeting_data[0]
                         title = meeting_data[3]
                         meeting_type = meeting_data[5]
                         location = meeting_data[8]
                         url_path = meeting_data[4]
 
-                        # Clean up the title
-                        title, title_de = self._clean_and_translate_title(title)
-                        # Parse date from DD.MM.YYYY format
+                        title_de, title_en = self._clean_and_translate_title(title)
                         day, month, year = map(int, date_str.split("."))
-                        meeting_date = date(year, month, day)
-
-                        # Construct full URL
+                        meeting_date = date(year, month, day).strftime('%Y-%m-%d')
                         url = BASE_URL + url_path if url_path else ""
 
                         meetings.append(
                             AustrianParliamentMeeting(
-                                title=title,
+                                title=title_en,
                                 title_de=title_de,
                                 meeting_type=meeting_type,
                                 meeting_date=meeting_date,
@@ -194,74 +142,98 @@ class AustrianParliamentAPI:
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             return []
-
         except Exception as e:
             logger.error(f"Error parsing response: {e}")
             return []
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
-        """Clean up the meeting title.
-
-        Args:
-            title: Raw meeting title
-
-        Returns:
-            Cleaned meeting title
-        """
+        """Clean up and translate the meeting title."""
         if not title:
             return "", ""
 
-        # Replace HTML non-breaking space entities with regular spaces
         title = title.replace("&nbsp;", " ")
-
-        # Remove leading dot and space (e.g., ". Sitzung")
         title = re.sub(r"^(\. )", "", title)
-
-        # Remove any extra whitespace
         title = " ".join(title.split())
-
-        # Translate the title using DeepLTranslator
         translation_result = self.translator.translate(title)
 
         return title, translation_result.text
 
-    def _store_meetings(self, meetings: list[AustrianParliamentMeeting]) -> None:
-        """Store meetings in Supabase database.
-
-        Args:
-            meetings: List of AustrianParliamentMeeting objects to store
-        """
-        if not meetings:
-            logger.info("No meetings to store")
-            return
+    def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
+        """Run a single scraping attempt."""
+        logger.info("Starting Austrian Parliament scraping...")
 
         try:
-            # Convert meetings to dict for database storage
-            meetings_data = [meeting.model_dump() for meeting in meetings]
+            # Build request payload
+            payload = self._build_request_payload()
 
-            # Store in Supabase
-            supabase.table(MEETINGS_TABLE_NAME).insert(
-                meetings_data,
-                upsert=True,
-            ).execute()
-            logger.info(f"Successfully stored {len(meetings)} meetings in Supabase")
+            # Make request to API
+            response = self.session.post(PARLIAMENT_API_URL, params=payload["params"], json=payload["body"])
+            response.raise_for_status()
+
+            # Parse meetings
+            meetings = self._parse_meetings(response.text)
+
+            # Store each meeting
+            for meeting in meetings:
+                # Check if meeting already exists
+                # existing = (
+                #     supabase.table(self.table_name)
+                #     .select("meeting_url")
+                #     .eq("meeting_url", meeting.meeting_url)
+                #     .execute()
+                # )
+                existing = False
+
+                if existing:#.data:
+                    # Update existing entry using meeting_url as the match column
+                    result = self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
+                else:
+                    # TODO: add this when issue with ID is fixed
+                    # Generate embeddings for the meeting title before storing
+                    # try:
+                    #     embed_row(
+                    #         source_table=self.table_name,
+                    #         row_id=str(meeting.id),
+                    #         content_column="title",
+                    #         content_text=meeting.title
+                    #     )
+                    #     logger.info(f"Generated embeddings for meeting: {meeting.title}")
+                    # except Exception as e:
+                    #     logger.error(f"Failed to generate embeddings: {e}")
+
+                    # Create new entry
+                    result = self.store_entry(meeting.model_dump())
+
+                if result and not result.success:
+                    return result
+
+            logger.info(f"Successfully processed {len(meetings)} meetings")
+            return ScraperResult(True)
+
+        except requests.RequestException as e:
+            logger.error(f"Network error: {e}")
+            return ScraperResult(False, e, self.last_entry)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return ScraperResult(False, e, self.last_entry)
         except Exception as e:
-            logger.error(f"Error storing meetings in Supabase: {e}")
+            logger.error(f"Unexpected error: {e}")
+            return ScraperResult(False, e, self.last_entry)
+        
 
-
-def run_client(start_date: Optional[date] = None, end_date: Optional[date] = None):
+def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
     """
-    Run the Austrian Parliament API client with optional date range filtering.
+    Run the Austrian Parliament scraper with optional date range filtering.
 
     Args:
         start_date: Optional start date for filtering meetings
         end_date: Optional end date for filtering meetings
     """
-    api = AustrianParliamentAPI()
-    api.get_meetings(start_date=start_date, end_date=end_date)
+    scraper = AustrianParliamentScraper(start_date=start_date, end_date=end_date)
+    scraper.scrape()
 
 
 if __name__ == "__main__":
     # Example usage
-    run_client(start_date=date(2025, 1, 1))
-    # run_client()
+    run_scraper(start_date=date(2025, 5, 20), end_date=date(2025, 5, 21))
+    # run_scraper()
