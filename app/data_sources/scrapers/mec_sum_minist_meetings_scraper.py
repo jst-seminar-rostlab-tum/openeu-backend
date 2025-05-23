@@ -9,8 +9,6 @@ from urllib.parse import urlencode
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from pydantic import BaseModel
 
-from app.core.supabase_client import supabase
-
 # type: ignore[attr-defined]
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
@@ -221,7 +219,7 @@ class MECSumMinistMeetingsScraper(ScraperBase):
                     continue
 
                 found_meetings.append(meeting)
-                scraper_error_result = self.store_entry(meeting.model_dump())
+                scraper_error_result = self.store_entry(meeting.model_dump(), on_conflict="url")
                 if scraper_error_result:
                     return (found_meetings, largest_page, scraper_error_result)
                 self.last_entry = meeting
@@ -239,11 +237,6 @@ class MECSumMinistMeetingsScraper(ScraperBase):
             raise ValueError("Missing start_date or end_date")
         if start_date > end_date:
             raise ValueError("start_date must be before end_date")
-
-        # Delete existing meetings in the date range
-        supabase.table(MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME).delete().gte("meeting_date", start_date).lte(
-            "meeting_date", end_date
-        ).execute()
 
         async with AsyncWebCrawler() as crawler:
             while current_page <= largest_known_page:
