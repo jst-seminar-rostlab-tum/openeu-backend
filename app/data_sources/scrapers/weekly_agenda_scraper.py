@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
-# from app.core.supabase_client import supabase
+from app.core.supabase_client import supabase
+
 # from supabase import Client  # type: ignore[attr-defined]
 
 
@@ -70,6 +71,14 @@ class WeeklyAgendaSpider(scrapy.Spider):
         if self.result_callback:
             self.result_callback(self.entries)
 
+        # Add each entry to the Supabase table
+        for entry in self.entries:
+            try:
+                supabase.table("weekly_agenda").upsert(entry.model_dump()).execute()
+                self.logger.info(f"Successfully added entry to Supabase: {entry.title}")
+            except Exception as e:
+                self.logger.error(f"Failed to add entry to Supabase: {entry.title}, Error: {e}")
+
     def parse_week(self, response: Response):
         """
         Parse the weekly agenda page to extract detailed event information for each day.
@@ -113,9 +122,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                         # If a list of AgendaEntries is returned
                         elif isinstance(entry, list):
                             self.entries.extend(entry)
-
-                        # Uncomment to store in supabase:
-                        # supabase.table("WEEKLY_AGENDA").upsert(item.model_dump()).execute()
 
     def get_event_type(self, event: Selector) -> str:
         """
@@ -379,6 +385,31 @@ class WeeklyAgendaSpider(scrapy.Spider):
 # ------------------------------
 # Scraping Function
 # ------------------------------
+
+"""
+class WeeklyAgendaScraper(ScraperBase):
+    def __init__(self, start_date: date, end_date: date):
+        super().__init__(table_name="weekly_agenda")
+        self.start_date = start_date
+        self.end_date = end_date
+        self.entries: list[AgendaEntry] = []
+
+    def scrape_once(self, last_entry, **kwargs) -> ScraperResult:
+        try:
+            process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
+            process.crawl(WeeklyAgendaSpider, start_date=self.start_date, 
+            end_date=self.end_date, result_callback=self._collect_entry)
+            process.start()
+            return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
+        except Exception as e:
+            return ScraperResult(success=False, error=e)
+
+    def _collect_entry(self, entries: list[AgendaEntry]):
+        for entry in entries:
+            store_result = self.store_entry(entry.model_dump())
+            if store_result is None:
+                self.entries.append(entry)
+"""
 
 
 def scrape_agenda(start_date: date, end_date: date) -> list[AgendaEntry]:
