@@ -73,7 +73,8 @@ The database schema is defined inside this project and must be pushed to Supabas
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
 - Start Docker on your computer
 - Generate a migration file by calling ```supabase db diff -f <MIGRATION_NAME>```
-- Stop all local instances of Supabase and then apply the migration by calling ```supabase start && supabase migration up```
+- Stop all local instances of Supabase and then apply the migration by calling ```supabase start```
+- If you want to clear local db, you can call ```supabase db reset``` (optional)
 - Login to Supabase by calling ```supabase login```
 - Link the local project to the remote database by calling ```supabase link```
 - Push the changes to the remote Supabase instance by calling ```supabase db push```
