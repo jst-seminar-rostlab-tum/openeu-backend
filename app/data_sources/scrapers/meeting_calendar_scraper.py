@@ -4,7 +4,7 @@ from typing import Any, Optional
 from urllib.parse import quote
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
@@ -78,7 +78,7 @@ class EPMeetingCalendarScraper(ScraperBase):
     def _extract_meetings(self, soup: BeautifulSoup) -> None:
         meetings_container = soup.find("div", class_="listcontent")
         meetings = []
-        if meetings_container is not None:
+        if isinstance(meetings_container, Tag):
             meetings = meetings_container.find_all("div", class_="notice")
 
         batch = []
