@@ -8,4 +8,3 @@ CREATE TABLE IF NOT EXISTS weekly_agenda (
   location    TEXT,                     -- Location of the event (optional)
   description TEXT                      -- Additional details or topics (optional)
 );
-
