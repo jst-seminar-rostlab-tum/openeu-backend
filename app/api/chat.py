@@ -10,6 +10,7 @@ from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
 from app.core.supabase_client import supabase
+from app.core.vector_search import get_top_k_neighbors
 
 client = OpenAI()
 router = APIRouter(prefix="/chat")
@@ -25,17 +26,25 @@ class ChatResponseItem(BaseModel):
     message: str
 
 
-def build_system_prompt(messages: list[dict[str, str | int]]) -> str:
-    messages_str = ""
+def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> str:
+    messages_text = ""
     for message in messages:
-        messages_str += f"{message['author']}: {message['content']}\n"
+        messages_text += f"{message['author']}: {message['content']}\n"
+
+    context = get_top_k_neighbors(
+        f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", {"bt_plenarprotokolle": "text"}
+    )
+    context_text = ""
+    for element in context:
+        context_text += f"{element.get('content_text')}\n"
+
     assistant_system_prompt = f"""
     You are a helpful assistant working for Project Europe. Your task is to answer questions on OpenEU, a platform 
     for screening EU legal processes. You will get a question and a prior conversation if there is any and your task 
     is to use your knowledge and the knowledge of OpenEU to answer the question. Do not answer any questions outside 
     the scope of OpenEU.\n\n
     *** BEGIN PREVIOUS CONVERSATION ***
-    {messages_str}
+    {messages_text}
     *** END PREVIOUS CONVERSATION ***\n\n
     You will not apologize for previous responses, but instead will indicated new information was gained.
     You will take into account any CONTEXT BLOCK that is provided in a conversation.
@@ -44,9 +53,10 @@ def build_system_prompt(messages: list[dict[str, str | int]]) -> str:
     You will not answer questions that are not related to the context.
     More information on how OpenEU works is between ***START CONTEXT BLOCK*** and ***END CONTEXT BLOCK***
     ***START CONTEXT BLOCK***
-    OpenEU scrapes information     
+    {context_text}
     ***END CONTEXT BLOCK***`,
     """
+
     return assistant_system_prompt
 
 
@@ -78,7 +88,7 @@ def get_response(prompt: str, session_id: int):
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
-                ChatCompletionAssistantMessageParam(content=build_system_prompt(messages), role="assistant"),
+                ChatCompletionAssistantMessageParam(content=build_system_prompt(messages, prompt), role="assistant"),
                 ChatCompletionUserMessageParam(
                     content=f"Please answer the following question regarding OpenEU: {prompt}", role="user"
                 ),
