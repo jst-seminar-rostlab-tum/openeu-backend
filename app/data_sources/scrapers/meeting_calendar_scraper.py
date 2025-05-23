@@ -46,7 +46,7 @@ class EPMeetingCalendarScraper(ScraperBase):
         while current_date <= self.end_date:
             date_str = quote(current_date.strftime("%d/%m/%Y"))
             page_number = 0
-            logging.info(f"Scraping meetings for date {current_date.strftime('%d-%m-%Y')}")
+            logger.info(f" Scraping meetings for date {current_date.strftime('%d-%m-%Y')}")
             while True:
                 full_url = BASE_URL_TEMPLATE.format(date=date_str, page=page_number)
                 page_soup = self._fetch_page_process_page(full_url)
@@ -70,7 +70,7 @@ class EPMeetingCalendarScraper(ScraperBase):
         soup = BeautifulSoup(response.text, "html.parser")
         error_message = soup.find("div", class_="message_error")
         if error_message and "No result" in error_message.get_text(strip=True):
-            logger.info(f"No results found on page: {full_url}")
+            logger.info(f" No results found on page: {full_url}")
             return None
         self._extract_meetings(soup)
         return soup
@@ -115,15 +115,14 @@ class EPMeetingCalendarScraper(ScraperBase):
             try:
                 datetime_obj = datetime.strptime(f"{date} {hour}", "%d-%m-%Y %H:%M")
             except ValueError:
-                logging.warning(f"Failed to parse datetime from date='{date}' and hour='{hour}'")
+                logger.warning(f"Failed to parse datetime from date='{date}' and hour='{hour}'")
                 continue
 
             batch.append({"title": title, "datetime": datetime_obj.isoformat(), "place": place, "subtitles": subtitles})
-
         if batch:
             self.store_entry(batch)
         else:
-            logging.info("No meetings found on this page")
+            logger.info("No meetings found on this page")
 
 
 def run_scraper(start_date: date, end_date: date):
