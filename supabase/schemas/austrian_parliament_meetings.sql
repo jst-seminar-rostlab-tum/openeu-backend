@@ -1,6 +1,6 @@
 -- Austrian Parliament Meetings
 CREATE TABLE IF NOT EXISTS austrian_parliament_meetings (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
     title text NOT NULL,
     title_de text NOT NULL,
     meeting_type text NOT NULL,
