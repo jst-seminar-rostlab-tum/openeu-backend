@@ -39,7 +39,7 @@ SELECT
         NULL::text,
         NULL::text,
         NULL::text[]
-FROM public.ep_meetings e
-    GRANT SELECT ON public.v_meetings TO anon, authenticated, service_role
+FROM public.ep_meetings e;
+    GRANT SELECT ON public.v_meetings TO anon, authenticated, service_role;
 -- +supabase_down
 DROP VIEW IF EXISTS public.v_meetings

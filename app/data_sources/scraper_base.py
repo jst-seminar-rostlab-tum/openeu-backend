@@ -7,17 +7,15 @@ from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
+
 class ScraperResult:
-    def __init__(self,
-                 success: bool,
-                 error: Optional[Exception] = None,
-                 last_entry: Optional[Any] = None) -> None:
+    def __init__(self, success: bool, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
         self.success = success
         self.error = error
         self.last_entry = last_entry
 
     def __repr__(self):
-        return f"<ScraperResult success={self.success} data={self.data} error={self.error}>"
+        return f"<ScraperResult success={self.success} error={self.error} last_entry={self.last_entry}>"
 
 
 class ScraperBase(ABC):
