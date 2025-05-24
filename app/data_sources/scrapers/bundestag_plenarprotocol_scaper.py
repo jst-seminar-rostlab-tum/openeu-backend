@@ -105,4 +105,7 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
 
         raw_cursor = data.get("cursor")
         cursor = raw_cursor if isinstance(raw_cursor, int) else None
+        if cursor is None:
+            logging.info("Finished: no more documents.")
+            break
         page += 1
