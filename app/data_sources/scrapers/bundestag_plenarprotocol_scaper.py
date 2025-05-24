@@ -104,9 +104,15 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             text_json = fetch_protocol_text(pid, endpoint="plenarprotokoll-text")
             meta["text"] = text_json.get("text", "")
 
-            title_english = str(translator.translate(item.get("titel"))) if item.get("titel") else ""
-
-            text_english = str(translator.translate(meta["text"])) if meta["text"] else ""
+            try:
+                
+                title_english = str(translator.translate(str(meta["titel"])))
+                text_english = str(translator.translate(str(meta["text"])))
+                                
+            except Exception as e:
+                title_english = ""
+                text_english = ""
+                logging.error(f"Translation of {pid} failed with exception: {e}")
 
             meta["title_english"] = title_english
             meta["text_english"] = text_english
