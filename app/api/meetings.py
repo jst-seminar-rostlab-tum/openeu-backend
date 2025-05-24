@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.core.supabase_client import supabase
+from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
 logging.basicConfig(level=logging.INFO)
@@ -19,16 +20,52 @@ _END = Query(None, description="End datetime (ISO8601)")
 
 
 @router.get("/meetings", response_model=list[Meeting])
-def get_meetings(limit: int = Query(100, gt=1), start: Optional[datetime] = _START, end: Optional[datetime] = _END):
+def get_meetings(
+    limit: int = Query(100, gt=1),
+    start: Optional[datetime] = _START,
+    end: Optional[datetime] = _END,
+    query: Optional[str] = Query(None, description="Search query using semantic similarity"),
+):
     try:
-        query = supabase.table("v_meetings").select("*")
+        if query:
+            neighbors = get_top_k_neighbors(
+                query=query,
+                allowed_sources={
+                    "ep_meetings": "title",
+                    "mep_meetings": "title",
+                    "ipex_events": "title",
+                    "austrian_parliament_meetings": "title",
+                },
+                k=2,
+            )
+
+            if not neighbors:
+                return JSONResponse(status_code=200, content={"data": []})
+
+            results = []
+            for neighbor in neighbors:
+                match = (
+                    supabase.table("v_meetings")
+                    .select("*")
+                    .eq("source_table", neighbor["source_table"])
+                    .eq("source_id", neighbor["source_id"])
+                    .limit(1)
+                    .execute()
+                )
+
+                if match.data:
+                    results.extend(match.data)
+
+            return JSONResponse(status_code=200, content={"data": results})
+
+        db_query = supabase.table("v_meetings").select("*")
 
         if start:
-            query = query.gte("meeting_start_datetime", start.isoformat())
+            db_query = db_query.gte("meeting_start_datetime", start.isoformat())
         if end:
-            query = query.lte("meeting_start_datetime", end.isoformat())
+            db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
-        result = query.order("meeting_start_datetime", desc=True).limit(limit).execute()
+        result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
 
         data = result.data
 
