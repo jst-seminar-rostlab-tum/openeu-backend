@@ -6,6 +6,7 @@ from typing import Any, Optional, Union
 
 import requests
 from postgrest.exceptions import APIError
+from scripts.embedding_generator import embed_row
 
 from app.core.supabase_client import supabase
 
@@ -101,6 +102,8 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             meta["text"] = text_json.get("text", "")
 
             upsert_record(meta, "bt_plenarprotokolle")
+            embed_row(source_table="bt_plenarprotokolle", row_id=pid, content_column="titel", content_text=meta["titel"])
+            embed_row(source_table="bt_plenarprotokolle", row_id=pid, content_column="text", content_text=meta["text"])
             sleep(0.1)
 
         raw_cursor = data.get("cursor")

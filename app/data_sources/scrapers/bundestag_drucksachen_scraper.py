@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from time import sleep
 from typing import Optional
+from scripts.embedding_generator import embed_row
 
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
     fetch_plenarprotokolle,
@@ -42,8 +43,10 @@ def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
 
             text_json = fetch_protocol_text(pid, endpoint="drucksache-text")
             meta["text"] = text_json.get("text", "")
-
             upsert_record(meta, "bt_documents")
+            embed_row(source_table="bt_documents", row_id=pid, content_column="titel", content_text=meta["titel"])
+            embed_row(source_table="bt_documents", row_id=pid, content_column="text", content_text=meta["text"])
+            
             sleep(0.1)
 
         raw_cursor = data.get("cursor")
