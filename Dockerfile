@@ -1,13 +1,15 @@
-FROM python:3.13.3-bullseye
+FROM python:3.13.3-slim
+
+WORKDIR /code
 
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
-COPY . .
+COPY pyproject.toml .
+COPY .env .env
+COPY README.md README.md
+COPY app app
+
 RUN poetry install
 
 #Expose port
-EXPOSE 8000
-
-
-
-ENTRYPOINT ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0"]
+EXPOSE 3000

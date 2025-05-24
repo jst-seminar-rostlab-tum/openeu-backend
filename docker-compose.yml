@@ -12,14 +12,12 @@ services:
   backend:
     container_name: python-backend
     build: .
+    command: poetry run uvicorn main:app --host 0.0.0.0 --port 3000 --log-config log_conf.yaml --reload
     ports:
-      - "3000:8000"
+      - "3000:3000"
     restart: unless-stopped
-    develop:
-      watch:
-        - action: sync
-          path: ./app
-          target: /app
+    volumes:
+      - .:/code
     depends_on:
       analytics:
         condition: service_healthy
