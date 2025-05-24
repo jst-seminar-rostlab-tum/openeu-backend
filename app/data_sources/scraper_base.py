@@ -54,15 +54,32 @@ class ScraperBase(ABC):
     def last_entry(self, last_entry: Any):
         self._last_entry = last_entry
 
-    def store_entry(self, entry) -> Optional[ScraperResult]:
+    def store_entry(self, entry) -> Any:
         try:
-            supabase.table(self.table_name).insert(
+            return supabase.table(self.table_name).insert(
                 entry,
                 upsert=True,
             ).execute()
-            return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
+            return ScraperResult(False, e, self.last_entry)
+
+    def update_entry(self, entry, match_column, match_value) -> Any:
+        """Update an existing entry in the database.
+
+        Args:
+            entry: The updated entry data
+            match_column: The column name to match for the update
+            match_value: The value to match in the specified column
+
+        Returns:
+            None if successful, ScraperResult with error if failed
+        """
+        try:
+            # Update where match_column equals match_value
+            return supabase.table(self.table_name).update(entry).eq(match_column, match_value).execute()
+        except Exception as e:
+            logger.error(f"Error updating entry in Supabase: {e}")
             return ScraperResult(False, e, self.last_entry)
 
     @abstractmethod
