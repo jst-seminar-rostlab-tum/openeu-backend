@@ -8,6 +8,7 @@ import requests
 from pydantic import BaseModel
 
 from app.core.deepl_translator import translator
+from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
@@ -66,7 +67,7 @@ class AustrianParliamentScraper(ScraperBase):
 
     def _build_request_payload(self) -> dict[str, Any]:
         """Build the request payload for the API."""
-        params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"}
+        params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"} 
         body: dict[str, list[Optional[str]]] = {"DATERANGE": [None, None]}
 
         if self.start_date or self.end_date:
@@ -176,15 +177,14 @@ class AustrianParliamentScraper(ScraperBase):
             # Store each meeting
             for meeting in meetings:
                 # Check if meeting already exists
-                # existing = (
-                #     supabase.table(self.table_name)
-                #     .select("meeting_url")
-                #     .eq("meeting_url", meeting.meeting_url)
-                #     .execute()
-                # )
-                existing = False
+                existing = (
+                    supabase.table(self.table_name)
+                    .select("meeting_url")
+                    .eq("meeting_url", meeting.meeting_url)
+                    .execute()
+                )
 
-                if existing:#.data:
+                if existing.data:
                     # Update existing entry using meeting_url as the match column
                     result = self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
                 else:
