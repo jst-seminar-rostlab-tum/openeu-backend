@@ -3,5 +3,7 @@ CREATE TABLE IF NOT EXISTS bt_plenarprotokolle (
   datum             DATE,
   titel             TEXT,
   sitzungsbemerkung TEXT,
-  text              TEXT
+  text              TEXT,
+  title_english     TEXT,
+  text_english      TEXT
 );
