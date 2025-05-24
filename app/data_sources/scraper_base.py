@@ -7,11 +7,9 @@ from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
+
 class ScraperResult:
-    def __init__(self,
-                 success: bool,
-                 error: Optional[Exception] = None,
-                 last_entry: Optional[Any] = None) -> None:
+    def __init__(self, success: bool, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
         self.success = success
         self.error = error
         self.last_entry = last_entry
@@ -65,6 +63,25 @@ class ScraperBase(ABC):
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
+            return ScraperResult(False, e, self.last_entry)
+
+    def update_entry(self, entry, match_column, match_value) -> Optional[ScraperResult]:
+        """Update an existing entry in the database.
+
+        Args:
+            entry: The updated entry data
+            match_column: The column name to match for the update
+            match_value: The value to match in the specified column
+
+        Returns:
+            None if successful, ScraperResult with error if failed
+        """
+        try:
+            # Update where match_column equals match_value
+            supabase.table(self.table_name).update(entry).eq(match_column, match_value).execute()
+            return None
+        except Exception as e:
+            logger.error(f"Error updating entry in Supabase: {e}")
             return ScraperResult(False, e, self.last_entry)
 
     @abstractmethod
