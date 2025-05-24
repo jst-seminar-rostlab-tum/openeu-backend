@@ -2,18 +2,19 @@ import logging
 from datetime import datetime
 from time import sleep
 from typing import Optional
-from scripts.embedding_generator import embed_row
-from app.data_sources.translator.translator import DeepLTranslator, TextPreprocessor
+
+from app.core.deepl_translator import translator
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
     fetch_plenarprotokolle,
     fetch_protocol_text,
     upsert_record,
 )
-from app.core.deepl_translator import translator
+from app.data_sources.translator.translator import DeepLTranslator, TextPreprocessor
+from scripts.embedding_generator import embed_row
 
-
-textPreprocessor = TextPreprocessor()
+text_preprocessor = TextPreprocessor()
 translator = DeepLTranslator(translator)
+
 
 def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
     start = datetime.fromisoformat(start_date)
@@ -37,7 +38,7 @@ def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
             datum_str = item.get("datum")
             if not datum_str:
                 continue
-            
+
             meta = {
                 "id": pid,
                 "datum": datum_str,
@@ -47,25 +48,27 @@ def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
 
             text_json = fetch_protocol_text(pid, endpoint="drucksache-text")
             meta["text"] = text_json.get("text", "")
-            
-            if item.get("titel"):
-                title_english = str(translator.translate(item.get("titel")))
-            else:
-                title_english = ""
-                
-            if meta["text"]:
-                text_english = str(translator.translate(meta["text"]))
-            else:
-                text_english = ""
-            
+
+            title_english = str(translator.translate(item.get("titel"))) if item.get("titel") else ""
+            text_english = str(translator.translate(meta["text"])) if meta["text"] else ""
+
             meta["title_english"] = title_english
             meta["text_english"] = text_english
 
-            
             upsert_record(meta, "bt_documents")
-            embed_row(source_table="bt_documents", row_id=pid, content_column="title_english", content_text=meta["title_english"])
-            embed_row(source_table="bt_documents", row_id=pid, content_column="text_english", content_text=meta["text_english"])
-            
+            embed_row(
+                source_table="bt_documents",
+                row_id=pid,
+                content_column="title_english",
+                content_text=meta["title_english"],
+            )
+            embed_row(
+                source_table="bt_documents",
+                row_id=pid,
+                content_column="text_english",
+                content_text=meta["text_english"],
+            )
+
             sleep(0.1)
 
         raw_cursor = data.get("cursor")

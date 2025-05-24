@@ -6,13 +6,11 @@ from typing import Any, Optional, Union
 
 import requests
 from postgrest.exceptions import APIError
-from scripts.embedding_generator import embed_row
-from app.data_sources.translator.translator import DeepLTranslator
 
-
-from app.core.supabase_client import supabase
 from app.core.deepl_translator import translator
-
+from app.core.supabase_client import supabase
+from app.data_sources.translator.translator import DeepLTranslator
+from scripts.embedding_generator import embed_row
 
 API_BASE = "https://search.dip.bundestag.de/api/v1"
 API_KEY = os.getenv("BUNDESTAG_KEY")
@@ -106,24 +104,27 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             text_json = fetch_protocol_text(pid, endpoint="plenarprotokoll-text")
             meta["text"] = text_json.get("text", "")
 
-            if item.get("titel"):
-                title_english = str(translator.translate(item.get("titel")))
-            else:
-                title_english = ""
-                
-            if meta["text"]:
-                text_english = str(translator.translate(meta["text"]))
-            else:
-                text_english = ""
-            
+            title_english = str(translator.translate(item.get("titel"))) if item.get("titel") else ""
+
+            text_english = str(translator.translate(meta["text"])) if meta["text"] else ""
+
             meta["title_english"] = title_english
             meta["text_english"] = text_english
 
-            
             upsert_record(meta, "bt_plenarprotokolle")
-            embed_row(source_table="bt_plenarprotokolle", row_id=pid, content_column="title_english", content_text=meta["title_english"])
-            embed_row(source_table="bt_plenarprotokolle", row_id=pid, content_column="text_english", content_text=meta["text_english"])
-            
+            embed_row(
+                source_table="bt_plenarprotokolle",
+                row_id=pid,
+                content_column="title_english",
+                content_text=meta["title_english"],
+            )
+            embed_row(
+                source_table="bt_plenarprotokolle",
+                row_id=pid,
+                content_column="text_english",
+                content_text=meta["text_english"],
+            )
+
             sleep(0.1)
 
         raw_cursor = data.get("cursor")
@@ -132,6 +133,3 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             logging.info("Finished: no more documents.")
             break
         page += 1
-
-
-
