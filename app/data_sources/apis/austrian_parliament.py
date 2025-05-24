@@ -11,6 +11,7 @@ from app.core.deepl_translator import translator
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
+from scripts.embedding_generator import embed_row
 
 # Configure logging
 logging.basicConfig(
@@ -67,7 +68,7 @@ class AustrianParliamentScraper(ScraperBase):
 
     def _build_request_payload(self) -> dict[str, Any]:
         """Build the request payload for the API."""
-        params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"} 
+        params: dict[str, str] = {"js": "eval", "showAll": "true", "export": "true"}
         body: dict[str, list[Optional[str]]] = {"DATERANGE": [None, None]}
 
         if self.start_date or self.end_date:
@@ -104,8 +105,13 @@ class AustrianParliamentScraper(ScraperBase):
             for i, meeting_data in enumerate(meetings_data):
                 if any(
                     keyword in meeting_data
-                    for keyword in ["Führung Parlament", "Führung", "Guided Tour", 
-                                    "Galeriebesuch Nationalrat", "Photo Tour"]
+                    for keyword in [
+                        "Führung Parlament",
+                        "Führung",
+                        "Guided Tour",
+                        "Galeriebesuch Nationalrat",
+                        "Photo Tour",
+                    ]
                 ):
                     continue
 
@@ -119,7 +125,7 @@ class AustrianParliamentScraper(ScraperBase):
 
                         title_de, title_en = self._clean_and_translate_title(title)
                         day, month, year = map(int, date_str.split("."))
-                        meeting_date = date(year, month, day).strftime('%Y-%m-%d')
+                        meeting_date = date(year, month, day).strftime("%Y-%m-%d")
                         url = BASE_URL + url_path if url_path else ""
 
                         meetings.append(
@@ -188,24 +194,20 @@ class AustrianParliamentScraper(ScraperBase):
                     # Update existing entry using meeting_url as the match column
                     result = self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
                 else:
-                    # TODO: add this when issue with ID is fixed
-                    # Generate embeddings for the meeting title before storing
-                    # try:
-                    #     embed_row(
-                    #         source_table=self.table_name,
-                    #         row_id=str(meeting.id),
-                    #         content_column="title",
-                    #         content_text=meeting.title
-                    #     )
-                    #     logger.info(f"Generated embeddings for meeting: {meeting.title}")
-                    # except Exception as e:
-                    #     logger.error(f"Failed to generate embeddings: {e}")
-
                     # Create new entry
                     result = self.store_entry(meeting.model_dump())
 
-                if result and not result.success:
-                    return result
+                    # Generate embeddings for the meeting title
+                    try:
+                        embed_row(
+                            source_table=self.table_name,
+                            row_id=str(result.data[0]["id"]),
+                            content_column="title",
+                            content_text=meeting.title,
+                        )
+                        logger.info(f"Generated embeddings for meeting: {meeting.title}")
+                    except Exception as e:
+                        logger.error(f"Failed to generate embeddings: {e}")
 
             logger.info(f"Successfully processed {len(meetings)} meetings")
             return ScraperResult(True)
@@ -219,7 +221,7 @@ class AustrianParliamentScraper(ScraperBase):
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             return ScraperResult(False, e, self.last_entry)
-        
+
 
 def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
     """
