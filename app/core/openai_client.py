@@ -1,5 +1,6 @@
-from app.core.config import Settings
 from openai import OpenAI
+
+from app.core.config import Settings
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536

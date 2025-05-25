@@ -2,18 +2,14 @@ import logging
 from typing import Dict, List
 
 import tiktoken
-from openai import OpenAI
 from postgrest.exceptions import APIError
 
 from app.core.config import Settings
+from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
 from app.core.supabase_client import supabase
-from app.core.openai_client import (openai,EMBED_MODEL, MAX_TOKENS,BATCH_SZ)
 
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
-
-
-
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
