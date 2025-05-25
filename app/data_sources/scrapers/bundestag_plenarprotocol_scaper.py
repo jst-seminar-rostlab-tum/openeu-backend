@@ -1,43 +1,33 @@
 import logging
-from datetime import datetime
-from time import sleep
-from typing import Any
 import os
+from datetime import datetime
+from typing import Any
+
 import requests
 
-
 from app.core.deepl_translator import translator
-from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 from scripts.embedding_generator import embed_row
 
-from app.data_sources.scraper_base import ScraperBase, ScraperResult 
-
 
 class BundestagPlenarprotokolleScraper(ScraperBase):
-    
     def __init__(self, max_retries: int = 3, retry_delay: float = 2.0):
         # target table is "bt_plenarprotokolle"
-        super().__init__(table_name="bt_plenarprotokolle",
-                         max_retries=max_retries,
-                         retry_delay=retry_delay)
+        super().__init__(table_name="bt_plenarprotokolle", max_retries=max_retries, retry_delay=retry_delay)
         self.translator = DeepLTranslator(translator)
         self.API_BASE = "https://search.dip.bundestag.de/api/v1"
         self.API_KEY = os.getenv("BUNDESTAG_KEY")
         self.HEADERS = {"Authorization": f"ApiKey {self.API_KEY}"}
 
-    def scrape_once(
-        self,
-        last_entry : Any,
-        *args
-    ) -> ScraperResult:
+    def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
         """
         Fetch all new plenary protocols between start_date and end_date.
         last_entry may be used to resume from a cursor if desired.
         """
         try:
-            start_dt = datetime.fromisoformat(args[0])
-            end_dt = datetime.fromisoformat(args[1])
+            start_dt = datetime.fromisoformat(str(args.get("start_date")))
+            end_dt = datetime.fromisoformat(str(args.get("end_date")))
 
             page = 1
             size = 50
@@ -49,16 +39,12 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                     "page": page,
                     "size": size,
                     "f.datum.start": start_dt.strftime("%Y-%m-%d"),
-                    "f.datum.end":   end_dt.strftime("%Y-%m-%d"),
+                    "f.datum.end": end_dt.strftime("%Y-%m-%d"),
                 }
                 if cursor is not None:
                     params["cursor"] = cursor
 
-                resp = requests.get(
-                    f"{self.API_BASE}/plenarprotokoll",
-                    headers=self.HEADERS,
-                    params=params
-                )
+                resp = requests.get(f"{self.API_BASE}/plenarprotokoll", headers=self.HEADERS, params=params)
                 resp.raise_for_status()
                 data = resp.json()
 
@@ -74,10 +60,7 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                         continue
 
                     # fetch full text
-                    text_json = requests.get(
-                        f"{self.API_BASE}/plenarprotokoll-text/{pid}",
-                        headers=self.HEADERS
-                    ).json()
+                    text_json = requests.get(f"{self.API_BASE}/plenarprotokoll-text/{pid}", headers=self.HEADERS).json()
 
                     record = {
                         "id": pid,
@@ -88,26 +71,21 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                     }
 
                     try:
-                        record["title_english"] = str(
-                            translator.translate(record["titel"] or "")
-                        )
+                        record["title_english"] = str(translator.translate(record["titel"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
-                        
+
                     try:
-                        record["text_english"] = str(
-                            translator.translate(record["text"] or "")
-                        )
+                        record["text_english"] = str(translator.translate(record["text"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["text_english"] = "Not available"
 
-
                     store_err = self.store_entry(record)
                     if store_err:
                         return store_err
-                    
+
                     embed_row(
                         source_table=self.table_name,
                         row_id=pid,
@@ -120,7 +98,7 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                         content_column="text_english",
                         content_text=record["text_english"],
                     )
-                    
+
                 self.last_entry = pid
                 raw_cursor = data.get("cursor")
                 if isinstance(raw_cursor, int):

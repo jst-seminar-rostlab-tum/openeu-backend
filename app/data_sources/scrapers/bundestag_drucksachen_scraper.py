@@ -1,36 +1,38 @@
 import logging
-from datetime import datetime
-from typing import Optional, Any
-import requests
 import os
+from datetime import datetime
+from typing import Any, Optional
+
+import requests
 
 from app.core.deepl_translator import translator
-
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 from scripts.embedding_generator import embed_row
-from app.data_sources.scraper_base import ScraperBase, ScraperResult
+
 
 class BundestagDrucksachenScraper(ScraperBase):
-    def __init__(self,
-                 table_name: str = "bt_documents",
-                 max_retries: int = 3,
-                 retry_delay: float = 2.0,
-                 translator_client: Any = None):
+    def __init__(
+        self,
+        table_name: str = "bt_documents",
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+        translator_client: Any = None,
+    ):
         super().__init__(table_name, max_retries, retry_delay)
         self.translator = DeepLTranslator(translator)
         self.API_BASE = "https://search.dip.bundestag.de/api/v1"
         self.API_KEY = os.getenv("BUNDESTAG_KEY")
         self.HEADERS = {"Authorization": f"ApiKey {self.API_KEY}"}
-        
 
-    def scrape_once(self, last_entry: Any, start_date: str, end_date: str) -> ScraperResult:
+    def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
         try:
-            start_dt = datetime.fromisoformat(start_date)
-            end_dt = datetime.fromisoformat(end_date)
+            start_dt = datetime.fromisoformat(str(args.get("start_date")))
+            end_dt = datetime.fromisoformat(str(args.get("end_date")))
 
             cursor: Optional[int] = None
             last_pid: Optional[int] = None
-            
+
             page = 1
             size = 50
 
@@ -39,21 +41,16 @@ class BundestagDrucksachenScraper(ScraperBase):
                     "page": page,
                     "size": size,
                     "f.datum.start": start_dt.strftime("%Y-%m-%d"),
-                    "f.datum.end":   end_dt.strftime("%Y-%m-%d"),
+                    "f.datum.end": end_dt.strftime("%Y-%m-%d"),
                 }
                 if cursor is not None:
                     params["cursor"] = cursor
 
-                resp = requests.get(
-                    f"{self.API_BASE}/drucksache",
-                    headers=self.HEADERS,
-                    params=params
-                )
-                
+                resp = requests.get(f"{self.API_BASE}/drucksache", headers=self.HEADERS, params=params)
+
                 resp.raise_for_status()
                 data = resp.json()
-                
-                
+
                 items = data.get("documents", [])
                 if not items:
                     logging.info("No more documents to process.")
@@ -71,25 +68,18 @@ class BundestagDrucksachenScraper(ScraperBase):
                         "titel": item.get("titel"),
                         "drucksachetyp": item.get("drucksachetyp") or None,
                     }
-                    text_json = requests.get(
-                        f"{self.API_BASE}/drucksache-text/{pid}",
-                        headers=self.HEADERS
-                    ).json()
-                    
+                    text_json = requests.get(f"{self.API_BASE}/drucksache-text/{pid}", headers=self.HEADERS).json()
+
                     record["text"] = text_json.get("text", "")
 
                     try:
-                        record["title_english"] = str(
-                            translator.translate(record["titel"] or "")
-                        )
+                        record["title_english"] = str(translator.translate(record["titel"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
-                        
+
                     try:
-                        record["text_english"] = str(
-                            translator.translate(record["text"] or "")
-                        )
+                        record["text_english"] = str(translator.translate(record["text"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["text_english"] = "Not available"
