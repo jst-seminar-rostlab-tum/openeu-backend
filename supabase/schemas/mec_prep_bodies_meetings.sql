@@ -1,9 +1,7 @@
 CREATE TABLE IF NOT EXISTS mec_prep_bodies_meeting (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     url TEXT NOT NULL,
     title TEXT NOT NULL,
-    meeting_date DATE NOT NULL,
-    prep_body_abbr TEXT NOT NULL,
+    meeting_timestamp TIMESTAMP NOT NULL,
+    meeting_location TEXT NOT NULL
 );
-
--- TODO: add location, time, etc

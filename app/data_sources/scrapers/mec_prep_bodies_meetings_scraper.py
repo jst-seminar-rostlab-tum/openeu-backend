@@ -1,11 +1,12 @@
 import asyncio
 import logging
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from urllib.parse import urlencode
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+from parsel import Selector
 from pydantic import BaseModel
 
 # type: ignore[attr-defined]
@@ -40,10 +41,8 @@ MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME = "mec_prep_bodies_meeting"
 class MECPrepBodiesMeeting(BaseModel):
     id: int
     url: str
-    prep_body_abbr: str
     title: str
-    meeting_date: str
-    meeting_time: str
+    meeting_timestamp: str
     meeting_location: str
 
 
@@ -106,7 +105,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             tuple: A tuple containing a list of found meetings and the largest page number.
         """
         logger.info(f"Scraping page {page} for meetings between {start_date} and {end_date}")
-        found_meetings = []
+        found_meetings: list[MECPrepBodiesMeeting] = []
         params = {
             "DateFrom": start_date.strftime("%Y/%m/%d"),
             "DateTo": end_date.strftime("%Y/%m/%d"),
@@ -116,34 +115,46 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         url = MEC_MEETINGS_BASE_URL + "?" + urlencode(params)
         config = CrawlerRunConfig()
         crawler_result = await crawler.arun(url=url, crawler_config=config)
+        if not crawler_result.success:
+            logger.error(f"Failed to scrape page {page}: {crawler_result.error}")
+            return (found_meetings, 0, ScraperResult(False, crawler_result.error, None))
         internal_links = crawler_result.links.get("internal", [])
         links_to_meetings = [x for x in internal_links if x["href"].startswith(MEETINGS_DETAIL_URL_PREFIX)]
 
         largest_page = self._get_largest_page_number(links_to_meetings)
 
         # matches meetings like /meetings/mpo/2025/5/coreper-1-permanent-representatives-committee-(349018)/
-        meeting_url_pattern = re.compile(r"/meetings/([a-z0-9-]+)/(\d{4})/(\d{1,2})/.*\((\d+)\)/", re.IGNORECASE)
+        meeting_url_pattern = re.compile(r"meetings/mpo/(\d{4})/(\d{1,2})/.*\((\d+)\)", re.IGNORECASE)
 
         for link in links_to_meetings:
             meeting_url = link["href"]
-            match = meeting_url_pattern.search(url)
+            match = meeting_url_pattern.search(meeting_url)
             if match:
-                prep_body_abbr = match.group(1)
-                # meeting_start_date_year = match.group(2)
-                # meeting_start_date_month = match.group(3)
-                meeting_id = match.group(4)
+                # meeting_start_date_year = match.group(1)
+                # meeting_start_date_month = match.group(2)
+                meeting_id = match.group(3)
 
+                # scrape meeting details
                 crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
+                if not crawler_result.success:
+                    logger.error(f"Failed to scrape meeting details for {meeting_url}: {crawler_result.error}")
+                    return (found_meetings, largest_page, ScraperResult(False, crawler_result.error, None))
 
-                # todo: parse location, date and time
+                selector = Selector(text=crawler_result.html)
+                practical_info_labels = [
+                    text.strip() for text in selector.css("div.gsc-meeting-info__box strong::text").getall()
+                ]
+
+                # Assign to variables
+                building_label, timestamp_label, room_label = practical_info_labels[1:4]
+                timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
 
                 meeting = MECPrepBodiesMeeting(
                     id=meeting_id,
-                    prep_body_abbr=prep_body_abbr,
                     url=link["href"],
                     title=link["text"],
-                    # meeting_date=meeting_date.isoformat(),
-                    # meeting_end_date=meeting_end_date.isoformat() if meeting_end_date else None,
+                    meeting_timestamp=timestamp.isoformat(),
+                    meeting_location=room_label + " (" + building_label + " building)",
                 )
 
                 if last_entry and meeting == last_entry:
@@ -188,8 +199,6 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
     def scrape_once(self, last_entry, **args) -> ScraperResult:
         """
         Scrape mec meetings and store them in the database.
-        :param start_date: The start date for the meeting search.
-        :param end_date: The end date for the meeting search.
         """
         try:
             return asyncio.run(self.scrape_once_async(last_entry))
@@ -204,7 +213,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
 
 
 if __name__ == "__main__":
-    print("Scraping and storing mec meetings...")
-    scraper = MECPrepBodiesMeetingsScraper(start_date=date(2025, 5, 17), end_date=date(2025, 6, 17))
+    print("Scraping and storing mect preparatory bodies meetings...")
+    scraper = MECPrepBodiesMeetingsScraper(start_date=date(2025, 5, 17), end_date=date(2025, 5, 18))
     result: ScraperResult = scraper.scrape()
     print(result)
