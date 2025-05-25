@@ -129,7 +129,13 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
-        """Initialize the scraper."""
+        """Initialize the scraper.
+        Args:
+            start_date (Optional[date]): The start date for scraping meetings.
+            end_date (Optional[date]): The end date for scraping meetings.
+            max_retries (int): Maximum number of retries for failed requests.
+            retry_delay (float): Delay between retries in seconds.
+        """
         super().__init__(MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME, max_retries, retry_delay)
         self.events: list[MECSummitMinisterialMeeting] = []
         self.start_date = start_date
@@ -227,6 +233,9 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         return (found_meetings, largest_page, None)
 
     async def scrape_once_async(self, last_entry: MECSummitMinisterialMeeting) -> ScraperResult:
+        """
+        Asynchronously scrapes MEC Summit Ministerial Meetings and stores them in the database.
+        """
         found_meetings: list[MECSummitMinisterialMeeting] = []
         current_page = 1
         largest_known_page = 1
@@ -256,9 +265,8 @@ class MECSumMinistMeetingsScraper(ScraperBase):
 
     def scrape_once(self, last_entry, **args) -> ScraperResult:
         """
-        Scrape mec meetings and store them in the database.
-        :param start_date: The start date for the meeting search.
-        :param end_date: The end date for the meeting search.
+        Scrapes MEC Summit Ministerial Meetings and stores them in the database.
+        Uses asyncio.run to execute the asynchronous scrape_once_async method.
         """
         try:
             return asyncio.run(self.scrape_once_async(last_entry))
@@ -273,7 +281,7 @@ class MECSumMinistMeetingsScraper(ScraperBase):
 
 
 if __name__ == "__main__":
-    print("Scraping and storing mec meetings...")
+    print("Scraping and storing mec summit and ministerial meetings...")
     scraper = MECSumMinistMeetingsScraper(start_date=date(2025, 5, 17), end_date=date(2025, 6, 17))
     result: ScraperResult = scraper.scrape()
     print(result)

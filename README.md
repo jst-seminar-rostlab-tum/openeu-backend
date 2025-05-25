@@ -53,6 +53,13 @@ poetry install
 ```
 
 This command creates a virtual environment (if one doesn’t exist) and installs all dependencies defined in pyproject.toml. 
+
+After that, complete the setup for crawl4ai which is needed for the MEC meetings scraper (installs/updates Playwright browsers, checks for missing OS libs, etc.):
+
+```
+crawl4ai-setup
+```
+
 To run the project, run 
 ```
 poetry run uvicorn main:app --reload --log-config log_conf.yaml
