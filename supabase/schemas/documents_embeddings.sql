@@ -51,6 +51,7 @@ begin
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
+<<<<<<< HEAD
 $$;
 
 
@@ -78,3 +79,6 @@ begin
     limit match_count;
 end;
 $$;
+=======
+$$;
+>>>>>>> origin/main
