@@ -42,6 +42,9 @@ scrapy = "2.13.0"
 parsel = "1.10.0"
 uvicorn = "^0.34.2"
 deepl = "^1.22.0"
+rapidfuzz = "^3.13.0"
+tiktoken = "^0.9.0"
+openai = "^1.82.0"
 
 [tool.mypy]
 ignore_missing_imports = true
