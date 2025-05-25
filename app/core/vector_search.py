@@ -1,6 +1,3 @@
-from openai import OpenAI
-
-from app.core.config import Settings
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 
