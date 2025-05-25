@@ -7,16 +7,16 @@ from postgrest.exceptions import APIError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
+from app.core.openai_client import openai
 
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
-openai = OpenAI(api_key=settings.get_openai_api_key())
 
 EMBED_MODEL = "text-embedding-ada-002"
 EMBED_DIM = 1536
-MAX_TOKENS = 500  
-BATCH_SZ = 100 
+MAX_TOKENS = 500
+BATCH_SZ = 100
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
@@ -54,7 +54,7 @@ def embed_row(source_table: str, row_id: str, content_column: str, content_text:
 
     Logs and skips errors; continues with next batch.
     """
-        
+
     upsert_rows: List[Dict] = []
 
     chunks = chunk_text(content_text)
