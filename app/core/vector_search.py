@@ -4,9 +4,6 @@ from app.core.config import Settings
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 
-setting = Settings()
-openai = OpenAI(api_key=setting.get_openai_api_key())
-
 
 def get_top_k_neighbors(query: str, allowed_sources: dict[str, str], k: int = 5) -> list[dict]:
     """
