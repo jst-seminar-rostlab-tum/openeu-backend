@@ -105,10 +105,9 @@ def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
             meta["text"] = text_json.get("text", "")
 
             try:
-                
                 title_english = str(translator.translate(str(meta["titel"])))
                 text_english = str(translator.translate(str(meta["text"])))
-                                
+
             except Exception as e:
                 title_english = ""
                 text_english = ""

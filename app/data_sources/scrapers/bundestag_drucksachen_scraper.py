@@ -9,7 +9,7 @@ from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
     fetch_protocol_text,
     upsert_record,
 )
-from app.data_sources.translator.translator import DeepLTranslator, TextPreprocessor
+from app.data_sources.translator.translator import DeepLTranslator
 from scripts.embedding_generator import embed_row
 
 translator = DeepLTranslator(translator)
@@ -49,12 +49,11 @@ def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
             meta["text"] = text_json.get("text", "")
 
             try:
-                
                 title_english = str(translator.translate(str(meta["titel"])))
                 text_english = str(translator.translate(str(meta["text"])))
-                
+
                 print(meta["titel"])
-                
+
             except Exception as e:
                 title_english = ""
                 text_english = ""
