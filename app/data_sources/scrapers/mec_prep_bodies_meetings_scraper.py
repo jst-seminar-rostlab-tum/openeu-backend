@@ -132,7 +132,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             if match:
                 # meeting_start_date_year = match.group(1)
                 # meeting_start_date_month = match.group(2)
-                meeting_id = match.group(3)
+                meeting_id = int(match.group(3))
 
                 # scrape meeting details
                 crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
