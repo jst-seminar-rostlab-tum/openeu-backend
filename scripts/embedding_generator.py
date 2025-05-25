@@ -7,16 +7,13 @@ from postgrest.exceptions import APIError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
-from app.core.openai_client import openai
+from app.core.openai_client import (openai,EMBED_MODEL, MAX_TOKENS,BATCH_SZ)
 
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
 
-EMBED_MODEL = "text-embedding-ada-002"
-EMBED_DIM = 1536
-MAX_TOKENS = 500
-BATCH_SZ = 100
+
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
