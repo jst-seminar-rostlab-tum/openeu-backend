@@ -46,7 +46,10 @@ openeu-backend/
 The development environment is containerized using Docker.
 
 ### Prerequisites
+#### Docker Desktop
 Make sure you have Docker Desktop installed. You can download it from the official site: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+#### .env
+Make sure to create a `.env` file before starting the developer environment. For local development copy the content of `.env.example`.
 
 ### Starting the Environment
 To start the environment, run:
