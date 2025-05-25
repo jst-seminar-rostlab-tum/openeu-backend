@@ -17,7 +17,6 @@ class BundestagDrucksachenScraper(ScraperBase):
         table_name: str = "bt_documents",
         max_retries: int = 3,
         retry_delay: float = 2.0,
-        translator_client: Any = None,
     ):
         super().__init__(table_name, max_retries, retry_delay)
         self.translator = DeepLTranslator(translator)
@@ -73,13 +72,13 @@ class BundestagDrucksachenScraper(ScraperBase):
                     record["text"] = text_json.get("text", "")
 
                     try:
-                        record["title_english"] = str(translator.translate(record["titel"] or ""))
+                        record["title_english"] = str(self.translator.translate(record["titel"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
 
                     try:
-                        record["text_english"] = str(translator.translate(record["text"] or ""))
+                        record["text_english"] = str(self.translator.translate(record["text"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["text_english"] = "Not available"

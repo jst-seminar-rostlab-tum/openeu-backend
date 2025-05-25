@@ -71,13 +71,13 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                     }
 
                     try:
-                        record["title_english"] = str(translator.translate(record["titel"] or ""))
+                        record["title_english"] = str(self.translator.translate(record["titel"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
 
                     try:
-                        record["text_english"] = str(translator.translate(record["text"] or ""))
+                        record["text_english"] = str(self.translator.translate(record["text"] or ""))
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["text_english"] = "Not available"
