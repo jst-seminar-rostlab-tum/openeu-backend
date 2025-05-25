@@ -124,15 +124,13 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         largest_page = self._get_largest_page_number(links_to_meetings)
 
         # matches meetings like /meetings/mpo/2025/5/coreper-1-permanent-representatives-committee-(349018)/
-        meeting_url_pattern = re.compile(r"meetings/mpo/(\d{4})/(\d{1,2})/.*\((\d+)\)", re.IGNORECASE)
+        meeting_url_pattern = re.compile(r"meetings/mpo/\d{4}/\d{1,2}/.*\((\d+)\)", re.IGNORECASE)
 
         for link in links_to_meetings:
             meeting_url = link["href"]
             match = meeting_url_pattern.search(meeting_url)
             if match:
-                # meeting_start_date_year = match.group(1)
-                # meeting_start_date_month = match.group(2)
-                meeting_id = int(match.group(3))
+                meeting_id = int(match.group(1))
 
                 # scrape meeting details
                 crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
@@ -145,7 +143,6 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
                     text.strip() for text in selector.css("div.gsc-meeting-info__box strong::text").getall()
                 ]
 
-                # Assign to variables
                 building_label, timestamp_label, room_label = practical_info_labels[1:4]
                 timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
 
