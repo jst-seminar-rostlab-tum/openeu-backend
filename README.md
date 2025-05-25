@@ -42,6 +42,30 @@ openeu-backend/
 └── README.md
 ```
 
+## Developer environment
+The development environment is containerized using Docker.
+
+### Prerequisites
+Make sure you have Docker Desktop installed. You can download it from the official site: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+### Starting the Environment
+To start the environment, run:
+```
+docker-compose up -d
+```
+This command starts the containers in detached mode.
+
+### Stopping the Environment
+To stop and remove the containers, run:
+```
+docker-compose down
+```
+### ⚠️ Important: Add/Remove Python Packages
+If you add or update any packages in the project, you'll need to rebuild the Docker image to ensure the environment reflects those changes. To rebuild, use:
+```
+docker-compose build
+```
+
 ## Installing dependencies
 This project uses Poetry for dependency management and packaging. So in order to install all dependencies, you need to install Poetry first. To do so, follow these steps:
 - Install pipx on your computer as described [here](https://pipx.pypa.io/stable/installation/)
