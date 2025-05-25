@@ -1,5 +1,6 @@
-from pydantic import BaseModel, UUID4
 from typing import List
+
+from pydantic import UUID4, BaseModel
 
 
 class ProfileCreate(BaseModel):
@@ -9,6 +10,7 @@ class ProfileCreate(BaseModel):
     company_name: str
     company_description: str
     topic_list: List[str]
+
 
 class ProfileDB(ProfileCreate):
     embedding: List[float]
