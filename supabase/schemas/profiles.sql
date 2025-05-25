@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS profiles (
     company_name TEXT NOT NULL,
     company_description TEXT NOT NULL,
     topic_list TEXT[] NOT NULL,
-    embedding VECTOR(1536) NOT NULL,
+    embedding VECTOR(1536) NOT NULL
 );

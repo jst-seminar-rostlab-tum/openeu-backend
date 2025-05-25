@@ -16,7 +16,6 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 
 
 
-
 --Remote Procedure Call to query for K-NN
 -- src_tables:   list of table names
 -- content_columns: corresponding list of column names
@@ -25,7 +24,7 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 
 create or replace function public.match_filtered(
   src_tables      text[],
-  content_columns   text[],
+  content_columns text[],
   query_embedding vector,
   match_count     int
 )
@@ -37,13 +36,15 @@ returns table(
 )
 language plpgsql
 as $$
+declare
+  max_dist float := sqrt(1536);  -- approx. 39.1918
 begin
   return query
     select
       e.source_table,
       e.source_id,
       e.content_text,
-      1 - (e.embedding <#> query_embedding) as similarity
+      greatest(0, least(100, (1 - (e.embedding <#> query_embedding) / max_dist) * 100)) as similarity
     from documents_embeddings e
     where
       e.source_table = any(src_tables)
@@ -52,6 +53,7 @@ begin
     limit match_count;
 end;
 $$;
+
 
 
 create or replace function public.match_default(
@@ -66,13 +68,15 @@ returns table(
 )
 language plpgsql
 as $$
+declare
+  max_dist float := sqrt(1536);  -- approx. 39.1918
 begin
   return query
     select
       e.source_table,
       e.source_id,
       e.content_text,
-      1 - (e.embedding <#> query_embedding) as similarity
+      greatest(0, least(100, (1 - (e.embedding <#> query_embedding) / max_dist) * 100)) as similarity
     from documents_embeddings e
     order by e.embedding <#> query_embedding
     limit match_count;
