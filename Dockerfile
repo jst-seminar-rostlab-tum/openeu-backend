@@ -4,11 +4,12 @@ WORKDIR /code
 
 #Install supabase
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install wget -y
-RUN wget -O supabase.deb https://github.com/supabase/cli/releases/download/v2.23.4/supabase_2.23.4_linux_amd64.deb
-RUN dpkg -i supabase.deb
-RUN rm supabase.deb
-RUN supabase --version
+#RUN apt-get install wget -y
+#RUN wget -O supabase.deb https://github.com/supabase/cli/releases/download/v2.23.4/supabase_2.23.4_linux_amd64.deb
+#RUN dpkg -i supabase.deb
+#RUN rm supabase.deb
+RUN apt-get install nodejs npm -y
+RUN npx --yes supabase --version
 
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
