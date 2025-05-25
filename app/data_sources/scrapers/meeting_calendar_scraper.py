@@ -6,7 +6,9 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup, Tag
 
+from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from scripts.embedding_generator import embed_row
 
 logger = logging.getLogger(__name__)
 
@@ -77,20 +79,25 @@ class EPMeetingCalendarScraper(ScraperBase):
 
     def _extract_meetings(self, soup: BeautifulSoup) -> None:
         meetings_container = soup.find("div", class_="listcontent")
-        meetings: list[Tag] = []
-        if isinstance(meetings_container, Tag):
-            meetings = meetings_container.find_all("div", class_="notice")
+
+        if not isinstance(meetings_container, Tag):
+            return
+
+        meetings = meetings_container.find_all("div", class_="notice")
 
         batch = []
 
         for meeting in meetings:
+            if not isinstance(meeting, Tag):
+                continue
+
             title_tag = meeting.find("p", class_="title")
 
             title = title_tag.getText(strip=True) if title_tag else None
 
             session_tag = meeting.find("div", class_="session")
 
-            if not session_tag:
+            if not isinstance(session_tag, Tag):
                 continue
 
             subtitles_tag = session_tag.find("div", class_="subtitles")
@@ -98,14 +105,14 @@ class EPMeetingCalendarScraper(ScraperBase):
 
             info_tag = session_tag.find("div", class_="info")
 
-            if not info_tag:
+            if not isinstance(info_tag, Tag):
                 continue
 
             date_tag = info_tag.find("p", class_="date")
             hour_tag = info_tag.find("p", class_="hour")
             place_tag = info_tag.find("p", class_="place")
 
-            if not (date_tag and hour_tag and place_tag):
+            if not (isinstance(date_tag, Tag) and isinstance(hour_tag, Tag) and isinstance(place_tag, Tag)):
                 continue
 
             date = date_tag.get_text(strip=True)
@@ -125,6 +132,52 @@ class EPMeetingCalendarScraper(ScraperBase):
             logger.info("No meetings found on this page")
 
 
+def embed_all_meetings(start_date: date, end_date: date):
+    """
+    Loads entries from the 'ep_meetings' Supabase table (filtered by date range)
+    and generates embeddings for selected content fields.
+    """
+    try:
+        query = supabase.table(EVENTS_TABLE_NAME).select("*")
+
+        if start_date:
+            query = query.gte("datetime", start_date.isoformat())
+
+        if end_date:
+            # Supabase filter is inclusive, so we go up to the end of day
+            query = query.lte("datetime", (end_date + timedelta(days=1)).isoformat())
+
+        response = query.execute()
+        records = response.data
+    except Exception as e:
+        logger.error(f"Failed to load entries from Supabase: {e}")
+        return
+
+    logger.info(f"Embedding {len(records)} rows from '{EVENTS_TABLE_NAME}'")
+
+    for row in records:
+        row_id = str(row.get("id"))
+
+        if not row_id:
+            logger.debug(f"Skipping row without id: {row}")
+            continue
+
+        for content_column in ["subtitles", "title", "place"]:
+            content_text = row.get(content_column)
+            if not content_text:
+                continue
+
+            try:
+                embed_row(
+                    source_table=EVENTS_TABLE_NAME,
+                    row_id=row_id,
+                    content_column=content_column,
+                    content_text=content_text,
+                )
+            except Exception as e:
+                logger.warning(f"Embedding failed for row id={row_id}, column={content_column}: {e}")
+
+
 def run_scraper(start_date: date, end_date: date):
     """
     Get EP Meetings with date range filtering.
@@ -135,10 +188,11 @@ def run_scraper(start_date: date, end_date: date):
     """
     scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date)
     scraper.scrape()
+    embed_all_meetings(start_date=start_date, end_date=end_date)
 
 
 if __name__ == "__main__":
     # Example usage
-    # start_date = date(2025, 5, 1)
-    # end_date = date(2025, 5, 31)
-    run_scraper(date(2025, 5, 23), date(2025, 5, 28))
+    # start_date = date(2025, 7, 1)
+    # end_date = date(2025, 7, 20)
+    run_scraper(date(2025, 5, 26), date(2025, 6, 2))
