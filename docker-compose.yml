@@ -12,7 +12,6 @@ services:
   backend:
     container_name: python-backend
     build: .
-    command: ./start_dev_env.sh
     ports:
       - "3000:3000"
     restart: unless-stopped

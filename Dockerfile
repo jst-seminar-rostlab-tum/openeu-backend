@@ -21,3 +21,4 @@ RUN poetry install
 
 #Expose port
 EXPOSE 3000
+ENTRYPOINT ["./start_dev_env.sh"]
