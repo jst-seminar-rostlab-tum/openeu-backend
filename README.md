@@ -10,9 +10,9 @@
 
 You can test and explore the API via:
 
-- 🧪 Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-- 📕 ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-- 🧾 OpenAPI JSON: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+- 🧪 Swagger UI: https://openeu-backend.onrender.com/docs
+- 📕 ReDoc: https://openeu-backend.onrender.com/redoc
+- 🧾 OpenAPI JSON: https://openeu-backend.onrender.com/openapi.json
 
 ## 📦 Project Structure
 
@@ -80,7 +80,8 @@ The database schema is defined inside this project and must be pushed to Supabas
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
 - Start Docker on your computer
 - Generate a migration file by calling ```supabase db diff -f <MIGRATION_NAME>```
-- Stop all local instances of Supabase and then apply the migration by calling ```supabase start && supabase migration up```
+- Stop all local instances of Supabase and then apply the migration by calling ```supabase start```
+- If you want to clear local db, you can call ```supabase db reset``` (optional)
 - Login to Supabase by calling ```supabase login```
 - Link the local project to the remote database by calling ```supabase link```
 - Push the changes to the remote Supabase instance by calling ```supabase db push```
