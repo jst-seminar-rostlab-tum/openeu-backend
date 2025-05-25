@@ -31,7 +31,7 @@ class ScraperBase(ABC):
         while attempt <= self.max_retries:
             try:
                 logger.info(f"Attempt {attempt + 1} for {self.__class__.__name__}")
-                result = self.scrape_once(self.last_entry, *args)
+                result = self.scrape_once(self.last_entry, **args)
                 if result.success:
                     return result
                 else:
