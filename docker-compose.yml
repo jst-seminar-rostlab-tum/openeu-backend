@@ -21,7 +21,7 @@ services:
       DB_PORT: ${POSTGRES_PORT}
       DB_NAME: ${POSTGRES_DB}
     volumes:
-      - .:/code
+      - .:/code:ro,z
     depends_on:
       analytics:
         condition: service_healthy
