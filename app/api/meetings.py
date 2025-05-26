@@ -46,7 +46,7 @@ def get_meetings(
                     "ipex_events": "title",
                     "austrian_parliament_meetings": "title",
                 },
-                k=2,
+                k=100,
             )
 
             if not neighbors:
@@ -67,10 +67,10 @@ def get_meetings(
                     record = match.data[0]
                     meeting_time_str = record.get("meeting_start_datetime")
                     if not meeting_time_str:
-                        continue  # Skip if datetime missing
+                        continue
 
                     meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    assert meeting_time is not None  # make mypy happy
+                    assert meeting_time is not None
 
                     should_include = True
                     if start is not None and meeting_time < start:
