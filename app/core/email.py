@@ -33,24 +33,23 @@ class EmailService:
         return f"{anonymized_local}@{domain}"
 
     @staticmethod
-    def _anonymize_email_list(emails: list[str]) -> str:
-        anonymized = [EmailService._anonymize_email(email) for email in emails]
-        return ", ".join(anonymized)
-
-    @staticmethod
     def send_email(email: Email):
-        sender = {"name": "OpenEU", "email": "mail@openeu.csee.tech"}
-        to = [{"email": recipient} for recipient in email.recipients]
-        email_data = brevo_python.SendSmtpEmail(
-            to=to,
-            html_content=email.html_body,
-            sender=sender,
-            subject=email.subject,
-        )
+        if len(email.recipients) == 0:
+            EmailService.logger.warning("No recipients provided for email, doing nothing")
 
-        try:
-            EmailService.client.send_transac_email(email_data)
-            anonymized_recipients = EmailService._anonymize_email_list(email.recipients)
-            EmailService.logger.info(f"Email sent successfully to {anonymized_recipients}")
-        except ApiException as e:
-            EmailService.logger.error(f"Error sending email: {e}")
+        for recipient in email.recipients:
+            sender = {"name": "OpenEU", "email": "mail@openeu.csee.tech"}
+            to = [{"email": recipient}]
+            email_data = brevo_python.SendSmtpEmail(
+                to=to,
+                html_content=email.html_body,
+                sender=sender,
+                subject=email.subject,
+            )
+
+            try:
+                EmailService.client.send_transac_email(email_data)
+                anonymized_recipient = EmailService._anonymize_email(recipient)
+                EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")
+            except ApiException as e:
+                EmailService.logger.error(f"Error sending email: {e}")
