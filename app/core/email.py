@@ -21,6 +21,23 @@ class EmailService:
     client = brevo_python.TransactionalEmailsApi(brevo_python.ApiClient(configuration))
 
     @staticmethod
+    def _anonymize_email(email: str) -> str:
+        if not email or "@" not in email:
+            return email
+
+        local_part, domain = email.split("@", 1)
+        if len(local_part) <= 2:
+            return email
+
+        anonymized_local = local_part[0] + local_part[1] + "*" * (len(local_part) - 2)
+        return f"{anonymized_local}@{domain}"
+
+    @staticmethod
+    def _anonymize_email_list(emails: list[str]) -> str:
+        anonymized = [EmailService._anonymize_email(email) for email in emails]
+        return ", ".join(anonymized)
+
+    @staticmethod
     def send_email(email: Email):
         sender = {"name": "OpenEU", "email": "mail@openeu.csee.tech"}
         to = [{"email": recipient} for recipient in email.recipients]
@@ -33,6 +50,7 @@ class EmailService:
 
         try:
             EmailService.client.send_transac_email(email_data)
-            EmailService.logger.info(f"Email sent successfully to {', '.join(email.recipients)}")
+            anonymized_recipients = EmailService._anonymize_email_list(email.recipients)
+            EmailService.logger.info(f"Email sent successfully to {anonymized_recipients}")
         except ApiException as e:
             EmailService.logger.error(f"Error sending email: {e}")
