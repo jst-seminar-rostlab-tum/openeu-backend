@@ -47,12 +47,12 @@ def get_meetings(limit: int = Query(100, gt=1), start: Optional[datetime] = _STA
 class RelevantMeetingsResponse(BaseModel):
     meetings: list[Meeting]
 
+
 @router.get("/relevant", response_model=RelevantMeetingsResponse, summary="Fetch your top-K most relevant meetings")
 async def fetch_relevant_meetings(
     user_id: str = Query(..., description="Supabase user ID"),
     k: int = Query(5, ge=1, le=100, description="Number of meetings to return"),
 ):
-    
     """
     1) load the stored profile embedding for `user_id`
     2) call `get_top_k_relevant_meetings(embedding, start_date, end_date, k)`
@@ -91,11 +91,13 @@ async def fetch_relevant_meetings(
                 fetched[(source_table, row["source_id"])] = row
 
         ordered_rows = [
-            fetched[(n["source_table"], n["source_id"])] for n in meetings if (n["source_table"], n ["source_id"]) in fetched
+            fetched[(n["source_table"], n["source_id"])]
+            for n in meetings
+            if (n["source_table"], n["source_id"]) in fetched
         ]
         print(ordered_rows)
         return JSONResponse(status_code=200, content={"data": ordered_rows})
-    
+
     except Exception as ve:
         logger.error("Pydantic validation failed: %s", ve)
         raise HTTPException(status_code=500, detail="Data format error") from ve
