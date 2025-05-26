@@ -44,6 +44,7 @@ class MECPrepBodiesMeeting(BaseModel):
     title: str
     meeting_timestamp: str
     meeting_location: str
+    embedding_input: str
 
 
 class MECPrepBodiesMeetingsScraper(ScraperBase):
@@ -145,13 +146,15 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
 
                 building_label, timestamp_label, room_label = practical_info_labels[1:4]
                 timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
+                title = link["text"].strip()
 
                 meeting = MECPrepBodiesMeeting(
                     id=meeting_id,
                     url=link["href"],
-                    title=link["text"],
+                    title=title,
                     meeting_timestamp=timestamp.isoformat(),
                     meeting_location=room_label + " (" + building_label + " building)",
+                    embedding_input=f"{title}, {timestamp.isoformat()}, {room_label} in {building_label} building",
                 )
 
                 if last_entry and meeting == last_entry:
