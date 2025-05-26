@@ -46,7 +46,7 @@ def send_daily_newsletter():
         html_body="<p>Here is your daily newsletter from OpenEU.</p>",
         recipients=email_addresses,
     )
-    logger.info(f"Sending daily newsletter to {len(email_addresses)} users: {email_message.recipients}")
+    logger.info(f"Sending daily newsletter to {len(email_addresses)} users")
     EmailService.send_email(email=email_message)
 
 
