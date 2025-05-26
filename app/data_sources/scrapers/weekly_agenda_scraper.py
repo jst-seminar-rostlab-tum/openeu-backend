@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 from collections.abc import Generator
 from datetime import date, timedelta
@@ -13,7 +14,6 @@ from scrapy.http import Response
 
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from scripts.embedding_generator import embed_row
 
 # ------------------------------
 # Data Model
@@ -29,7 +29,6 @@ class AgendaEntry(BaseModel):
     location: Optional[str]
     description: Optional[str]
     embedding_input: Optional[str]
-    embedding: Optional[list[float]]
 
 
 # ------------------------------
@@ -109,11 +108,13 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 if parser:
                     entry = parser(event, day_date, event_type)
                     if entry:
+                        # If a single AgendaEntry is returned
                         if isinstance(entry, AgendaEntry):
-                            self.store_entry(entry)
+                            self.entries.append(entry)
+
+                        # If a list of AgendaEntries is returned
                         elif isinstance(entry, list):
-                            for e in entry:
-                                self.store_entry(e)
+                            self.entries.extend(entry)
 
     # --------------------------------
     # Helper Functions
@@ -147,59 +148,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
             "official-visits": self.parse_default_event,
             "solemn-sittings": self.parse_default_event,
         }.get(event_type, self.parse_default_event)
-
-    def check_for_duplicate(self, entry: AgendaEntry) -> bool:
-        """
-        Check if an AgendaEntry already exists in Supabase for the same date and title.
-        Returns True if a duplicate is found, False otherwise.
-        """
-        try:
-            # Query Supabase for existing entries with the same date
-            result = supabase.table("weekly_agenda").select("id, title").eq("date", entry.date).execute()
-            existing_entries = result.data or []
-
-            # Check for fuzzy match
-            for existing in existing_entries:
-                existing_title = existing["title"]
-                if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
-                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
-                    return True  # Duplicate found
-
-            # No duplicates found
-            return False
-
-        except Exception as e:
-            self.logger.error(f"Error checking for duplicates: {e}")
-            return False
-
-    def store_entry(self, entry: AgendaEntry) -> bool:
-        """
-        This function is for storing AgendaEntry to Supabase.
-        If no duplicate is found, upserts the entry to Supabase and stores embedding.
-        """
-        """ 
-        TODO: we should add this workflow into store_entry funtion in ScraperBase: 
-        check_for_duplicate, store entry, embed
-        """
-        try:
-            if self.check_for_duplicate(entry):
-                self.logger.info(f"Duplicate entry found, skipping: {entry.title}")
-                return False
-
-            # no duplicate found, proceed to store the entry
-            response = supabase.table("weekly_agenda").upsert(entry.model_dump()).execute()
-            inserted = response.data[0]  # The inserted record with auto-generated id
-
-            # Embed using the actual database ID
-            # TODO: embed data in embedding input column
-            if entry.description and inserted:
-                embed_row("weekly_agenda", str(inserted["id"]), "description", entry.description)
-
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Failed to store entry: {entry.title}, Error: {e}")
-            return False
 
     # ---------------------------------
     # Different Parsers for Event Types
@@ -240,7 +188,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                     location=location.strip() if location else None,
                     description=topic if topic else None,
                     embedding_input=embedding_input,
-                    embedding=None,  # Embedding will be handled later
                 )
             )
 
@@ -273,7 +220,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                     location=None,
                     description=None,
                     embedding_input=embedding_input,
-                    embedding=None,  # Embedding will be handled later
                 )
             )
 
@@ -309,7 +255,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 location=location,
                 description=description,
                 embedding_input=embedding_input,
-                embedding=None,  # Embedding will be handled later
             )
             entries.append(entry)
 
@@ -352,7 +297,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 location=location.strip() if location else None,
                 description=description,
                 embedding_input=embedding_input,
-                embedding=None,  # Embedding will be handled later
             )
 
             entries.append(entry)
@@ -385,7 +329,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 location=None,
                 description=topic,
                 embedding_input=embedding_input,
-                embedding=None,  # Embedding will be handled later
             )
 
         except Exception as e:
@@ -428,7 +371,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 location=None,
                 description=description,
                 embedding_input=embedding_input,
-                embedding=None,  # Embedding will be handled later
             )
             entries.append(entry)
 
@@ -464,7 +406,6 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 location=location.strip() if location else None,
                 description=desc.strip() if desc else None,
                 embedding_input=embedding_input,
-                embedding=None,  # Embedding will be handled later
             )
         except Exception as e:
             self.logger.error(f"Error parsing default event on {date}: {e}")
@@ -480,6 +421,8 @@ class WeeklyAgendaScraper(ScraperBase):
     """
     A scraper for the weekly agenda of the European Parliament that implements Scraper Base Interface.
     """
+
+    logger = logging.getLogger("WeeklyAgendaScraper")
 
     def __init__(self, start_date: date, end_date: date):
         super().__init__(table_name="weekly_agenda")
@@ -503,9 +446,37 @@ class WeeklyAgendaScraper(ScraperBase):
 
     def _collect_entry(self, entries: list[AgendaEntry]):
         for entry in entries:
+            if self.check_for_duplicate(entry):
+                self.logger.info(f"Skipped duplicate: {entry.title}")
+                continue
+
             store_result = self.store_entry(entry.model_dump())
             if store_result is None:
                 self.entries.append(entry)
+
+    def check_for_duplicate(self, entry: AgendaEntry) -> bool:
+        """
+        Check if an AgendaEntry already exists in Supabase for the same date and title.
+        Returns True if a duplicate is found, False otherwise.
+        """
+        try:
+            # Query Supabase for existing entries with the same date
+            result = supabase.table("weekly_agenda").select("id, title").eq("date", entry.date).execute()
+            existing_entries = result.data or []
+
+            # Check for fuzzy match
+            for existing in existing_entries:
+                existing_title = existing["title"]
+                if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
+                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
+                    return True  # Duplicate found
+
+            # No duplicates found
+            return False
+
+        except Exception as e:
+            self.logger.error(f"Error checking for duplicates: {e}")
+            return False
 
 
 # ------------------------------
@@ -551,5 +522,12 @@ if __name__ == "__main__":
     start = datetime.date(2024, 11, 18)
     end = datetime.date(2025, 5, 26)
 
-    entries = scrape_agenda(start_date=start, end_date=end)
-    print(f"Total entries scraped: {len(entries)}")
+    #   entries = scrape_agenda(start_date=start, end_date=end)
+    #   print(f"Total entries scraped: {len(entries)}")
+
+    scraper = WeeklyAgendaScraper(start_date=start, end_date=end)
+    result = scraper.scrape_once(last_entry=None)
+    if result.success:
+        print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
+    else:
+        print(f"Scraping failed with error: {result.error}")

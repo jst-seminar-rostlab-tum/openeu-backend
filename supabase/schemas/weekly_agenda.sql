@@ -7,6 +7,5 @@ CREATE TABLE IF NOT EXISTS weekly_agenda (
   committee   TEXT,                     -- Committee involved (optional)
   location    TEXT,                     -- Location of the event (optional)
   description TEXT,                     -- Additional details or topics (optional)
-  embedding_input  TEXT,                -- concatenated field for embeddings
-  embedding        vector(1536)         -- embedding from OpenAI
+  embedding_input  TEXT                 -- concatenated field for embeddings
 );
