@@ -1,5 +1,5 @@
 from app.core.config import Settings
-from supabase import Client, create_client  # type: ignore[attr-defined]
+from supabase.client import Client, create_client
 
 settings = Settings()
 
