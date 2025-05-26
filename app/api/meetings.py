@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
+from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -19,6 +20,12 @@ _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
 
 
+def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @router.get("/meetings", response_model=list[Meeting])
 def get_meetings(
     limit: int = Query(100, gt=1),
@@ -27,6 +34,9 @@ def get_meetings(
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
 ):
     try:
+        start = to_utc_aware(start)
+        end = to_utc_aware(end)
+
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
@@ -36,7 +46,7 @@ def get_meetings(
                     "ipex_events": "title",
                     "austrian_parliament_meetings": "title",
                 },
-                k=100,
+                k=2,
             )
 
             if not neighbors:
@@ -54,7 +64,22 @@ def get_meetings(
                 )
 
                 if match.data:
-                    results.extend(match.data)
+                    record = match.data[0]
+                    meeting_time_str = record.get("meeting_start_datetime")
+                    if not meeting_time_str:
+                        continue  # Skip if datetime missing
+
+                    meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
+                    assert meeting_time is not None  # make mypy happy
+
+                    should_include = True
+                    if start is not None and meeting_time < start:
+                        should_include = False
+                    if end is not None and meeting_time > end:
+                        should_include = False
+
+                    if should_include:
+                        results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results})
 
@@ -66,7 +91,6 @@ def get_meetings(
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
-
         data = result.data
 
         if not isinstance(data, list):
