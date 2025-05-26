@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 MEC_MEETINGS_BASE_URL = "https://www.consilium.europa.eu/en/meetings/calendar/"
 MEETINGS_DETAIL_URL_PREFIX = "https://www.consilium.europa.eu/en/meetings/"
-MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME = "mec_prep_bodies_meeting"
+MEC_PREP_BODIES_MEETING_TABLE_NAME = "mec_prep_bodies_meeting"
 
 
 # ------------------------------
@@ -55,7 +55,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
-        super().__init__(MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(MEC_PREP_BODIES_MEETING_TABLE_NAME, max_retries, retry_delay)
         self.events: list[MECPrepBodiesMeeting] = []
         self.start_date = start_date
         self.end_date = end_date
