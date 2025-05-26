@@ -59,6 +59,18 @@ class EPMeetingCalendarScraper(ScraperBase):
             current_date += timedelta(days=1)
         return ScraperResult(True, last_entry=None)
 
+    def delete_entries_in_range(self) -> None:
+        """
+        Deletes all entries in the target table within the given datetime range.
+        """
+        date_from = self.start_date.isoformat()
+        date_to = (self.end_date + timedelta(days=1)).isoformat()  # end of the last day
+        try:
+            (((supabase.table(self.table_name).delete().gte("datetime", date_from)).lte("datetime", date_to)).execute())
+            logger.info(f"Deleted entries from '{self.table_name}' between {date_from} and {date_to}")
+        except Exception as e:
+            logger.error(f"Failed to delete entries in Supabase: {e}")
+
     def _fetch_page_process_page(self, full_url: str) -> Optional[BeautifulSoup]:
         try:
             response = requests.get(full_url, timeout=60)
@@ -187,6 +199,7 @@ def run_scraper(start_date: date, end_date: date):
         end_date: End date for filtering events
     """
     scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date)
+    scraper.delete_entries_in_range()
     scraper.scrape()
     embed_all_meetings(start_date=start_date, end_date=end_date)
 
