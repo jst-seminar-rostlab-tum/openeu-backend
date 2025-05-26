@@ -11,7 +11,6 @@ from app.core.deepl_translator import translator
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
-from scripts.embedding_generator import embed_row
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +36,7 @@ class AustrianParliamentMeeting(BaseModel):
     meeting_date: str
     meeting_location: str
     meeting_url: str
+    embedding_input: str
 
 
 class AustrianParliamentScraper(ScraperBase):
@@ -128,6 +128,9 @@ class AustrianParliamentScraper(ScraperBase):
                         meeting_date = date(year, month, day).strftime("%Y-%m-%d")
                         url = BASE_URL + url_path if url_path else ""
 
+                        # Create embedding input by concatenating the specified fields
+                        embedding_input = f"{title_en} {title_de} {meeting_type}"
+
                         meetings.append(
                             AustrianParliamentMeeting(
                                 title=title_en,
@@ -136,6 +139,7 @@ class AustrianParliamentScraper(ScraperBase):
                                 meeting_date=meeting_date,
                                 meeting_location=location,
                                 meeting_url=url,
+                                embedding_input=embedding_input,
                             )
                         )
                     except (ValueError, IndexError) as e:
@@ -192,22 +196,10 @@ class AustrianParliamentScraper(ScraperBase):
 
                 if existing.data:
                     # Update existing entry using meeting_url as the match column
-                    result = self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
+                    self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
                 else:
                     # Create new entry
-                    result = self.store_entry(meeting.model_dump())
-
-                    # Generate embeddings for the meeting title
-                    try:
-                        embed_row(
-                            source_table=self.table_name,
-                            row_id=str(result.data[0]["id"]),
-                            content_column="title",
-                            content_text=meeting.title,
-                        )
-                        logger.info(f"Generated embeddings for meeting: {meeting.title}")
-                    except Exception as e:
-                        logger.error(f"Failed to generate embeddings: {e}")
+                    self.store_entry(meeting.model_dump())
 
             logger.info(f"Successfully processed {len(meetings)} meetings")
             return ScraperResult(True)

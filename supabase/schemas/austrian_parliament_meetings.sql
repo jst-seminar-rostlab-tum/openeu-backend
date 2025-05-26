@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS austrian_parliament_meetings (
     meeting_type text NOT NULL,
     meeting_date date NOT NULL,
     meeting_location text NOT NULL,
-    meeting_url text NOT NULL
+    meeting_url text NOT NULL,
+    embedding_input text NOT NULL
 );
