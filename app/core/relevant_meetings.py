@@ -64,9 +64,6 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
     for source_table, id_list in ids_by_source.items():
         try:
             rows = base_query.eq("source_table", source_table).in_("source_id", id_list).execute().data
-        except supabase.errors.SupabaseError as partial_db_err:
-            logger.warning("Failed to fetch rows for %s: %s", source_table, partial_db_err)
-            continue
         except Exception:
             logger.exception("Unexpected error fetching %s", source_table)
             continue
