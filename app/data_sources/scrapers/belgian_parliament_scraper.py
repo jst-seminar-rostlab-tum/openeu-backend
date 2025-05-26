@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -107,7 +107,7 @@ class BelgianParliamentScraper(ScraperBase):
                         for entry in meeting_entries:
                             try:
                                 # Extract meeting information
-                                meeting = self._extract_meeting_info(entry)
+                                meeting = self._extract_meeting_info(entry, page)
                                 all_meetings.append(meeting)
                                 
                             except Exception as e:
@@ -133,11 +133,12 @@ class BelgianParliamentScraper(ScraperBase):
             logger.error(f"Error during scraping: {e}")
             return ScraperResult(success=False, error=e, last_entry=last_entry)
 
-    def _extract_meeting_info(self, entry: BeautifulSoup) -> BelgianParliamentMeeting:
+    def _extract_meeting_info(self, entry: BeautifulSoup, page) -> BelgianParliamentMeeting:
         """Extract meeting information from a BeautifulSoup entry.
 
         Args:
             entry: BeautifulSoup object containing meeting information
+            page: Playwright page object for navigating to detail pages
 
         Returns:
             BelgianParliamentMeeting object
@@ -146,22 +147,52 @@ class BelgianParliamentScraper(ScraperBase):
         title = entry.find('h4', class_='card__title').text.strip()
         title_en = self.translator.translate(title).text
 
-        # Extract description
+        # Get the URL first as we'll need it for the full description
+        url_path = entry.find('ul', class_='card__link-list').find('li').find('a')['href']
+        meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
+
+        # First check if there's a description on the main page
         description_div = entry.find('div', class_='card__description')
-        description = description_div.find('p').text.strip() if description_div else ""
+        if description_div:
+            # Get h3 text if present
+            h3 = description_div.find('h3')
+            h3_text = h3.get_text(strip=True) if h3 else ""
+            
+            # Get paragraph text
+            p_text = description_div.find('p').get_text(strip=True) if description_div.find('p') else ""
+            
+            # Combine h3 and p text with colon if h3 exists
+            description = f"{h3_text}: {p_text}" if h3_text else p_text
+            
+            # Only navigate to detail page if the description ends with "..." -> description is truncated
+            if description.endswith("..."):
+                # Navigate to the detail page to get full description
+                page.goto(meeting_url)
+                page.wait_for_selector('.card__description', timeout=10000)
+                detail_content = page.content()
+                detail_soup = BeautifulSoup(detail_content, 'html.parser')
+                
+                # Extract full description
+                description_div = detail_soup.find('div', class_='card__description')
+                if description_div:
+                    # Get h3 text if present
+                    h3 = description_div.find('h3')
+                    h3_text = h3.get_text(strip=True) if h3 else ""
+                    
+                    # Get paragraph text
+                    p_text = description_div.find('p').get_text(strip=True) if description_div.find('p') else ""
+                    
+                    # Combine h3 and p text with colon if h3 exists
+                    description = f"{h3_text}: {p_text}" if h3_text else p_text
+        else:
+            description = ""
+        
         description_en = self.translator.translate(description).text if description else ""
 
         # Extract date and location
         date_location = entry.find('div', class_='card__date').text.strip()
         # Split on " - " to separate time and location
         location = date_location.split(" - ", 1)[1]
-
-        # Extract URL
-        url_path = entry.find('ul', class_='card__link-list').find('li').find('a')['href']
-        meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
-
-        # For meeting_date, we'll use the current date since it's not directly in the HTML
-        # This is handled by the date in the URL we're scraping
 
         return BelgianParliamentMeeting(
             title=title,
