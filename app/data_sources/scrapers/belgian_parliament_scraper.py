@@ -2,9 +2,9 @@ import json
 import logging
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
 
@@ -53,19 +53,19 @@ class BelgianParliamentScraper(ScraperBase):
         self.end_date = end_date or self.start_date
         self.current_date = self.start_date
 
-    def scrape_once(self, last_entry: Optional[BelgianParliamentMeeting], *args) -> ScraperResult:
+    def scrape_once(self, last_entry: Any, **args: Any) -> ScraperResult:
         """Run a single scraping attempt.
 
         Args:
             last_entry: The last successfully scraped entry
-            *args: Additional arguments (not used)
+            **args: Additional arguments (not used)
 
         Returns:
             ScraperResult object
         """
         try:
             # If we have a last_entry, start from the day after its date
-            if last_entry and last_entry.meeting_date:
+            if last_entry and hasattr(last_entry, 'meeting_date') and last_entry.meeting_date:
                 current_date = last_entry.meeting_date + timedelta(days=1)
                 if current_date > self.end_date:
                     return ScraperResult(success=True, last_entry=last_entry)
@@ -106,6 +106,9 @@ class BelgianParliamentScraper(ScraperBase):
                         
                         for entry in meeting_entries:
                             try:
+                                # Ensure entry is a Tag object
+                                if not isinstance(entry, Tag):
+                                    continue
                                 # Extract meeting information
                                 meeting = self._extract_meeting_info(entry, page)
                                 all_meetings.append(meeting)
@@ -133,33 +136,46 @@ class BelgianParliamentScraper(ScraperBase):
             logger.error(f"Error during scraping: {e}")
             return ScraperResult(success=False, error=e, last_entry=last_entry)
 
-    def _extract_meeting_info(self, entry: BeautifulSoup, page) -> BelgianParliamentMeeting:
-        """Extract meeting information from a BeautifulSoup entry.
+    def _extract_meeting_info(self, entry: Tag, page) -> BelgianParliamentMeeting:
+        """Extract meeting information from a BeautifulSoup Tag entry.
 
         Args:
-            entry: BeautifulSoup object containing meeting information
+            entry: BeautifulSoup Tag object containing meeting information
             page: Playwright page object for navigating to detail pages
 
         Returns:
             BelgianParliamentMeeting object
         """
         # Extract title
-        title = entry.find('h4', class_='card__title').text.strip()
+        title_element = entry.find('h4', class_='card__title')
+        if not title_element:
+            raise ValueError("Title element not found")
+        title = title_element.text.strip()
         title_en = self.translator.translate(title).text
 
         # Get the URL first as we'll need it for the full description
-        url_path = entry.find('ul', class_='card__link-list').find('li').find('a')['href']
+        link_list = entry.find('ul', class_='card__link-list')
+        if not link_list or not isinstance(link_list, Tag):
+            raise ValueError("Link list not found")
+        link_element = link_list.find('li')
+        if not link_element or not isinstance(link_element, Tag):
+            raise ValueError("Link element not found")
+        anchor = link_element.find('a')
+        if not anchor or not isinstance(anchor, Tag):
+            raise ValueError("Anchor element or href not found")
+        url_path = str(anchor['href'])
         meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
 
         # First check if there's a description on the main page
         description_div = entry.find('div', class_='card__description')
-        if description_div:
+        if description_div and isinstance(description_div, Tag):
             # Get h3 text if present
             h3 = description_div.find('h3')
             h3_text = h3.get_text(strip=True) if h3 else ""
             
             # Get paragraph text
-            p_text = description_div.find('p').get_text(strip=True) if description_div.find('p') else ""
+            p_element = description_div.find('p')
+            p_text = p_element.get_text(strip=True) if p_element else ""
             
             # Combine h3 and p text with colon if h3 exists
             description = f"{h3_text}: {p_text}" if h3_text else p_text
@@ -174,13 +190,14 @@ class BelgianParliamentScraper(ScraperBase):
                 
                 # Extract full description
                 description_div = detail_soup.find('div', class_='card__description')
-                if description_div:
+                if description_div and isinstance(description_div, Tag):
                     # Get h3 text if present
                     h3 = description_div.find('h3')
                     h3_text = h3.get_text(strip=True) if h3 else ""
                     
                     # Get paragraph text
-                    p_text = description_div.find('p').get_text(strip=True) if description_div.find('p') else ""
+                    p_element = description_div.find('p')
+                    p_text = p_element.get_text(strip=True) if p_element else ""
                     
                     # Combine h3 and p text with colon if h3 exists
                     description = f"{h3_text}: {p_text}" if h3_text else p_text
@@ -190,7 +207,10 @@ class BelgianParliamentScraper(ScraperBase):
         description_en = self.translator.translate(description).text if description else ""
 
         # Extract date and location
-        date_location = entry.find('div', class_='card__date').text.strip()
+        date_element = entry.find('div', class_='card__date')
+        if not date_element:
+            raise ValueError("Date element not found")
+        date_location = date_element.text.strip()
         # Split on " - " to separate time and location
         location = date_location.split(" - ", 1)[1]
 
