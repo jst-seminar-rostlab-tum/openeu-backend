@@ -1,6 +1,5 @@
 import logging
 from collections import defaultdict
-from typing import List
 
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
@@ -27,17 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
-    meetings: List[Meeting] = []
+    meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
         resp = supabase.table("profiles").select("embedding").eq("id", user_id).single().execute()
         profile_embedding = resp.data["embedding"]
-    except supabase.errors.SupabaseError as db_err:
-        logger.error("Failed to fetch embedding for user %s: %s", user_id, db_err)
-        # no embedding ⇒ no neighbors ⇒ empty response
-        return RelevantMeetingsResponse(meetings=[])
-    except Exception:
-        logger.exception("Unexpected error loading profile embedding")
+
+    except Exception as e:
+        logger.exception(f"Unexpected error loading profile embedding {e}")
         return RelevantMeetingsResponse(meetings=[])
 
     # 2) call `get_top_k_neighbors_by_embedding`

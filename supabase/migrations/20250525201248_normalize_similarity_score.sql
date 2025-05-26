@@ -12,7 +12,7 @@ begin
       e.source_table,
       e.source_id,
       e.content_text,
-      greatest(0, least(100, (1 - (e.embedding <#> query_embedding) / max_dist) * 100)) as similarity
+      ((1 - (e.embedding <#> query_embedding))/2)*100 as similarity
     from documents_embeddings e
     order by e.embedding <#> query_embedding
     limit match_count;
@@ -32,7 +32,7 @@ begin
       e.source_table,
       e.source_id,
       e.content_text,
-      greatest(0, least(100, (1 - (e.embedding <#> query_embedding) / max_dist) * 100)) as similarity
+      ((1 - (e.embedding <#> query_embedding))/2)*100 as similarity
     from documents_embeddings e
     where
       e.source_table = any(src_tables)
