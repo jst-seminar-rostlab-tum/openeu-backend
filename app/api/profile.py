@@ -38,7 +38,7 @@ async def create_profile(profile: ProfileCreate):
         result = supabase.table("profiles").upsert(payload).execute()
     except Exception as e:
         # log or rethrow with more context
-        raise HTTPException(status_code=500, detail=f"Supabase upsert failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Supabase upsert failed: {e}") from e
 
     record = result.data[0]
     if isinstance(record.get("embedding"), str):
