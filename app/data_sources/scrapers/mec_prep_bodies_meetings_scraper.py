@@ -13,15 +13,15 @@ from pydantic import BaseModel
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
 """
-This file contains a crawl4ai-scraper to scrape the European Council's website for MEC Summit Ministerial Meeting data.
-The spider extracts meeting URLs, titles, and dates, and stores them in a Supabase database.
+This file contains a crawl4ai-scraper to scrape the European Council's website for MEC Preparatory Bodies Meeting data.
+The spider extracts the meeting details and stores them in a Supabase database.
 The file can be run as a standalone script to test the scraping functionality.
 
 Table of contents:
-1. Data Model
-2. Util Functions
-3. Scraping Logic
-4. Database Functions
+1. Imports
+2. Constants
+3. Data Model
+4. Scraper Class
 5. Main Function for Testing
 """
 
