@@ -1,7 +1,5 @@
-import json
 import logging
 from datetime import date, timedelta
-from pathlib import Path
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, Tag
@@ -28,14 +26,15 @@ MEETINGS_URL = f"{BASE_URL}/nl/parlementair-werk/vergaderingen-en-verslagen"
 
 class BelgianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Belgian Parliament."""
+    id: int
     title: str
     title_en: str
     description: str
     description_en: str
-    meeting_date: date
+    meeting_date: str
     location: str
     meeting_url: str
-
+    embedding_input: str
 
 class BelgianParliamentScraper(ScraperBase):
     """Scraper for retrieving data from the Belgian Parliament website."""
@@ -71,8 +70,6 @@ class BelgianParliamentScraper(ScraperBase):
                     return ScraperResult(success=True, last_entry=last_entry)
             else:
                 current_date = self.start_date
-
-            all_meetings = []
 
             with sync_playwright() as p:
                 # Launch browser
@@ -111,7 +108,13 @@ class BelgianParliamentScraper(ScraperBase):
                                     continue
                                 # Extract meeting information
                                 meeting = self._extract_meeting_info(entry, page)
-                                all_meetings.append(meeting)
+                                
+                                # Store the meeting in the database
+                                result = self.store_entry(meeting.model_dump())
+                                if result:
+                                    return result
+                                
+                                last_entry = meeting
                                 
                             except Exception as e:
                                 logger.warning(f"Error processing meeting entry: {e}")
@@ -126,11 +129,8 @@ class BelgianParliamentScraper(ScraperBase):
 
                 # Close browser
                 browser.close()
-
-                # Store meetings to file
-                self._store_meetings_to_file(all_meetings)
                 
-                return ScraperResult(success=True, last_entry=all_meetings[-1] if all_meetings else last_entry)
+                return ScraperResult(success=True, last_entry=last_entry)
 
         except Exception as e:
             logger.error(f"Error during scraping: {e}")
@@ -153,7 +153,7 @@ class BelgianParliamentScraper(ScraperBase):
         title = title_element.text.strip()
         title_en = self.translator.translate(title).text
 
-        # Get the URL first as we'll need it for the full description
+        # Get the URL first as we possibly need it for the full description
         link_list = entry.find('ul', class_='card__link-list')
         if not link_list or not isinstance(link_list, Tag):
             raise ValueError("Link list not found")
@@ -165,6 +165,9 @@ class BelgianParliamentScraper(ScraperBase):
             raise ValueError("Anchor element or href not found")
         url_path = str(anchor['href'])
         meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
+
+        # get id from url
+        meeting_id = int(url_path.split('/')[-1])
 
         # First check if there's a description on the main page
         description_div = entry.find('div', class_='card__description')
@@ -214,43 +217,20 @@ class BelgianParliamentScraper(ScraperBase):
         # Split on " - " to separate time and location
         location = date_location.split(" - ", 1)[1]
 
+        # create embedding input
+        embedding_input = f"{title} {title_en} {description} {description_en} {location}"
+
         return BelgianParliamentMeeting(
+            id=meeting_id,
             title=title,
             title_en=title_en,
             description=description,
             description_en=description_en,
-            meeting_date=self.current_date,
+            meeting_date=self.current_date.strftime("%Y-%m-%d"),
             location=location,
-            meeting_url=meeting_url
+            meeting_url=meeting_url,
+            embedding_input=embedding_input
         )
-
-    def _store_meetings_to_file(self, meetings: list[BelgianParliamentMeeting]) -> None:
-        """Store meetings to a JSON file.
-
-        Args:
-            meetings: List of BelgianParliamentMeeting objects to store
-        """
-        if not meetings:
-            logger.info("No meetings to store")
-            return
-
-        try:
-            # Create data directory if it doesn't exist
-            data_dir = Path("data")
-            data_dir.mkdir(exist_ok=True)
-
-            # Convert meetings to dict for JSON serialization
-            meetings_data = [meeting.model_dump() for meeting in meetings]
-
-            # Write to file
-            output_file = data_dir / "belgian_parliament_meetings.json"
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(meetings_data, f, ensure_ascii=False, indent=2, default=str)
-
-            logger.info(f"Successfully stored {len(meetings)} meetings to {output_file}")
-
-        except Exception as e:
-            logger.error(f"Error storing meetings to file: {e}")
 
 
 def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
