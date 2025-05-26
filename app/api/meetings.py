@@ -36,7 +36,7 @@ def get_meetings(
                     "ipex_events": "title",
                     "austrian_parliament_meetings": "title",
                 },
-                k=2,
+                k=100,
             )
 
             if not neighbors:
