@@ -38,10 +38,11 @@ class IPEXCalendarAPIScraper(ScraperBase):
     """
 
     def __init__(
-        self, start_date: Optional[date] = None,
+        self,
+        start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         max_retries: int = 3,
-        retry_delay: float = 2.0
+        retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
         super().__init__(EVENTS_TABLE_NAME, max_retries, retry_delay)
@@ -159,9 +160,9 @@ class IPEXCalendarAPIScraper(ScraperBase):
         logger.info("Starting IPEX calendar scraping via API...")
 
         if "start_date" not in args:
-            return ScraperResult(False, Exception("Missing parameter \"start_date\""))
+            return ScraperResult(False, Exception('Missing parameter "start_date"'))
         if "end_date" not in args:
-            return ScraperResult(False, Exception("Missing parameter \"end_date\""))
+            return ScraperResult(False, Exception('Missing parameter "end_date"'))
 
         start_date = args.get("start_date")
         end_date = args.get("start_date")
@@ -188,9 +189,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                 for i, event_data in enumerate(hits):
                     if last_entry == event_data:
                         continue
-                    logger.info(
-                        f"Processing event {i+1}/{len(hits)} on page {page_number}"
-                    )
+                    logger.info(f"Processing event {i + 1}/{len(hits)} on page {page_number}")
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
                         result = self.store_entry(parsed_event.model_dump())

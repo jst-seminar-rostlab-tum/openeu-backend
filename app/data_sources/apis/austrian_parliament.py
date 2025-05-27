@@ -28,6 +28,7 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
+
     title: str
     title_de: str
     meeting_type: str
@@ -79,7 +80,6 @@ class AustrianParliamentAPI:
 
         # Add date range if specified
         if start_date or end_date:
-
             if start_date:
                 # Format start date with T22:00:00.000Z suffix as required by the API
                 start_date_str = f"{start_date.isoformat()}T22:00:00.000Z"
@@ -121,7 +121,7 @@ class AustrianParliamentAPI:
 
         Args:
             response_text: Raw API response text
-            
+
         Returns:
             List of AustrianParliamentMeeting objects
         """
@@ -143,16 +143,18 @@ class AustrianParliamentAPI:
             if not meetings_data:
                 logger.info("No meetings found in the response")
                 return []
-                
+
             logger.info(f"Found {len(meetings_data)} meetings in the response")
-            
+
             # Process each meeting
             for i, meeting_data in enumerate(meetings_data):
                 # Skip if it's some sort of a Guided Tour
-                if any(keyword in meeting_data for keyword 
-                       in ["Führung Parlament", "Führung", "Guided Tour", "Galeriebesuch Nationalrat"]):
+                if any(
+                    keyword in meeting_data
+                    for keyword in ["Führung Parlament", "Führung", "Guided Tour", "Galeriebesuch Nationalrat"]
+                ):
                     continue
-            
+
                 if len(meeting_data) >= 9:
                     try:
                         # Extract required fields
@@ -161,16 +163,16 @@ class AustrianParliamentAPI:
                         meeting_type = meeting_data[5]
                         location = meeting_data[8]
                         url_path = meeting_data[4]
-                        
+
                         # Clean up the title
                         title, title_de = self._clean_and_translate_title(title)
                         # Parse date from DD.MM.YYYY format
                         day, month, year = map(int, date_str.split("."))
                         meeting_date = date(year, month, day)
-                        
+
                         # Construct full URL
                         url = BASE_URL + url_path if url_path else ""
-                        
+
                         meetings.append(
                             AustrianParliamentMeeting(
                                 title=title,
@@ -178,7 +180,7 @@ class AustrianParliamentAPI:
                                 meeting_type=meeting_type,
                                 meeting_date=meeting_date,
                                 meeting_location=location,
-                                meeting_url=url
+                                meeting_url=url,
                             )
                         )
                     except (ValueError, IndexError) as e:
@@ -186,9 +188,9 @@ class AustrianParliamentAPI:
                         continue
                 else:
                     logger.warning(f"Meeting data at index {i} has insufficient elements")
-            
+
             return meetings
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             return []
@@ -199,28 +201,28 @@ class AustrianParliamentAPI:
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
         """Clean up the meeting title.
-        
+
         Args:
             title: Raw meeting title
-            
+
         Returns:
             Cleaned meeting title
         """
         if not title:
             return "", ""
-            
+
         # Replace HTML non-breaking space entities with regular spaces
         title = title.replace("&nbsp;", " ")
-        
+
         # Remove leading dot and space (e.g., ". Sitzung")
-        title = re.sub(r'^(\. )', '', title)
-        
+        title = re.sub(r"^(\. )", "", title)
+
         # Remove any extra whitespace
         title = " ".join(title.split())
-        
+
         # Translate the title using DeepLTranslator
         translation_result = self.translator.translate(title)
-        
+
         return title, translation_result.text
 
     def _store_meetings(self, meetings: list[AustrianParliamentMeeting]) -> None:
