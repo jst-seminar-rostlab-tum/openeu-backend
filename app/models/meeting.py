@@ -17,3 +17,7 @@ class Meeting(BaseModel):
     description: Optional[str] = None
     tags: Optional[list[str]] = None
     similarity: Optional[float] = None
+
+
+class RelevantMeetingsResponse(BaseModel):
+    meetings: list[Meeting]
