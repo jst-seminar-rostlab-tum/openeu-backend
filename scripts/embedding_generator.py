@@ -2,21 +2,14 @@ import logging
 from typing import Dict, List
 
 import tiktoken
-from openai import OpenAI
 from postgrest.exceptions import APIError
 
 from app.core.config import Settings
+from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
 from app.core.supabase_client import supabase
 
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
-
-openai = OpenAI(api_key=settings.get_openai_api_key())
-
-EMBED_MODEL = "text-embedding-ada-002"
-EMBED_DIM = 1536
-MAX_TOKENS = 500
-BATCH_SZ = 100
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:

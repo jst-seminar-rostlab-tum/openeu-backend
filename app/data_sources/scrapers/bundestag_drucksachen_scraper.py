@@ -1,51 +1,112 @@
 import logging
+import os
 from datetime import datetime
-from time import sleep
-from typing import Optional
+from typing import Any, Optional
 
-from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import (
-    fetch_plenarprotokolle,
-    fetch_protocol_text,
-    upsert_record,
-)
+import requests
+
+from app.core.deepl_translator import translator
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.data_sources.translator.translator import DeepLTranslator
+from scripts.embedding_generator import embed_row
 
 
-def scrape_bundestag_drucksachen(start_date: str, end_date: str) -> None:
-    start = datetime.fromisoformat(start_date)
-    end = datetime.fromisoformat(end_date)
+class BundestagDrucksachenScraper(ScraperBase):
+    def __init__(
+        self,
+        table_name: str = "bt_documents",
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+    ):
+        super().__init__(table_name, max_retries, retry_delay)
+        self.translator = DeepLTranslator(translator)
+        self.API_BASE = "https://search.dip.bundestag.de/api/v1"
+        self.API_KEY = os.getenv("BUNDESTAG_KEY")
+        self.HEADERS = {"Authorization": f"ApiKey {self.API_KEY}"}
 
-    page: int = 1
-    size: int = 50
-    cursor: Optional[int] = None
+    def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
+        try:
+            start_dt = datetime.fromisoformat(str(args.get("start_date")))
+            end_dt = datetime.fromisoformat(str(args.get("end_date")))
 
-    while True:
-        data = fetch_plenarprotokolle(
-            endpoint="drucksache", page=page, size=size, cursor=cursor, start_date=start, end_date=end
-        )
-        items = data.get("documents", [])
-        if not items:
-            logging.info("Finished: no more documents.")
-            break
+            cursor: Optional[int] = None
+            last_pid: Optional[int] = None
 
-        for item in items:
-            pid = item["id"]
-            datum_str = item.get("datum")
-            if not datum_str:
-                continue
+            page = 1
+            size = 50
 
-            meta = {
-                "id": pid,
-                "datum": datum_str,
-                "titel": item.get("titel"),
-                "drucksachetyp": item.get("drucksachetyp") or None,
-            }
+            while True:
+                params: dict[str, Any] = {
+                    "page": page,
+                    "size": size,
+                    "f.datum.start": start_dt.strftime("%Y-%m-%d"),
+                    "f.datum.end": end_dt.strftime("%Y-%m-%d"),
+                }
+                if cursor is not None:
+                    params["cursor"] = cursor
 
-            text_json = fetch_protocol_text(pid, endpoint="drucksache-text")
-            meta["text"] = text_json.get("text", "")
+                resp = requests.get(f"{self.API_BASE}/drucksache", headers=self.HEADERS, params=params)
 
-            upsert_record(meta, "bt_documents")
-            sleep(0.1)
+                resp.raise_for_status()
+                data = resp.json()
 
-        raw_cursor = data.get("cursor")
-        cursor = raw_cursor if isinstance(raw_cursor, int) else None
-        page += 1
+                items = data.get("documents", [])
+                if not items:
+                    logging.info("No more documents to process.")
+                    break
+
+                for item in items:
+                    pid = item.get("id")
+                    datum = item.get("datum")
+                    if not pid or not datum:
+                        continue
+
+                    record = {
+                        "id": pid,
+                        "datum": datum,
+                        "titel": item.get("titel"),
+                        "drucksachetyp": item.get("drucksachetyp") or None,
+                    }
+                    text_json = requests.get(f"{self.API_BASE}/drucksache-text/{pid}", headers=self.HEADERS).json()
+
+                    record["text"] = text_json.get("text", "")
+
+                    try:
+                        record["title_english"] = str(self.translator.translate(record["titel"] or ""))
+                    except Exception as e:
+                        logging.error(f"Translation failed for {pid}: {e}")
+                        record["title_english"] = "Not available"
+
+
+                    # store and embed
+                    store_err = self.store_entry(record)
+                    if store_err:
+                        return store_err
+
+                    embed_row(
+                        source_table=self.table_name,
+                        row_id=pid,
+                        content_column="title_english",
+                        content_text=(record["title_english"] + record["datum"]),
+                    )
+                    embed_row(
+                        source_table=self.table_name,
+                        row_id=pid,
+                        content_column="text",
+                        content_text=record["text"],
+                    )
+
+                    last_pid = pid
+
+                raw_cursor = data.get("cursor")
+                cursor = raw_cursor if isinstance(raw_cursor, int) else None
+                if cursor is None:
+                    break
+                page += 1
+
+            self.last_entry = last_pid
+            return ScraperResult(True, last_entry=last_pid)
+
+        except Exception as e:
+            logging.exception(f"Error in scrape_once: {e}")
+            return ScraperResult(False, error=e, last_entry=self.last_entry)
