@@ -1,4 +1,4 @@
-CREATE TABLE mec_summit_ministerial_meeting (
+CREATE TABLE IF NOT EXISTS mec_summit_ministerial_meeting (
     id SERIAL PRIMARY KEY,
     url TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
