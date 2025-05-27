@@ -9,11 +9,12 @@ from urllib.parse import urlencode
 import scrapy
 from parsel import Selector
 from pydantic import BaseModel
+from rapidfuzz import fuzz
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
 from app.core.supabase_client import supabase
-from supabase import Client  # type: ignore[attr-defined]
+from app.data_sources.scraper_base import ScraperBase, ScraperResult  # type: ignore[attr-defined]
 
 """
 This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
@@ -26,6 +27,11 @@ Table of contents:
 4. Database Functions
 5. Main Function for Testing
 """
+
+MEP_MEETINGS_BASE_URL = "https://www.europarl.europa.eu/meps/en/search-meetings"
+MEP_MEETINGS_TABLE_NAME = "mep_meetings"
+MEP_MEETING_ATTENDEES_TABLE_NAME = "mep_meeting_attendees"
+MEP_MEETING_ATTENDEE_MAPPING_TABLE_NAME = "mep_meeting_attendee_mapping"
 
 
 # ------------------------------
@@ -77,7 +83,6 @@ class MEPMeetingsSpider(scrapy.Spider):
         self, start_date: date, end_date: date, result_callback: Optional[Callable[[list[MEPMeeting]], None]] = None
     ):
         super().__init__()
-        self.base_url = "https://www.europarl.europa.eu/meps/en/search-meetings?"
         self.start_date: date = start_date
         self.end_date: date = end_date
         self.result_callback: Optional[Callable[[list[MEPMeeting]], None]] = result_callback
@@ -98,7 +103,9 @@ class MEPMeetingsSpider(scrapy.Spider):
             "page": page,
         }
         return scrapy.Request(
-            url=self.base_url + urlencode(params), callback=self.parse_search_results_page, meta={"page": page}
+            url=MEP_MEETINGS_BASE_URL + "?" + urlencode(params),
+            callback=self.parse_search_results_page,
+            meta={"page": page},
         )
 
     def closed(self, reason):
@@ -208,61 +215,82 @@ class MEPMeetingsSpider(scrapy.Spider):
 
 
 # ------------------------------
-# Scraping Function
+# Scraper Base Implementation
 # ------------------------------
 
 
-def scrape_meetings(start_date: date, end_date: date) -> list[MEPMeeting]:
+class MEPMeetingsScraper(ScraperBase):
     """
-    Scrape meetings from the European Parliament website.
-
-    :param start_date: The start date for the meeting search.
-    :param end_date: The end date for the meeting search.
-    :return: A list of Meeting objects.
+    A scraper for the MEP meetings of the European Parliament that implements Scraper Base Interface.
     """
 
-    if start_date > end_date:
-        raise ValueError("start_date must be before or equal to end_date")
+    logger = logging.getLogger("MEPMeetingsScraper")
 
-    results = []
+    def __init__(self, start_date: date, end_date: date):
+        super().__init__(table_name=MEP_MEETINGS_TABLE_NAME)
+        self.start_date = start_date
+        self.end_date = end_date
+        self.entries: list[MEPMeeting] = []
 
-    def collect_results(meetings):
-        results.extend(meetings)
+    def scrape_once(self, last_entry, **kwargs) -> ScraperResult:
+        try:
+            process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
+            process.crawl(
+                MEPMeetingsSpider,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                result_callback=self._collect_entry,
+            )
+            process.start()
+            return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
+        except Exception as e:
+            return ScraperResult(success=False, error=e)
 
-    process = CrawlerProcess(settings={"USER_AGENT": "Mozilla/5.0"})
-    process.crawl(MEPMeetingsSpider, start_date=start_date, end_date=end_date, result_callback=collect_results)
-    process.start()
+    def _collect_entry(self, entries: list[MEPMeeting]):
+        for entry in entries:
+            if self.check_for_duplicate(entry):
+                self.logger.info(f"Skipped duplicate: {entry.title}")
+                continue
 
-    return results
+            try:
+                insert_meeting(entry)
+                self.entries.append(entry)
+
+            except Exception as e:
+                self.logger.error(f"Error inserting meeting {entry.title}: {e}")
+                continue
+
+    def check_for_duplicate(self, entry: MEPMeeting) -> bool:
+        """
+        Check if a MEPMeeting already exists in Supabase for the same date and very similar title.
+        Returns True if a duplicate is found, False otherwise.
+        """
+        try:
+            # Query Supabase for existing entries with the same date
+            result = (
+                supabase.table(MEP_MEETINGS_TABLE_NAME)
+                .select("id, title")
+                .eq("meeting_date", entry.meeting_date)
+                .execute()
+            )
+            existing_entries = result.data or []
+
+            # Check for fuzzy match
+            for existing in existing_entries:
+                existing_title = existing["title"]
+                if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
+                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
+                    return True  # Duplicate found
+
+            # No duplicates found
+            return False
+
+        except Exception as e:
+            self.logger.error(f"Error checking for duplicates: {e}")
+            return False
 
 
-# ------------------------------
-# Database Functions
-# ------------------------------
-
-
-def scrape_and_store_meetings(start_date: date, end_date: date):
-    """
-    Scrape meetings and store them in the database.
-    :param start_date: The start date for the meeting search.
-    :param end_date: The end date for the meeting search.
-    """
-    try:
-        meetings = scrape_meetings(start_date, end_date)
-
-        # Delete existing meetings in the date range and their attendee_mappings via on delete cascade
-        supabase.table("mep_meetings").delete().gte("meeting_date", start_date).lte("meeting_date", end_date).execute()
-
-        for meeting in meetings:
-            # Insert each meeting into the database
-            insert_meeting(meeting, supabase)
-            logging.info(f"Inserted meeting: {meeting.title} on {meeting.meeting_date}")
-        return meetings
-    except Exception as e:
-        logging.error(f"Error while scraping and storing meetings: {e}")
-
-
-def insert_meeting(meeting: MEPMeeting, supabase: Client):
+def insert_meeting(meeting: MEPMeeting):
     """
     Insert a meeting into the database and map attendees to it.
     :param meeting: The meeting object to insert.
@@ -271,20 +299,20 @@ def insert_meeting(meeting: MEPMeeting, supabase: Client):
     # Insert meeting
     meeting_dict = meeting.model_dump()
     meeting_dict.pop("attendees")
-    response = supabase.table("mep_meetings").insert(meeting_dict).execute()
+    response = supabase.table(MEP_MEETINGS_TABLE_NAME).insert(meeting_dict).execute()
     meeting_id = response.data[0]["id"]
 
     for attendee in meeting.attendees:
         # Insert attendee if not already exists
-        attendee_id = create_or_get_existing_attendee_id(attendee, supabase)
+        attendee_id = _create_or_get_existing_attendee_id(attendee)
 
         # Map attendee to meeting
-        supabase.table("mep_meeting_attendee_mapping").insert(
+        supabase.table(MEP_MEETING_ATTENDEE_MAPPING_TABLE_NAME).insert(
             {"meeting_id": meeting_id, "attendee_id": attendee_id}
         ).execute()
 
 
-def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: Client) -> str:
+def _create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee) -> str:
     """
     Create a new attendee or get the existing one.
     :param attendee: The attendee object to insert or find.
@@ -292,7 +320,7 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
     """
     if attendee.transparency_register_url:
         existing_attendee_id = (
-            supabase.table("mep_meeting_attendees")
+            supabase.table(MEP_MEETING_ATTENDEES_TABLE_NAME)
             .select("id")
             .eq("transparency_register_url", attendee.transparency_register_url)
             .limit(1)
@@ -301,14 +329,14 @@ def create_or_get_existing_attendee_id(attendee: MEPMeetingAttendee, supabase: C
     else:
         # Fallback: try by name if URL missing (not ideal for deduplication)
         existing_attendee_id = (
-            supabase.table("mep_meeting_attendees").select("id").eq("name", attendee.name).limit(1).execute()
+            supabase.table(MEP_MEETING_ATTENDEES_TABLE_NAME).select("id").eq("name", attendee.name).limit(1).execute()
         )
 
     if existing_attendee_id.data:
         attendee_id = existing_attendee_id.data[0]["id"]
     else:
         # Insert new attendee
-        result = supabase.table("mep_meeting_attendees").insert(attendee.model_dump()).execute()
+        result = supabase.table(MEP_MEETING_ATTENDEES_TABLE_NAME).insert(attendee.model_dump()).execute()
         attendee_id = result.data[0]["id"]
 
     return attendee_id
@@ -324,7 +352,13 @@ if __name__ == "__main__":
 
     print("Scraping meetings...")
 
-    meetings = scrape_and_store_meetings(start_date=datetime.date(2025, 3, 15), end_date=datetime.date(2023, 3, 16))
+    scraper = MEPMeetingsScraper(start_date=datetime.date(2025, 3, 15), end_date=datetime.date(2025, 3, 17))
+    result = scraper.scrape()
+    meetings = scraper.entries
+    if result.success:
+        print(f"Scraping completed successfully. {len(meetings)} meetings found.")
+    else:
+        print(f"Scraping failed: {result.error}")
 
     # pprint(meetings)
     print(f"Total meetings scraped: {len(meetings) if meetings else 0}")
