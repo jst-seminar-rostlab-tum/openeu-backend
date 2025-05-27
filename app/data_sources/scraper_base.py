@@ -54,12 +54,9 @@ class ScraperBase(ABC):
     def last_entry(self, last_entry: Any):
         self._last_entry = last_entry
 
-    def store_entry(self, entry) -> Optional[ScraperResult]:
+    def store_entry(self, entry, on_conflict: Optional[str] = None) -> Optional[ScraperResult]:
         try:
-            supabase.table(self.table_name).insert(
-                entry,
-                upsert=True,
-            ).execute()
+            supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")

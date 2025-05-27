@@ -3,6 +3,8 @@ from datetime import datetime
 from app.core.scheduling import scheduler
 from app.data_sources.apis.mep import fetch_and_store_current_meps
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
+from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
+from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import scrape_meeting_calendar
 from app.data_sources.scrapers.mep_meetings_scraper import scrape_and_store_meetings
 
@@ -26,6 +28,18 @@ def scrape_mep_meetings():
     scrape_and_store_meetings(today, today)
 
 
+def scrape_mec_sum_minist_meetings():
+    today = datetime.now().date()
+    scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape(today, today)
+
+
+def scrape_mec_prep_bodies_meetings():
+    today = datetime.now().date()
+    scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape(today, today)
+
+
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
@@ -33,3 +47,5 @@ def setup_scheduled_jobs():
     )
     scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
