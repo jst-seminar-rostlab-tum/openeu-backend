@@ -204,6 +204,12 @@ class MEPMeetingsSpider(scrapy.Spider):
 
             attendees.append(MEPMeetingAttendee(name=name, transparency_register_url=transparancy_register_url))
 
+        associated_cmte_embedding = ""
+        if associated_cmte_name and associated_cmte_code:
+            associated_cmte_embedding = f"{associated_cmte_code} ({associated_cmte_name})"
+        elif associated_cmte_name:
+            associated_cmte_embedding = associated_cmte_name
+
         return MEPMeeting(
             title=title,
             member_name=member_name,
@@ -216,8 +222,7 @@ class MEPMeetingsSpider(scrapy.Spider):
             attendees=attendees,
             embedding_input=f'"{title}", on {meeting_date}, at {meeting_location}, by {member_name} ({member_capacity})'
             + f"{(', referenced procedure: ' + procedure_code) if procedure_code else ''}"
-            + f"{(', committee: '
-                  + associated_cmte_name + '(' + associated_cmte_code + ')') if associated_cmte_name else ''}"
+            + f"{(', committee: ' + associated_cmte_embedding) if associated_cmte_embedding else ''}"
             + f", attendees: [{', '.join(att.name for att in attendees)}]",
         )
 
