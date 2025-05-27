@@ -36,3 +36,9 @@ class Settings:
         if value is None:
             value = ""
         return value
+
+    def get_brevo_api_key(self) -> str:
+        value = os.getenv("BREVO_API_KEY")
+        if value is None:
+            value = ""
+        return value
