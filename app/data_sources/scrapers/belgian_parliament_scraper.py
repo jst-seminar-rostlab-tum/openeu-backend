@@ -26,7 +26,7 @@ MEETINGS_URL = f"{BASE_URL}/nl/parlementair-werk/vergaderingen-en-verslagen"
 
 class BelgianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Belgian Parliament."""
-    id: int
+    id: str
     title: str
     title_en: str
     description: str
@@ -167,7 +167,7 @@ class BelgianParliamentScraper(ScraperBase):
         meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
 
         # get id from url
-        meeting_id = int(url_path.split('/')[-1])
+        meeting_id = str(url_path.split('/')[-1])
 
         # First check if there's a description on the main page
         description_div = entry.find('div', class_='card__description')
@@ -218,7 +218,7 @@ class BelgianParliamentScraper(ScraperBase):
         location = date_location.split(" - ", 1)[1]
 
         # create embedding input
-        embedding_input = f"{title} {title_en} {description} {description_en} {location}"
+        embedding_input = f"{title_en} {description_en} {location}"
 
         return BelgianParliamentMeeting(
             id=meeting_id,
