@@ -9,7 +9,7 @@ from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScrap
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
-from app.data_sources.scrapers.mep_meetings_scraper import scrape_and_store_meetings
+from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 
 DAILY_INTERVAL_MINUTES = 24 * 60
 WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
@@ -30,7 +30,8 @@ def scrape_meeting_calendar_for_current_day():
 
 def scrape_mep_meetings():
     today = datetime.now().date()
-    scrape_and_store_meetings(today, today)
+    scraper = MEPMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape(today, today)
 
 
 def scrape_mec_sum_minist_meetings():

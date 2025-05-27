@@ -62,6 +62,17 @@ class ScraperBase(ABC):
             logger.error(f"Error storing entry in Supabase: {e}")
             return ScraperResult(False, e, self.last_entry)
 
+    def store_entry_returning_id(self, entry: Any, on_conflict: Optional[str] = None) -> Optional[str]:
+        """
+        Store an entry in the database and return the ID of the stored entry.
+        """
+        try:
+            response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
+            return response.data[0].get("id") if response.data else None
+        except Exception as e:
+            logger.error(f"Error storing entry in Supabase: {e}")
+            return None
+
     @abstractmethod
     def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
         """Run a single scraping attempt. Should return ScraperResult."""
