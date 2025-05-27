@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
-from openai import OpenAI
+from app.core.openai_client import openai, EMBED_MODEL
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
@@ -10,9 +10,6 @@ from app.models.profile import ProfileCreate
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
-settings = Settings()
-openai = OpenAI(api_key=settings.get_openai_api_key())
-EMBED_MODEL = "text-embedding-ada-002"
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
