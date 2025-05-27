@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS mep_meetings (
     member_capacity text NOT NULL,
     procedure_reference text,
     associated_committee_or_delegation_code text,
-    associated_committee_or_delegation_name text
+    associated_committee_or_delegation_name text,
+    embedding_input TEXT
 );
 
 CREATE TABLE IF NOT EXISTS mep_meeting_attendees (
