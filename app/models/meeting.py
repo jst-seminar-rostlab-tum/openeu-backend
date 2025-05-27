@@ -1,9 +1,16 @@
-from datetime import date
+from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
 
 class Meeting(BaseModel):
-    date: date
-    name: str
-    tags: list[str]
+    meeting_id: str
+    title: str
+    status: str
+    meeting_url: str
+    meeting_start_datetime: datetime
+    meeting_end_datetime: Optional[datetime] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    tags: list[str] = []
