@@ -92,7 +92,7 @@ class BundestagDrucksachenScraper(ScraperBase):
                         source_table=self.table_name,
                         row_id=pid,
                         content_column="title_english",
-                        content_text=record["title_english"],
+                        content_text= (record["title_english"]+record["datum"]),
                     )
                     embed_row(
                         source_table=self.table_name,

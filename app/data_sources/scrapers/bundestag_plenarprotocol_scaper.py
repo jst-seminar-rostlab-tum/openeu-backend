@@ -96,7 +96,7 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                         source_table=self.table_name,
                         row_id=pid,
                         content_column="text_english",
-                        content_text=record["text_english"],
+                        content_text=(record["title_english"]+record["datum"]),
                     )
 
                 self.last_entry = pid
