@@ -8,7 +8,6 @@ import requests
 from pydantic import BaseModel
 
 from app.core.deepl_translator import translator
-from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
@@ -29,7 +28,7 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
-
+    id: str
     title: str
     title_de: str
     meeting_type: str
@@ -123,16 +122,22 @@ class AustrianParliamentScraper(ScraperBase):
                         location = meeting_data[8]
                         url_path = meeting_data[4]
 
+                        if not url_path:
+                            logger.warning(f"No URL path found for meeting at index {i}")
+                            continue
+
                         title_de, title_en = self._clean_and_translate_title(title)
                         day, month, year = map(int, date_str.split("."))
                         meeting_date = date(year, month, day).strftime("%Y-%m-%d")
-                        url = BASE_URL + url_path if url_path else ""
+                        url = BASE_URL + url_path
+                        id = str(url_path.split("/")[-1])
 
                         # Create embedding input by concatenating the specified fields
-                        embedding_input = f"{title_en} {title_de} {meeting_type}"
+                        embedding_input = f"{title_en} {meeting_type}"
 
                         meetings.append(
                             AustrianParliamentMeeting(
+                                id=id,
                                 title=title_en,
                                 title_de=title_de,
                                 meeting_type=meeting_type,
@@ -178,7 +183,7 @@ class AustrianParliamentScraper(ScraperBase):
             payload = self._build_request_payload()
 
             # Make request to API
-            response = self.session.post(PARLIAMENT_API_URL, params=payload["params"], json=payload["body"])
+            response = self.session.post(PARLIAMENT_API_URL, params=payload["params"], json=payload["body"], timeout=2)
             response.raise_for_status()
 
             # Parse meetings
@@ -186,20 +191,7 @@ class AustrianParliamentScraper(ScraperBase):
 
             # Store each meeting
             for meeting in meetings:
-                # Check if meeting already exists
-                existing = (
-                    supabase.table(self.table_name)
-                    .select("meeting_url")
-                    .eq("meeting_url", meeting.meeting_url)
-                    .execute()
-                )
-
-                if existing.data:
-                    # Update existing entry using meeting_url as the match column
-                    self.update_entry(meeting.model_dump(), "meeting_url", meeting.meeting_url)
-                else:
-                    # Create new entry
-                    self.store_entry(meeting.model_dump())
+                self.store_entry(meeting.model_dump(), "id")
 
             logger.info(f"Successfully processed {len(meetings)} meetings")
             return ScraperResult(True)
