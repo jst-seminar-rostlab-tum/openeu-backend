@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime
 
+from app.core.email import Email, EmailService
 from app.core.scheduling import scheduler
+from app.core.supabase_client import supabase
 from app.data_sources.apis.mep import fetch_and_store_current_meps
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
@@ -10,6 +13,8 @@ from app.data_sources.scrapers.mep_meetings_scraper import scrape_and_store_meet
 
 DAILY_INTERVAL_MINUTES = 24 * 60
 WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
+
+logger = logging.getLogger(__name__)
 
 
 def scrape_ipex_calendar():
@@ -32,6 +37,18 @@ def scrape_mec_sum_minist_meetings():
     today = datetime.now().date()
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
     scraper.scrape(today, today)
+
+
+def send_daily_newsletter():
+    users = supabase.auth.admin.list_users()
+    email_addresses = [user.email for user in users]
+    email_message = Email(
+        subject="OpenEU Daily Newsletter",
+        html_body="<p>Here is your daily newsletter from OpenEU.</p>",
+        recipients=email_addresses,
+    )
+    logger.info(f"Sending daily newsletter to {len(email_addresses)} users")
+    EmailService.send_email(email=email_message)
 
 
 def scrape_mec_prep_bodies_meetings():
