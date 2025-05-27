@@ -2,8 +2,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
-from app.core.openai_client import openai, EMBED_MODEL
 
+from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 from app.models.profile import ProfileCreate
 
