@@ -77,11 +77,6 @@ class BundestagDrucksachenScraper(ScraperBase):
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
 
-                    try:
-                        record["text_english"] = str(self.translator.translate(record["text"] or ""))
-                    except Exception as e:
-                        logging.error(f"Translation failed for {pid}: {e}")
-                        record["text_english"] = "Not available"
 
                     # store and embed
                     store_err = self.store_entry(record)
@@ -92,13 +87,13 @@ class BundestagDrucksachenScraper(ScraperBase):
                         source_table=self.table_name,
                         row_id=pid,
                         content_column="title_english",
-                        content_text= (record["title_english"]+record["datum"]),
+                        content_text=(record["title_english"] + record["datum"]),
                     )
                     embed_row(
                         source_table=self.table_name,
                         row_id=pid,
-                        content_column="text_english",
-                        content_text=record["text_english"],
+                        content_column="text",
+                        content_text=record["text"],
                     )
 
                     last_pid = pid
