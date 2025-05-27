@@ -19,7 +19,6 @@ class Settings:
             value = ""
         return value
 
-
     def get_crawler_api_key(self) -> str:
         value = os.getenv("CRAWLER_API_KEY")
         if value is None:
@@ -32,9 +31,14 @@ class Settings:
             value = ""
         return value
 
-
     def get_openai_api_key(self) -> str:
         value = os.getenv("OPENAI_API_KEY")
+        if value is None:
+            value = ""
+        return value
+
+    def get_brevo_api_key(self) -> str:
+        value = os.getenv("BREVO_API_KEY")
         if value is None:
             value = ""
         return value

@@ -19,7 +19,7 @@ jobs:
       - name: Link Supabase Project
         run: supabase link --project-ref $SUPABASE_PROJECT_ID --debug
       - name: Push Supabase Migrations
-        run: supabase db push
+        run: supabase db push --include-all
 
       - name: Deploy Backend to Render
         run: curl "$RENDER_DEPLOY_HOOK_URL"

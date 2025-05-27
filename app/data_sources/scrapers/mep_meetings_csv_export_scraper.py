@@ -57,8 +57,7 @@ def __is_valid_date_range(start_date: date, end_date: date) -> bool:
 def __build_meeting_url(start_date: date, end_date: date) -> str:
     date_format = "%d/%m/%Y"
     url_template = (
-        "https://www.europarl.europa.eu/meps/en/search-meetings?"
-        "textualSearch=&fromDate={}&toDate={}&exportFormat=CSV"
+        "https://www.europarl.europa.eu/meps/en/search-meetings?textualSearch=&fromDate={}&toDate={}&exportFormat=CSV"
     )
     return url_template.format(start_date.strftime(date_format), end_date.strftime(date_format))
 
