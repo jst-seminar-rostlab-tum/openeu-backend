@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 from app.core.openai_client import openai, EMBED_MODEL
 
-from app.core.config import Settings
 from app.core.supabase_client import supabase
 from app.models.profile import ProfileCreate
 
