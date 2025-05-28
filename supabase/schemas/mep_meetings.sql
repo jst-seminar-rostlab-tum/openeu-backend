@@ -1,6 +1,6 @@
 -- MEP Meetings
 CREATE TABLE IF NOT EXISTS mep_meetings (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     title text NOT NULL,
     member_name text NOT NULL,
     meeting_date date NOT NULL,
@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS mep_meetings (
 );
 
 CREATE TABLE IF NOT EXISTS mep_meeting_attendees (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name text NOT NULL,
     transparency_register_url text UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS mep_meeting_attendee_mapping (
-    meeting_id uuid REFERENCES mep_meetings(id) ON DELETE CASCADE,
-    attendee_id uuid REFERENCES mep_meeting_attendees(id) ON DELETE CASCADE,
+    meeting_id TEXT REFERENCES mep_meetings(id) ON DELETE CASCADE,
+    attendee_id TEXT REFERENCES mep_meeting_attendees(id) ON DELETE CASCADE,
     PRIMARY KEY (meeting_id, attendee_id)
 );
