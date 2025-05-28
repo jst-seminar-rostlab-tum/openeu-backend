@@ -2,9 +2,9 @@ import os
 
 from jinja2 import Environment, FileSystemLoader
 
-import supabase
 from app.core.email import Email, EmailService
 from app.core.relevant_meetings import fetch_relevant_meetings
+from app.core.supabase_client import supabase
 from app.models.meeting import RelevantMeetingsResponse
 
 
