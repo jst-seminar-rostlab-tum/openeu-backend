@@ -3,7 +3,6 @@ import threading
 from datetime import datetime, timedelta
 from typing import Callable
 
-from app.core.email import Email, EmailService
 from app.core.supabase_client import supabase
 
 TABLE_NAME = "scheduled_job_runs"
@@ -53,14 +52,6 @@ class ScheduledJob:
                 self.func()
             except Exception as e:
                 self.logger.error(f"Error in job '{self.name}': {e}")
-                email_addresses = ["bohdan.garchu@tum.de", "dtrung.nguyen@tum.de"]
-                email_message = Email(
-                    subject=f"Job '{self.name}' Failed",
-                    html_body=f"<p>The job '{self.name}' failed with the following error:</p><pre>{e}</pre>",
-                    recipients=email_addresses,
-                )
-                EmailService.send_email(email=email_message)
-
             finally:
                 self.mark_just_ran()
 
