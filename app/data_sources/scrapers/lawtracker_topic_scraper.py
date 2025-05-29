@@ -122,10 +122,10 @@ class LawTrackerSpider(scrapy.Spider):
                 topic_codes  = [topic_code],
                 topic_labels  = [topic_label],
                 embedding_input=(
-                    f'{proc_id} "{title}" '
-                    f'status: {status or "n/a"} '
-                    f'active: {active_status or "n/a"} '
-                    f'started: {started_date or "n/a"} '
+                    f'{proc_id} "{title}", '
+                    f'status: {status or "n/a"}, '
+                    f'active: {active_status or "n/a"}, '
+                    f'started: {started_date or "n/a"}, '
                     f'topics: {topic_label}'
                 )
             )
