@@ -132,8 +132,13 @@ class AustrianParliamentScraper(ScraperBase):
                         url = BASE_URL + url_path
                         id = str(url_path.split("/")[-1])
 
+                        # Safety check -> skip entries w.o. ID
+                        if not id:
+                            logger.warning(f"No ID found for meeting at index {i}")
+                            continue
+
                         # Create embedding input by concatenating the specified fields
-                        embedding_input = f"{title_en} {meeting_type}"
+                        embedding_input = f"{title_en} {meeting_type} {meeting_date} {location}"
 
                         meetings.append(
                             AustrianParliamentMeeting(
