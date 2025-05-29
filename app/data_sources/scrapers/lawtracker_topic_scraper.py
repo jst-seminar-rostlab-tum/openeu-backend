@@ -1,14 +1,14 @@
 # eu_lawtracker/spiders/lawtracker_topic_scraper.py
-import scrapy
-from scrapy import Item, Field 
-import re, json
-from datetime import datetime
 import datetime as dt
+import re
+from datetime import datetime
 from urllib.parse import quote, urljoin
-from scrapy_playwright.page import PageMethod
-from hashlib import sha256
-from app.core.supabase_client import supabase
 
+import scrapy
+from scrapy import Field, Item
+from scrapy_playwright.page import PageMethod
+
+from app.core.supabase_client import supabase
 
 BASE = "https://law-tracker.europa.eu"
 API    = f"{BASE}/api/procedures/search"
@@ -83,7 +83,9 @@ class LawTrackerSpider(scrapy.Spider):
                 meta={
                     "playwright": True,
                     "playwright_page_methods": [
-                        # wait for the result cards to load (unsure of which elemt to wait for for optimal performance, I tried a few but waiting for: "div.result-card div.title-color" proved to be reliable and the fastest by my testing)
+                        # wait for the result cards to load (unsure of which elemt to wait for for optimal performance,
+                        # I tried a few but waiting for: "div.result-card div.title-color" 
+                        # proved to be reliable and the fastest by my testing)
                         PageMethod("wait_for_selector", "div.result-card div.title-color"),
                         #PageMethod("wait_for_selector", "div.result-card", state="attached")
                     ],
@@ -119,7 +121,7 @@ class LawTrackerSpider(scrapy.Spider):
                 topic_codes  = [topic_code],
                 topic_labels  = [topic_label],
             )
-            #self.upsert_law(dict(item))   # ← write/update immediately
+            #self.upsert_law(dict(item))   # write/update function
             #yield item 
 
             # detail page
@@ -154,7 +156,7 @@ class LawTrackerSpider(scrapy.Spider):
         return item
 
 
-    def upsert_law(item: dict) -> None:
+    def upsert_law(self, item: dict) -> None:
         """
         Insert a new procedure or overwrite the existing row
         whenever *any* field (except id) has changed.
