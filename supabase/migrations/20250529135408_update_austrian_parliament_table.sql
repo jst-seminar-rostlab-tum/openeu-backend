@@ -2,7 +2,7 @@ drop view if exists "public"."v_meetings";
 
 alter table "public"."austrian_parliament_meetings" add column "embedding_input" text not null;
 
-alter table "public"."austrian_parliament_meetings" add column "scraped_at" timestamp with time zone not null;
+alter table "public"."austrian_parliament_meetings" add column "scraped_at" timestamp with time zone not null default now();
 
 alter table "public"."austrian_parliament_meetings" alter column "id" drop default;
 
