@@ -4,7 +4,7 @@
 import datetime
 import logging
 from collections.abc import Generator
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
 
 import scrapy
 from pydantic import BaseModel
@@ -26,7 +26,7 @@ class CommissionAgendaEntry(BaseModel):
     description: Optional[str]
     url: Optional[str]
     embedding_input: Optional[str]
-    links: Optional[Dict[str, str]] = None
+    links: Optional[dict[str, str]] = None
 
 
 # ------------------------------
@@ -88,7 +88,7 @@ class SpanishCommissionSpider(scrapy.Spider):
             elif not title:
                 title = "Untitled"
 
-            location = location_div.css("::text").get().strip() if location_div else None
+            location = (location_div.css("::text").get() or "").strip() if location_div else None
 
             embedding_input = (
                 f"{title} {self.date.isoformat()} {time} {location or ''} {description_text or ''}".strip()
