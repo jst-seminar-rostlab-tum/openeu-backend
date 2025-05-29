@@ -114,7 +114,7 @@ class BelgianParliamentScraper(ScraperBase):
                                 if result:
                                     return result
                                 
-                                last_entry = meeting
+                                self.last_entry = meeting
                                 
                             except Exception as e:
                                 logger.warning(f"Error processing meeting entry: {e}")
@@ -122,7 +122,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                     except Exception as e:
                         logger.error(f"Error scraping day {current_date}: {e}")
-                        return ScraperResult(success=False, error=e, last_entry=last_entry)
+                        return ScraperResult(success=False, error=e, last_entry=self.last_entry)
 
                     # Move to next day
                     current_date += timedelta(days=1)

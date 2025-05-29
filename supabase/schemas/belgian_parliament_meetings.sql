@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS belgian_parliament_meetings (
     location text NOT NULL,
     meeting_url text NOT NULL,
     embedding_input text NOT NULL,
-    scraped_at timestamp with time zone NOT NULL
+    scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );

@@ -8,7 +8,7 @@ create table "public"."belgian_parliament_meetings" (
     "location" text not null,
     "meeting_url" text not null,
     "embedding_input" text not null,
-    "scraped_at" timestamp with time zone not null
+    "scraped_at" timestamp with time zone not null default now()
 );
 
 
