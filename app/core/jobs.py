@@ -6,7 +6,7 @@ from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
 from app.data_sources.apis.mep import fetch_and_store_current_meps
-from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper
+from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
@@ -43,7 +43,7 @@ def scrape_mec_sum_minist_meetings():
 
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
-    run_scraper(start_date=today, end_date=today)
+    run_belgian_parliament_scraper(start_date=today, end_date=today)
 
 
 def send_daily_newsletter():
