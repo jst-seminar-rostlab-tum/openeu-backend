@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     chat_session SERIAL,
     content TEXT,
     author TEXT,
-    thread_id TEXT,
+    date TIMESTAMP WITH TIME ZONE,
 
     CONSTRAINT fk_chat_sessions
       FOREIGN KEY (chat_session)

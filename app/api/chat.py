@@ -1,6 +1,5 @@
 import logging
-import random
-import string
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -21,7 +20,7 @@ class NewSessionItem(BaseModel):
     user_id: str
 
 
-class ChatResponseItem(BaseModel):
+class ChatMessageItem(BaseModel):
     session_id: int
     message: str
 
@@ -31,7 +30,7 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     for message in messages:
         messages_text += f"{message['author']}: {message['content']}\n"
 
-    context = get_top_k_neighbors(f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", {})
+    context = get_top_k_neighbors(f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", {}, 20)
     context_text = ""
     for element in context:
         context_text += f"{element.get('content_text')}\n"
@@ -60,28 +59,31 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
 
 def get_response(prompt: str, session_id: int):
     try:
-        database_messages = supabase.table("chat_messages").select("*").eq("chat_session", session_id).execute()
+        database_messages = (
+            supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
+        )
         messages = database_messages.data
         messages.sort(key=lambda message: message["id"])
-        if len(messages) > 10:
-            messages = messages[-10:]
 
-        thread_id = "".join(random.choices(string.ascii_letters + string.digits, k=20))
         supabase.table("chat_messages").upsert(
             {
                 "chat_session": session_id,
                 "content": prompt,
                 "author": "user",
+                "date": datetime.now(timezone.utc),
             }
         ).execute()
-        supabase.table("chat_messages").upsert(
-            {
-                "chat_session": session_id,
-                "content": "",
-                "author": "assistant",
-                "thread_id": thread_id,
-            }
-        ).execute()
+        message_response = (
+            supabase.table("chat_messages")
+            .upsert(
+                {
+                    "chat_session": session_id,
+                    "content": "",
+                    "author": "assistant",
+                }
+            )
+            .execute()
+        )
 
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
@@ -106,8 +108,9 @@ def get_response(prompt: str, session_id: int):
                 supabase.table("chat_messages").update(
                     {
                         "content": full_response,
+                        "date": datetime.now(timezone.utc),
                     }
-                ).eq("thread_id", thread_id).eq("chat_session", session_id).execute()
+                ).eq("id", message_response.data[0].get("id")).eq("chat_session", session_id).execute()
 
                 yield f"id: {session_id}\ndata: {current_content}\n\n"
     except Exception as e:
@@ -116,9 +119,9 @@ def get_response(prompt: str, session_id: int):
 
 
 @router.post("/")
-async def get_chat_response(chat_response_item: ChatResponseItem):
+async def get_chat_response(chat_message_item: ChatMessageItem):
     return StreamingResponse(
-        get_response(chat_response_item.message, chat_response_item.session_id), media_type="text/event-stream"
+        get_response(chat_message_item.message, chat_message_item.session_id), media_type="text/event-stream"
     )
 
 
@@ -142,9 +145,9 @@ def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
 
 
 @router.get("/sessions/{session_id}")
-def get_all_messages(session_id: int) -> list[dict[str, str | int]]:
+def get_all_messages(session_id: int) -> list:
     try:
-        response = supabase.table("chat_messages").select("*").eq("chat_session", session_id).execute()
+        response = supabase.table("chat_messages").select("*").order("date").eq("chat_session", session_id).execute()
     except APIError as e:
         logging.error(f"Supabase APIError: {e}")
         raise HTTPException(503, "Failed to get chat sessions, try again later") from None
