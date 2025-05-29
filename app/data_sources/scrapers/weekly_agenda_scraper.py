@@ -450,7 +450,7 @@ class WeeklyAgendaScraper(ScraperBase):
                 self.logger.info(f"Skipped duplicate: {entry.title}")
                 continue
 
-            store_result = self.store_entry(entry.model_dump())
+            store_result = self.store_entry(entry.model_dump(), embedd_entries=True)
             if store_result is None:
                 self.entries.append(entry)
 
