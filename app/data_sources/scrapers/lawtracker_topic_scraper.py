@@ -53,6 +53,7 @@ class LawItem(Item):
     started_date  = Field()
     topic_codes   = Field()
     topic_labels  = Field()
+    embedding_input = Field()
 
 
    
@@ -120,6 +121,13 @@ class LawTrackerSpider(scrapy.Spider):
                 started_date   = started_date,
                 topic_codes  = [topic_code],
                 topic_labels  = [topic_label],
+                embedding_input=(
+                    f'{proc_id} "{title}" '
+                    f'status: {status or "n/a"} '
+                    f'active: {active_status or "n/a"} '
+                    f'started: {started_date or "n/a"} '
+                    f'topics: {topic_label}'
+                )
             )
             #self.upsert_law(dict(item))   # write/update function
             #yield item 
@@ -178,7 +186,7 @@ class LawTrackerSpider(scrapy.Spider):
         # ── 1. fetch if exists ─────────────────────────────
         res = (
             supabase.table(LAWS_TABLE)
-            .select("id, title, status, active_status, started_date, topic_codes, topic_labels")
+            .select("id, title, status, active_status, started_date, topic_codes, topic_labels, embedding_input")
             .eq("procedure_id", pid)
             .limit(1)
             .execute()
@@ -202,11 +210,12 @@ class LawTrackerSpider(scrapy.Spider):
         # ── 3. compare every relevant field (other than id) ──────────────────────────
         has_changed = any(
             [
-                row["title"]          != data["title"],
-                row["status"]         != data["status"],
-                row["active_status"]  != data["active_status"],
-                str(row["started_date"])  != str(data["started_date"]),
-                row["topic_codes"]    != data["topic_codes"]  or row["topic_labels"] != data["topic_labels"],
+                row["title"] != data["title"],
+                row["status"] != data["status"],
+                row["active_status"] != data["active_status"],
+                str(row["started_date"]) != str(data["started_date"]),
+                row["topic_codes"] != data["topic_codes"]  or row["topic_labels"] != data["topic_labels"],
+                row["embedding_input"] != data["embedding_input"],
             ]
         )
 
