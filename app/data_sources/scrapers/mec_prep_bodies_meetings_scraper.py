@@ -39,7 +39,7 @@ MEC_PREP_BODIES_MEETING_TABLE_NAME = "mec_prep_bodies_meeting"
 
 
 class MECPrepBodiesMeeting(BaseModel):
-    id: int
+    id: str
     url: str
     title: str
     meeting_timestamp: str
