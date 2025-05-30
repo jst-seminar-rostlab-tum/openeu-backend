@@ -1,7 +1,9 @@
 # eu_lawtracker/spiders/lawtracker_topic_scraper.py
-import datetime as dt
 import re
+
+# from typing import Generator
 from datetime import datetime
+from typing import Any
 from urllib.parse import quote
 
 import scrapy
@@ -9,6 +11,7 @@ from scrapy import Field, Item
 from scrapy_playwright.page import PageMethod
 
 from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
 BASE = "https://law-tracker.europa.eu"
 API = f"{BASE}/api/procedures/search"
@@ -55,8 +58,8 @@ class LawItem(Item):
     embedding_input = Field()
 
 
-class LawTrackerSpider(scrapy.Spider):
-    name = "lawtracker1"
+class LawTrackerSpider(scrapy.Spider, ScraperBase):
+    name = "topic_lawtracker"
     custom_settings = {
         # Playwright settings
         "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
@@ -69,6 +72,25 @@ class LawTrackerSpider(scrapy.Spider):
         "CONCURRENT_REQUESTS": 4,
         "LOG_LEVEL": "INFO",
     }
+
+    def __init__(self, *args, **kwargs):
+        scrapy.Spider.__init__(self, *args, **kwargs)
+        ScraperBase.__init__(self, table_name=LAWS_TABLE)
+        # self._db = ScraperBase(table_name=LAWS_TABLE)
+
+    def scrape_once(self, last_entry: Any, **args: Any) -> ScraperResult:
+        """
+        Scrape the law tracker by topic codes.
+        This method is called by the ScraperBase to perform the scraping.
+        """
+        self.logger.info("Starting LawTrackerSpider scrape...")
+
+        for req in self.start_requests():
+            # 'self.crawler' is available once the spider is running
+            self.crawler.engine.crawl(req, spider=self)
+
+        self.logger.info("LawTrackerSpider scrape completed.")
+        return ScraperResult(success=True, last_entry=last_entry)
 
     def start_requests(self):
         params = "searchType=topics&sort=DOCD_DESC&page=0&pageSize=50&lang=en"
@@ -123,13 +145,6 @@ class LawTrackerSpider(scrapy.Spider):
             self.upsert_law(dict(item))  # write/update function
             yield item
 
-            # detail page
-            # yield response.follow(
-            #     urljoin(BASE, title_link),
-            #     meta={"playwright": True, "item": item},
-            #     callback=self.parse_detail
-            # )
-
         # pagination – increase `page=` until there are no more result cards
         m = re.search(r"[?&]page=(\d+)", response.url)
         if m and response.css("div.result-card"):
@@ -150,14 +165,21 @@ class LawTrackerSpider(scrapy.Spider):
         item["title"] = " ".join(item["title"].split())
         item["status"] = item["status"].lower()
         item["active_status"] = item["active_status"].lower() if item.get("active_status") else None
+        # return item
+        # JSON‐serialize the date
+        if item.get("started_date"):
+            item["started_date"] = item["started_date"].isoformat()
         return item
 
     def upsert_law(self, item: dict) -> None:
         """
         Insert a new procedure or overwrite the existing row
         whenever any field (except id) has changed.
+        Diff. procedure_id = new row (new procedure)
         """
         data = self.normalise(item)
+        if isinstance(data.get("started_date"), datetime):
+            data["started_date"] = data["started_date"].isoformat()
         pid = data["procedure_id"]
 
         # ── 1. fetch if exists ─────────────────────────────
@@ -198,7 +220,13 @@ class LawTrackerSpider(scrapy.Spider):
         if not has_changed:
             return
 
-        # ── 4. overwrite the row ─────────────────────────────────────
-        supabase.table(LAWS_TABLE).update({**data, "updated_at": dt.datetime.now(dt.timezone.utc)}).eq(
-            "id", row["id"]
-        ).execute()
+        # ── 4. overwrite the row with merged topics ─────────────────────────────────────
+        # self._db.store_entry(item, on_conflict="procedure_id")
+        err = self.store_entry(data, on_conflict="procedure_id")
+        if err:
+            self.logger.error(f"Upsert failed for {item['procedure_id']}: {err.error}")
+
+        # manual update code if needed, now using store_entry() instead
+        # supabase.table(LAWS_TABLE).update({**data, "updated_at": dt.datetime.now(dt.timezone.utc)}).eq(
+        #     "id", row["id"]
+        # ).execute()
