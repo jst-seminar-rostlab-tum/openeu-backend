@@ -8,10 +8,12 @@ from typing import Callable, Optional
 
 import scrapy
 from pydantic import BaseModel
+from rapidfuzz import fuzz
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
 from app.core.deepl_translator import translator
+from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
@@ -127,7 +129,7 @@ class SpanishCommissionSpider(scrapy.Spider):
 
 class SpanishCommissionScraper(ScraperBase):
     def __init__(self, date: datetime.date):
-        super().__init__("spanish_commission_agenda")
+        super().__init__("spanish_commission_meetings")
         self.date = date
         self.entries: list[CommissionAgendaEntry] = []
         self.logger = logging.getLogger(__name__)
@@ -156,9 +158,28 @@ class SpanishCommissionScraper(ScraperBase):
                 self.entries.append(entry)
 
     def check_for_duplicate(self, entry: CommissionAgendaEntry) -> bool:
-        # Implement logic to check for duplicates based on title and date
-        # This is a placeholder implementation
-        return any(e.title == entry.title and e.date == entry.date for e in self.entries)
+        """
+        Check if an AgendaEntry already exists in Supabase for the same date and title.
+        Returns True if a duplicate is found, False otherwise.
+        """
+        try:
+            # Query Supabase for existing entries with the same date
+            result = supabase.table("spanish_commission_meetings").select("id, title").eq("date", entry.date).execute()
+            existing_entries = result.data or []
+
+            # Check for fuzzy match
+            for existing in existing_entries:
+                existing_title = existing["title"]
+                if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
+                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
+                    return True  # Duplicate found
+
+            # No duplicates found
+            return False
+
+        except Exception as e:
+            self.logger.error(f"Error checking for duplicates: {e}")
+            return False
 
 
 # ------------------------------
@@ -181,16 +202,16 @@ def scrape_agenda(date: datetime.date) -> list[CommissionAgendaEntry]:
 
 if __name__ == "__main__":
     print("Scraping Spanish Commision Agenda...")
-
     date = datetime.date(2025, 5, 29)
 
+    """
     entries = scrape_agenda(date)
     print(f"Total entries scraped: {len(entries)}")
     """
+
     scraper = SpanishCommissionScraper(date)
     result = scraper.scrape_once(last_entry=None)
     if result.success:
         print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
     else:
         print(f"Scraping failed with error: {result.error}")
-    """
