@@ -161,7 +161,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
                     continue
 
                 found_meetings.append(meeting)
-                scraper_error_result = self.store_entry(meeting.model_dump(), embedd_entries=True)
+                scraper_error_result = self.store_entry(meeting.model_dump())
                 if scraper_error_result:
                     return (found_meetings, largest_page, scraper_error_result)
                 self.last_entry = meeting

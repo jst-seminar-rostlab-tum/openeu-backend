@@ -57,29 +57,19 @@ class ScraperBase(ABC):
     def last_entry(self, last_entry: Any):
         self._last_entry = last_entry
 
-    @staticmethod
-    def get_column_names(data) -> str:
-        """
-        Returns a string with all keys from the first entry in the data list, concatenated with commas.
-        Returns an empty string if data is empty.
-        """
-        if not data or not isinstance(data[0], dict):
-            return ""
-        return ", ".join(key for key in data[0] if key not in {"id", "embedding_input"})
-
     def embedd_entries(self, response: APIResponse) -> None:
         ids_and_inputs = [(row.get("id"), row.get("embedding_input")) for row in response.data] if response.data else []
-        column_names = self.get_column_names(response.data)
         for source_id, embedding_input in ids_and_inputs:
-            embed_row(
-                source_table=self.table_name,
-                row_id=source_id,
-                content_column=column_names,
-                content_text=embedding_input,
-            )
+            if source_id and embedding_input:
+                embed_row(
+                    source_table=self.table_name,
+                    row_id=source_id,
+                    content_column="embedding_input",
+                    content_text=embedding_input,
+                )
 
     def store_entry(
-        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = False
+        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True
     ) -> Optional[ScraperResult]:
         try:
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()

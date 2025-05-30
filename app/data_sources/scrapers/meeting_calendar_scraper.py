@@ -157,7 +157,7 @@ class EPMeetingCalendarScraper(ScraperBase):
             )
 
         if batch:
-            self.store_entry(batch, embedd_entries=True)
+            self.store_entry(batch)
         else:
             logger.info("No meetings found on this page")
 
@@ -179,4 +179,4 @@ if __name__ == "__main__":
     # Example usage
     # start_date = date(2025, 7, 1)
     # end_date = date(2025, 7, 20)
-    run_scraper(date(2025, 6, 5), date(2025, 6, 7))
+    run_scraper(date(2025, 7, 5), date(2025, 7, 10))

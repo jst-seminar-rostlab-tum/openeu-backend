@@ -192,7 +192,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                     logger.info(f"Processing event {i + 1}/{len(hits)} on page {page_number}")
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
-                        result = self.store_entry(parsed_event.model_dump())
+                        result = self.store_entry(parsed_event.model_dump(), embedd_entries=False)
                         if result:
                             return result
                         last_entry = event_data
