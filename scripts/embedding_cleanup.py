@@ -19,14 +19,14 @@ class EmbeddingEntry(BaseModel):
 
 
 EMBEDDING_TABLE_NAME = "documents_embeddings"
+BATCH_SIZE = 500
 
 
-def fetch_all_embeddings() -> List[EmbeddingEntry]:
+def fetch_embeddings_batch(offset: int) -> List[EmbeddingEntry]:
     """
-    Fetch all embedding records from the database.
-    Returns a list entries.
+    Fetch a batch of embedding records from the database.
     """
-    response = supabase.table(EMBEDDING_TABLE_NAME).select("*").execute()
+    response = supabase.table(EMBEDDING_TABLE_NAME).select("*").range(offset, offset + BATCH_SIZE - 1).execute()
     data = response.data
     return [EmbeddingEntry(**entry) for entry in data]
 
@@ -57,20 +57,30 @@ def delete_embedding(row_id: str) -> None:
 
 def embedding_cleanup() -> None:
     """
-    Fetches all embeddings and deletes any whose source
+    Fetches all embeddings in batches and deletes any whose source
     record no longer exists.
     """
-    embeddings = fetch_all_embeddings()
-    logger.info(f"Fetched {len(embeddings)} embedding entries.")
+    offset = 0
+    total_processed = 0
 
-    for entry in embeddings:
-        source_table = entry.source_table
-        source_id = entry.source_id
-        row_id = entry.id
+    while True:
+        batch = fetch_embeddings_batch(offset)
+        if not batch:
+            break
 
-        if not record_exists(source_table, source_id):
-            logger.info(f"Deleting embedding for missing record {source_table}/{source_id}")
-            delete_embedding(row_id)
+        for entry in batch:
+            source_table = entry.source_table
+            source_id = entry.source_id
+            row_id = entry.id
+
+            if not record_exists(source_table, source_id):
+                logger.info(f"Deleting embedding for missing record {source_table}/{source_id}")
+                delete_embedding(row_id)
+
+        total_processed += len(batch)
+        offset += BATCH_SIZE
+
+    logger.info(f"Completed embedding cleanup. Total processed: {total_processed}")
 
 
 if __name__ == "__main__":
