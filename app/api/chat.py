@@ -25,6 +25,24 @@ class ChatMessageItem(BaseModel):
     message: str
 
 
+class NewChatResponseModel(BaseModel):
+    session_id: int
+
+
+class MessagesResponseModel(BaseModel):
+    id: int
+    chat_session: int
+    content: str
+    author: str
+    date: datetime
+
+
+class SessionsResponseModel(BaseModel):
+    id: int
+    user_id: str
+    title: str
+
+
 def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> str:
     messages_text = ""
     for message in messages:
@@ -125,7 +143,7 @@ async def get_chat_response(chat_message_item: ChatMessageItem):
     )
 
 
-@router.post("/start")
+@router.post("/start", response_model=NewChatResponseModel)
 def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
     data = {
         "title": new_session_item.title,
@@ -144,7 +162,7 @@ def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
     return {"session_id": response.data[0].get("id")}
 
 
-@router.get("/sessions/{session_id}")
+@router.get("/sessions/{session_id}", response_model=list[MessagesResponseModel])
 def get_all_messages(session_id: int) -> list:
     try:
         response = supabase.table("chat_messages").select("*").order("date").eq("chat_session", session_id).execute()
@@ -158,7 +176,7 @@ def get_all_messages(session_id: int) -> list:
     return response.data
 
 
-@router.get("/sessions")
+@router.get("/sessions", response_model=list[SessionsResponseModel])
 def get_user_sessions(user_id: str) -> list[dict[str, str | int]]:
     try:
         response = supabase.table("chat_sessions").select("*").eq("user_id", user_id).execute()
