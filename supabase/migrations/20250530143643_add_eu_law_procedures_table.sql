@@ -10,3 +10,16 @@ create table if not exists public.eu_law_procedures (
   embedding_input text,
   updated_at      timestamptz default now()
 );
+
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.eu_law_procedures
+  to anon;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.eu_law_procedures
+  to authenticated;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.eu_law_procedures
+  to service_role;
