@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pygit2 import Repository
 
 from app.api import profile
 from app.api.chat import router as api_chat
@@ -39,4 +40,4 @@ async def dynamic_cors_middleware(request: Request, call_next):
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Hello World"}
+    return {"git_branch": Repository(".").head.shorthand}
