@@ -55,7 +55,7 @@ def delete_embedding(row_id: str) -> None:
         logger.error(f"Error deleting embedding with id={row_id}: {e}")
 
 
-def clean_up_embeddings() -> None:
+def embedding_cleanup() -> None:
     """
     Fetches all embeddings and deletes any whose source
     record no longer exists.
@@ -74,4 +74,4 @@ def clean_up_embeddings() -> None:
 
 
 if __name__ == "__main__":
-    clean_up_embeddings()
+    embedding_cleanup()
