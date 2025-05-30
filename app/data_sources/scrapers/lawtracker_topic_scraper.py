@@ -87,7 +87,10 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
 
         for req in self.start_requests():
             # 'self.crawler' is available once the spider is running
-            self.crawler.engine.crawl(req, spider=self)
+            if self.crawler and self.crawler.engine:
+                self.crawler.engine.crawl(req, spider=self)
+            else:
+                self.logger.error("Crawler engine is not initialized.")
 
         self.logger.info("LawTrackerSpider scrape completed.")
         return ScraperResult(success=True, last_entry=last_entry)
