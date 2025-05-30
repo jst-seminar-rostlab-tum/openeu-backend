@@ -41,5 +41,5 @@ async def dynamic_cors_middleware(request: Request, call_next):
 
 
 @app.get("/")
-async def root() -> dict[str, str | bool]:
+async def root() -> dict[str, str]:
     return {"git_branch": Repository(".").head.name, "is_pr": settings.is_pull_request()}
