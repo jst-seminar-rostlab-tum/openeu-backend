@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import profile
+from app.api.chat import router as api_chat
 from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
 from app.api.scheduler import router as api_scheduler
@@ -14,6 +15,7 @@ app.include_router(profile.router)
 app.include_router(api_meetings)
 app.include_router(api_crawler)
 app.include_router(api_scheduler)
+app.include_router(api_chat)
 
 app.add_middleware(
     CORSMiddleware,
