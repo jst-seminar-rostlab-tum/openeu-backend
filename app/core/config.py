@@ -1,6 +1,7 @@
 import os
 
 from dotenv import find_dotenv, load_dotenv
+from pygit2 import Repository
 
 
 class Settings:
@@ -43,8 +44,15 @@ class Settings:
             value = ""
         return value
 
-    def is_pull_request(self) -> str:
+    def is_pull_request(self) -> bool:
         value = os.getenv("IS_PULL_REQUEST")
+        if value is None:
+            value = ""
+        return value == "true"
+
+    def get_git_branch(self) -> str:
+        render = os.getenv("RENDER")
+        value = Repository(".").head.shorthand if render is None else os.getenv("RENDER_GIT_BRANCH")
         if value is None:
             value = ""
         return value
