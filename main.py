@@ -7,9 +7,11 @@ from app.api.chat import router as api_chat
 from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
 from app.api.scheduler import router as api_scheduler
+from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
 
 setup_scheduled_jobs()
+settings = Settings()
 
 app = FastAPI()
 app.include_router(profile.router)
@@ -39,5 +41,5 @@ async def dynamic_cors_middleware(request: Request, call_next):
 
 
 @app.get("/")
-async def root() -> dict[str, str]:
-    return {"git_branch": Repository(".").head.shorthand}
+async def root() -> dict[str, str | bool]:
+    return {"git_branch": Repository(".").head.name, "is_pr": settings.is_pull_request()}

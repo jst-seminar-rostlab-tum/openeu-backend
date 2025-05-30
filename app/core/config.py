@@ -42,3 +42,6 @@ class Settings:
         if value is None:
             value = ""
         return value
+
+    def is_pull_request(self) -> bool:
+        return os.getenv("IS_PULL_REQUEST") == "True"
