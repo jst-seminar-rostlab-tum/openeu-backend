@@ -60,6 +60,7 @@ VALUES
 -- Seed for austrian_parliament_meetings
 -- ==========================================
 INSERT INTO austrian_parliament_meetings (
+    id,
     title,
     title_de,
     meeting_type,
@@ -69,6 +70,7 @@ INSERT INTO austrian_parliament_meetings (
 )
 VALUES
 (
+    '123',
     'Committee Hearing on Data Protection Reform',
     'Ausschusssitzung zur Datenschutzreform',
     'Committee Meeting',
@@ -77,6 +79,7 @@ VALUES
     'https://www.parlament.gv.at/PAKT/VHG/XXVII/A-AU/A-AU_00123/index.shtml'
 ),
 (
+    '456',
     'Budget Debate for 2026 Fiscal Year',
     'Budgetdebatte zum Haushaltsjahr 2026',
     'Plenary Session',
