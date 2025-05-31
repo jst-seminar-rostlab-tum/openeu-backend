@@ -1,9 +1,8 @@
 .venv/
-venv
+venv/
 .idea/
 __pycache__/
 supabase/.temp
-venv
 volumes/db/data
 
 .env

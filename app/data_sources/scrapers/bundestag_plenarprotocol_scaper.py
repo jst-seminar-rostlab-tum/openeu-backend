@@ -1,108 +1,108 @@
 import logging
 import os
 from datetime import datetime
-from time import sleep
-from typing import Any, Optional, Union
+from typing import Any
 
 import requests
-from postgrest.exceptions import APIError
 
-from app.core.supabase_client import supabase
-
-API_BASE = "https://search.dip.bundestag.de/api/v1"
-API_KEY = os.getenv("BUNDESTAG_KEY")
-headers = {"Authorization": f"ApiKey {API_KEY}"}
-
-# Type aliases:
-QueryParamValue = Union[str, int, float, None]
+from app.core.deepl_translator import translator
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.data_sources.translator.translator import DeepLTranslator
+from scripts.embedding_generator import embed_row
 
 
-def fetch_plenarprotokolle(
-    endpoint: str,
-    page: int = 1,
-    size: int = 100,
-    cursor: Optional[int] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-) -> dict[str, Any]:
-    """
-    Fetch a page of plenary-protocol metadata, optionally filtered by update timestamps.
-    """
-    params: dict[str, QueryParamValue] = {
-        "page": page,
-        "size": size,
-        "f.datum.start": "",
-        "f.datum.end": "",
-    }
-    if cursor:
-        params["cursor"] = cursor
+class BundestagPlenarprotokolleScraper(ScraperBase):
+    def __init__(self, max_retries: int = 3, retry_delay: float = 2.0):
+        # target table is "bt_plenarprotokolle"
+        super().__init__(table_name="bt_plenarprotokolle", max_retries=max_retries, retry_delay=retry_delay)
+        self.translator = DeepLTranslator(translator)
+        self.API_BASE = "https://search.dip.bundestag.de/api/v1"
+        self.API_KEY = os.getenv("BUNDESTAG_KEY")
+        self.HEADERS = {"Authorization": f"ApiKey {self.API_KEY}"}
 
-    if start_date:
-        params["f.datum.start"] = start_date.strftime("%Y-%m-%d")
+    def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
+        """
+        Fetch all new plenary protocols between start_date and end_date.
+        last_entry may be used to resume from a cursor if desired.
+        """
+        try:
+            start_dt = datetime.fromisoformat(str(args.get("start_date")))
+            end_dt = datetime.fromisoformat(str(args.get("end_date")))
 
-    if end_date:
-        params["f.datum.end"] = end_date.strftime("%Y-%m-%d")
+            page = 1
+            size = 50
+            cursor = None
 
-    resp = requests.get(f"{API_BASE}/{endpoint}", headers=headers, params=params)
-    resp.raise_for_status()
-    return resp.json()
+            while True:
+                # 1) Fetch metadata page
+                params: dict[str, Any] = {
+                    "page": page,
+                    "size": size,
+                    "f.datum.start": start_dt.strftime("%Y-%m-%d"),
+                    "f.datum.end": end_dt.strftime("%Y-%m-%d"),
+                }
+                if cursor is not None:
+                    params["cursor"] = cursor
 
+                resp = requests.get(f"{self.API_BASE}/plenarprotokoll", headers=self.HEADERS, params=params)
+                resp.raise_for_status()
+                data = resp.json()
 
-def fetch_protocol_text(
-    protocol_id: str,
-    endpoint: str,
-) -> dict[str, Any]:
-    resp = requests.get(f"{API_BASE}/{endpoint}/{protocol_id}", headers=headers)
-    resp.raise_for_status()
-    return resp.json()
+                docs = data.get("documents", [])
+                if not docs:
+                    logging.info("No more documents; finishing.")
+                    break
 
+                for item in docs:
+                    pid = item["id"]
+                    datum = item.get("datum")
+                    if not datum:
+                        continue
 
-def upsert_record(record: dict[str, Any], table: str) -> None:
-    try:
-        supabase.table(table).upsert(record).execute()
-        logging.info(f"Upserted {record['id']}")
-    except APIError as e:
-        logging.error(f"Supabase APIError: {e}")
-    except Exception as e:
-        logging.error(f"Unexpected error during upsert for {record.get('id', '?')}: {e}")
+                    # fetch full text
+                    text_json = requests.get(f"{self.API_BASE}/plenarprotokoll-text/{pid}", headers=self.HEADERS).json()
 
+                    record = {
+                        "id": pid,
+                        "datum": datum,
+                        "titel": item.get("titel"),
+                        "sitzungsbemerkung": item.get("sitzungsbemerkung") or None,
+                        "text": text_json.get("text", ""),
+                    }
 
-def scrape_bundestag_plenarprotokolle(start_date: str, end_date: str) -> None:
-    start = datetime.fromisoformat(start_date)
-    end = datetime.fromisoformat(end_date)
+                    try:
+                        record["title_english"] = str(self.translator.translate(record["titel"] or ""))
+                    except Exception as e:
+                        logging.error(f"Translation failed for {pid}: {e}")
+                        record["title_english"] = "Not available"
 
-    page: int = 1
-    size: int = 50
-    cursor: Optional[int] = None
+                    store_err = self.store_entry(record, embedd_entries=False)
+                    if store_err:
+                        return store_err
 
-    while True:
-        data = fetch_plenarprotokolle(
-            endpoint="plenarprotokoll", page=page, size=size, cursor=cursor, start_date=start, end_date=end
-        )
-        items = data.get("documents", [])
-        if not items:
-            logging.info("Finished: no more documents.")
-            break
+                    embed_row(
+                        source_table=self.table_name,
+                        row_id=pid,
+                        content_column="title_english",
+                        content_text=record["title_english"],
+                    )
+                    embed_row(
+                        source_table=self.table_name,
+                        row_id=pid,
+                        content_column="text",
+                        content_text=(record["text"] + record["datum"]),
+                    )
 
-        for item in items:
-            pid = item["id"]
-            datum_str = item.get("datum")
-            if not datum_str:
-                continue
+                self.last_entry = pid
+                raw_cursor = data.get("cursor")
+                if isinstance(raw_cursor, int):
+                    cursor = raw_cursor
+                    page += 1
+                else:
+                    break
 
-            meta = {
-                "id": pid,
-                "datum": datum_str,
-                "titel": item.get("titel"),
-                "sitzungsbemerkung": item.get("sitzungsbemerkung") or None,
-            }
+            return ScraperResult(success=True, last_entry=self.last_entry)
 
-            text_json = fetch_protocol_text(pid, endpoint="plenarprotokoll-text")
-            meta["text"] = text_json.get("text", "")
-
-            upsert_record(meta, "bt_plenarprotokolle")
-            sleep(0.1)
-
-        raw_cursor = data.get("cursor")
-        cursor = raw_cursor if isinstance(raw_cursor, int) else None
-        page += 1
+        except Exception as e:
+            logging.exception("Error in scrape_once")
+            return ScraperResult(success=False, error=e, last_entry=self.last_entry)

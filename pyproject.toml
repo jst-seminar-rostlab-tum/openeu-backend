@@ -16,7 +16,7 @@ select = [
     # isort
     "I",
     #PEP8-Naming
-    "N"
+    "N",
 ]
 
 [tool.poetry]
@@ -25,7 +25,7 @@ version = "0.0.1"
 description = ""
 authors = ["CSEE"]
 readme = "README.md"
-packages = [{include = "app"}]
+packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -41,7 +41,15 @@ bs4 = "0.0.2"
 scrapy = "2.13.0"
 parsel = "1.10.0"
 uvicorn = "^0.34.2"
+crawl4ai = "0.6.3"
+types-python-dateutil = "2.9.0.20250516"
 deepl = "^1.22.0"
+brevo-python = "^1.1.2"
+rapidfuzz = "^3.13.0"
+tiktoken = "^0.9.0"
+openai = "^1.82.0"
+playwright = "^1.52.0"
+pygit2 = "1.18.0"
 
 [tool.mypy]
 ignore_missing_imports = true

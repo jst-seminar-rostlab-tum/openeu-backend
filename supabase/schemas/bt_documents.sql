@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS bt_documents (
   datum             DATE,
   titel             TEXT,
   drucksachetyp     TEXT,
-  text              TEXT
+  text              TEXT,
+  title_english     TEXT
 );

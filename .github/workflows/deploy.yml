@@ -6,20 +6,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
-      SUPABASE_PROJECT_ID: ${{ secrets.PRODUCTION_PROJECT_ID }}
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Link Supabase Project
-        run: supabase link --project-ref $SUPABASE_PROJECT_ID --debug
-      - name: Push Supabase Migrations
-        run: supabase db push
+      - uses: actions/checkout@v4
 
       - name: Deploy Backend to Render
         run: curl "$RENDER_DEPLOY_HOOK_URL"

@@ -80,6 +80,13 @@ poetry install
 ```
 
 This command creates a virtual environment (if one doesn’t exist) and installs all dependencies defined in pyproject.toml. 
+
+After that, complete the setup for crawl4ai which is needed for the MEC meetings scraper (installs/updates Playwright browsers, checks for missing OS libs, etc.):
+
+```
+crawl4ai-setup
+```
+
 To run the project, run 
 ```
 poetry run uvicorn main:app --reload --log-config log_conf.yaml
@@ -99,12 +106,15 @@ poetry export --without-hashes --format=requirements.txt --output requirements.t
 The database schema is defined inside this project and must be pushed to Supabase once 
 - First, install the Supabase CLI as described [here](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli)
 - Start Docker on your computer
-- Generate a migration file by calling ```supabase db diff -f <MIGRATION_NAME>```
-- Stop all local instances of Supabase and then apply the migration by calling ```supabase start```
-- If you want to clear local db, you can call ```supabase db reset``` (optional)
-- Login to Supabase by calling ```supabase login```
-- Link the local project to the remote database by calling ```supabase link```
-- Push the changes to the remote Supabase instance by calling ```supabase db push```
+- merge main into your branch
+- if you have new tables, that don't exist on remote
+  - 1. stop your local supabase `supabase stop`
+  - 2. generate new migration with your changes `supabase db diff -f migration_name`
+  - 3. `supabase start`
+  - 4. reset local db to new schema `supabase db reset`
+- never push with `supabase db push`, from now on we only generate migrations locally, but the pushing happens in the pipeline when we merge to main
+- never add tables or views in the remote supabase console. Only use the declarative schema
+- never edit migration files, only the schema itself
 
 ## Testing the Crawler endpoint
 In order to test the `crawler` endpoint you need to do the following: 
