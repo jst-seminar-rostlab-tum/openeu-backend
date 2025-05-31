@@ -26,10 +26,11 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-    start_date: Optional[date] = None  # Start date of the event
-    end_date: Optional[date] = None  # End date of the event
+    start_date: Optional[str] = None  # Start date of the event
+    end_date: Optional[str] = None  # End date of the event
     meeting_location: Optional[str] = None  # Location where the event takes place
     tags: Optional[list[str]] = None  # Tags/keywords from shared labels
+    embedding_input: str
 
 
 class IPEXCalendarAPIScraper(ScraperBase):
@@ -137,13 +138,18 @@ class IPEXCalendarAPIScraper(ScraperBase):
                     if label.get("language") == "EN":
                         tags.append(label.get("message", ""))
 
+            location = address.strip()
+            # Create embedding input
+            embedding_input = f"{title} {location} {tags}"
+
             return IPEXEvent(
                 identifier=event_id,
                 title=title.strip() if title else "",
-                start_date=start_date,
-                end_date=end_date,
-                meeting_location=address.strip() if address else None,
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
+                meeting_location= location if location else None,
                 tags=tags if tags else None,
+                embedding_input=embedding_input,
             )
 
         except Exception as e:
@@ -192,7 +198,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                     logger.info(f"Processing event {i + 1}/{len(hits)} on page {page_number}")
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
-                        result = self.store_entry(parsed_event.model_dump(), embedd_entries=False)
+                        result = self.store_entry(parsed_event.model_dump(), embedd_entries=True)
                         if result:
                             return result
                         last_entry = event_data
