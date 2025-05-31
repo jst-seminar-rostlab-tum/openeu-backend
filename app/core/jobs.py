@@ -33,13 +33,14 @@ def scrape_meeting_calendar_for_current_day():
 def scrape_mep_meetings():
     today = datetime.now().date()
     scraper = MEPMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape(today, today)
+    scraper.scrape()
 
 
 def scrape_mec_sum_minist_meetings():
     today = datetime.now().date()
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape(today, today)
+    scraper.scrape()
+
 
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
@@ -61,7 +62,9 @@ def send_daily_newsletter():
 def scrape_mec_prep_bodies_meetings():
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape(today, today)
+    scraper.scrape()
+
+
 def scrape_austrian_parliament_meetings():
     start_date = datetime.now().date()
     run_scraper(start_date)
