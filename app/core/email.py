@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 import brevo_python
 from brevo_python.rest import ApiException
@@ -22,7 +22,7 @@ class Email:
         sender_name: str = "OpenEU",
         sender_email: str = "mail@openeu.csee.tech",
         reply_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
     ):
         self.subject = subject
         self.html_body = html_body
