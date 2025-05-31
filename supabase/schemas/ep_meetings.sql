@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS ep_meetings (
     title TEXT NOT NULL,
     datetime TIMESTAMP NOT NULL,
     place TEXT,
-    subtitles TEXT
+    subtitles TEXT,
+    embedding_input TEXT
 );

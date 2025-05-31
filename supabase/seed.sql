@@ -61,14 +61,14 @@ VALUES
 -- ==========================================
 INSERT INTO austrian_parliament_meetings (
     id,
+    id,
     title,
     title_de,
     meeting_type,
     meeting_date,
     meeting_location,
     meeting_url,
-    embedding_input,
-    scraped_at
+    embedding_input
 )
 VALUES
 (
@@ -79,8 +79,7 @@ VALUES
     '2025-06-18',
     'Parlament Wien, Sitzungssaal 2',
     'https://www.parlament.gv.at/PAKT/VHG/XXVII/A-AU/A-AU_00123/index.shtml',
-    'Committee Hearing on Data Protection Reform Parlament Wien, Sitzungssaal 2',
-    '2025-05-29 10:00:00'
+    'Committee Hearing on Data Protection Reform - Ausschusssitzung zur Datenschutzreform'
 ),
 (
     'test_2',
@@ -90,8 +89,7 @@ VALUES
     '2025-06-25',
     'Plenarsaal, Parlament Wien',
     'https://www.parlament.gv.at/PAKT/VHG/XXVII/PLEN/PLEN_00456/index.shtml',
-    'Budget Debate for 2026 Fiscal Year Parlament Wien, Plenarsaal',
-    '2025-05-29 10:00:00'
+    'Budget Debate for 2026 Fiscal Year - Budgetdebatte zum Haushaltsjahr 2026'
 );
 
 -- ====================
