@@ -1,5 +1,6 @@
 import os
 
+import requests
 from dotenv import find_dotenv, load_dotenv
 from pygit2 import Repository
 
@@ -8,14 +9,72 @@ class Settings:
     def __init__(self) -> None:
         load_dotenv(find_dotenv())
 
+    def _get_branch_data(self) -> dict[str, dict[str, str | int]]:
+        values = {}
+        branch_list = requests.request(
+            "GET",
+            f"https://api.supabase.com/v1/projects/{self.get_supabase_project_id()}/branches",
+            headers={
+                "Authorization": "Bearer " + self.get_supabase_rest_key(),
+            },
+            data={},
+        )
+        branch_list_data = branch_list.json()
+        for branch in branch_list_data:
+            branch_name = str(branch["git_branch"])
+            branch_id = str(branch["id"])
+            if branch_name == self.get_git_branch():
+                branch_data = requests.request(
+                    "GET",
+                    f"https://api.supabase.com/v1/branches/{branch_id}",
+                    headers={
+                        "Authorization": "Bearer " + self.get_supabase_rest_key(),
+                    },
+                    data={},
+                )
+                branch_data_json = branch_data.json()
+                values["branch"] = branch_data_json
+                branch_ref = str(branch_data_json["ref"])
+                keys_data = requests.request(
+                    "GET",
+                    f"https://api.supabase.com/v1/projects/{branch_ref}/api-keys",
+                    headers={
+                        "Authorization": "Bearer " + self.get_supabase_rest_key(),
+                    },
+                    data={},
+                )
+                keys_data_json = keys_data.json()
+                for key in keys_data_json:
+                    if key["name"] == "anon":
+                        values["key"] = key
+        return values
+
     def get_supabase_project_url(self) -> str:
         value = os.getenv("SUPABASE_PROJECT_URL")
         if value is None:
             value = ""
+        if self.is_pull_request():
+            branch_data = self._get_branch_data()
+            value = "https://" + str(branch_data["branch"]["db_host"])[3:]
         return value
 
     def get_supabase_api_key(self) -> str:
         value = os.getenv("SUPABASE_API_KEY")
+        if value is None:
+            value = ""
+        if self.is_pull_request():
+            branch_data = self._get_branch_data()
+            value = str(branch_data["key"]["api_key"])
+        return value
+
+    def get_supabase_rest_key(self) -> str:
+        value = os.getenv("SUPABASE_REST_KEY")
+        if value is None:
+            value = ""
+        return value
+
+    def get_supabase_project_id(self) -> str:
+        value = os.getenv("SUPABASE_PROJECT_ID")
         if value is None:
             value = ""
         return value

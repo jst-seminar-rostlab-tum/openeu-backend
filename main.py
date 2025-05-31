@@ -41,4 +41,8 @@ async def dynamic_cors_middleware(request: Request, call_next):
 
 @app.get("/")
 async def root() -> dict[str, str | bool]:
-    return {"git_branch": settings.get_git_branch(), "is_pr": settings.is_pull_request()}
+    return {
+        "git_branch": settings.get_git_branch(),
+        "git_is_pr": settings.is_pull_request(),
+        "supabase_host": settings.get_supabase_project_url(),
+    }
