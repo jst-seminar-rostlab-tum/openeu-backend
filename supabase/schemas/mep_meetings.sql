@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS mep_meetings (
     procedure_reference text,
     associated_committee_or_delegation_code text,
     associated_committee_or_delegation_name text,
-    embedding_input TEXT
+    embedding_input TEXT,
+    scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS mep_meeting_attendees (

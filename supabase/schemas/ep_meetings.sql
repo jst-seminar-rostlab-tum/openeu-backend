@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS ep_meetings (
     datetime TIMESTAMP NOT NULL,
     place TEXT,
     subtitles TEXT,
-    embedding_input TEXT
+    embedding_input TEXT,
+    scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );
