@@ -61,7 +61,6 @@ VALUES
 -- ==========================================
 INSERT INTO austrian_parliament_meetings (
     id,
-    id,
     title,
     title_de,
     meeting_type,
