@@ -25,11 +25,12 @@ def send_meetings_newsletter(user_id: str):
         autoescape=True,
     )
     try:
-        resp = supabase.table("auth.users").select("email").eq("id", user_id).single().execute()
-        email = resp.data["email"]
+        #user = supabase.auth.admin.get_user_by_id(user_id)
+        email = "janvanderlinde@gmx.de"
 
-    except Exception:
-        raise
+    except Exception as e:
+        
+        raise e
 
     meetings = format_meetings(fetch_relevant_meetings(user_id=user_id, k=10))
 
@@ -39,4 +40,4 @@ def send_meetings_newsletter(user_id: str):
 
     email_to_send = Email(recipients=[email], subject="Upcoming Meetings", html_body=html_body)
 
-    EmailService.send_email(email=email_to_send)
+    EmailService().send_email(email=email_to_send)
