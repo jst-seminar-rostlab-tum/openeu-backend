@@ -43,8 +43,6 @@ def scrape_mec_sum_minist_meetings():
     scraper.scrape()
 
 
-
-
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
     run_belgian_parliament_scraper(start_date=today, end_date=today)
