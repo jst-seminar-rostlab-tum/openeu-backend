@@ -76,8 +76,7 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
 
-
-                    store_err = self.store_entry(record)
+                    store_err = self.store_entry(record, embedd_entries=False)
                     if store_err:
                         return store_err
 
