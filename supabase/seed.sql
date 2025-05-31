@@ -61,6 +61,7 @@ VALUES
 -- ==========================================
 INSERT INTO austrian_parliament_meetings (
     id,
+    id,
     title,
     title_de,
     meeting_type,
@@ -71,7 +72,7 @@ INSERT INTO austrian_parliament_meetings (
 )
 VALUES
 (
-    '123',
+    'test_1',
     'Committee Hearing on Data Protection Reform',
     'Ausschusssitzung zur Datenschutzreform',
     'Committee Meeting',
@@ -81,7 +82,7 @@ VALUES
     'Committee Hearing on Data Protection Reform - Ausschusssitzung zur Datenschutzreform'
 ),
 (
-    '456',
+    'test_2',
     'Budget Debate for 2026 Fiscal Year',
     'Budgetdebatte zum Haushaltsjahr 2026',
     'Plenary Session',
