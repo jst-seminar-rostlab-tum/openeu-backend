@@ -20,6 +20,7 @@ class Settings:
             data={},
         )
         branch_list_data = branch_list.json()
+        print(f"Branch list data: {branch_list_data}")
         for branch in branch_list_data:
             if branch["git_branch"] == self.get_git_branch():
                 branch_data = requests.request(
