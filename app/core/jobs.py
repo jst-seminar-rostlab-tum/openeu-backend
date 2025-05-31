@@ -4,7 +4,9 @@ from datetime import datetime
 from app.core.email import Email, EmailService
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
+from app.data_sources.apis.austrian_parliament import run_scraper
 from app.data_sources.apis.mep import fetch_and_store_current_meps
+from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
@@ -39,6 +41,10 @@ def scrape_mec_sum_minist_meetings():
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
     scraper.scrape(today, today)
 
+def scrape_belgian_parliament_meetings():
+    today = datetime.now().date()
+    run_belgian_parliament_scraper(start_date=today, end_date=today)
+
 
 def send_daily_newsletter():
     users = supabase.auth.admin.list_users()
@@ -56,6 +62,9 @@ def scrape_mec_prep_bodies_meetings():
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
     scraper.scrape(today, today)
+def scrape_austrian_parliament_meetings():
+    start_date = datetime.now().date()
+    run_scraper(start_date)
 
 
 def setup_scheduled_jobs():
@@ -67,3 +76,7 @@ def setup_scheduled_jobs():
     scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_belgian_parliament_meetings", scrape_belgian_parliament_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register(
+        "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
+    )
