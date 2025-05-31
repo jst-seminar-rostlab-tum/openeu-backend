@@ -43,6 +43,7 @@ def scrape_mec_sum_minist_meetings():
     scraper.scrape(today, today)
 
 
+
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
     run_belgian_parliament_scraper(start_date=today, end_date=today)
@@ -64,6 +65,8 @@ def scrape_mec_prep_bodies_meetings():
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
     scraper.scrape(today, today)
+
+
 
 
 def scrape_austrian_parliament_meetings():
@@ -88,4 +91,5 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
     )
+    scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
