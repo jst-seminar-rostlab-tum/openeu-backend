@@ -21,12 +21,10 @@ class Settings:
         )
         branch_list_data = branch_list.json()
         for branch in branch_list_data:
-            branch_name = str(branch["git_branch"])
-            branch_id = str(branch["id"])
-            if branch_name == self.get_git_branch():
+            if branch["git_branch"] == self.get_git_branch():
                 branch_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/branches/{branch_id}",
+                    f"https://api.supabase.com/v1/branches/{branch["id"]}",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
@@ -34,10 +32,9 @@ class Settings:
                 )
                 branch_data_json = branch_data.json()
                 values["branch"] = branch_data_json
-                branch_ref = str(branch_data_json["ref"])
                 keys_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/projects/{branch_ref}/api-keys",
+                    f"https://api.supabase.com/v1/projects/{branch_data_json["ref"]}/api-keys",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
