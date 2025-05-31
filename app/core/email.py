@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Optional
 
 import brevo_python
 from brevo_python.rest import ApiException
@@ -7,10 +8,30 @@ from app.core.config import Settings
 
 
 class Email:
-    def __init__(self, subject: str, html_body: str, recipients: list[str]):
+    """
+    Simple container for an outbound transactional e-mail.
+    """
+
+    def __init__(
+        self,
+        *,
+        subject: str,
+        html_body: str,
+        recipients: list[str],
+        text_body: Optional[str] = None,
+        sender_name: str = "OpenEU",
+        sender_email: str = "mail@openeu.csee.tech",
+        reply_to: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ):
         self.subject = subject
         self.html_body = html_body
+        self.text_body = text_body
         self.recipients = recipients
+        self.sender_name = sender_name
+        self.sender_email = sender_email
+        self.reply_to = reply_to
+        self.headers = headers or {}
 
 
 class EmailService:
@@ -37,14 +58,18 @@ class EmailService:
         if len(email.recipients) == 0:
             EmailService.logger.warning("No recipients provided for email, doing nothing")
 
+        sender_info = {"name": email.sender_name, "email": email.sender_email}
+        to_field = [{"email": r} for r in email.recipients]
+
         for recipient in email.recipients:
-            sender = {"name": "OpenEU", "email": "mail@openeu.csee.tech"}
-            to = [{"email": recipient}]
             email_data = brevo_python.SendSmtpEmail(
-                to=to,
-                html_content=email.html_body,
-                sender=sender,
+                sender=sender_info,
+                to=to_field,
                 subject=email.subject,
+                html_content=email.html_body,
+                text_content=email.text_body,
+                reply_to={"email": email.reply_to} if email.reply_to else None,
+                headers=email.headers or None,
             )
 
             try:
