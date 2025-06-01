@@ -1,21 +1,12 @@
 alter table "public"."bt_documents" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."bt_plenarprotokolle" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."ep_meetings" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."ipex_events" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."mec_prep_bodies_meeting" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."mec_summit_ministerial_meeting" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."mep_meetings" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."meps" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."weekly_agenda" add column "scraped_at" timestamp with time zone not null default now();
-
 create or replace view "public"."v_meetings" as  SELECT (m.id || '_mep_meetings'::text) AS meeting_id,
     m.id AS source_id,
     'mep_meetings'::text AS source_table,
@@ -75,6 +66,3 @@ UNION ALL
     i.tags,
     i.scraped_at
    FROM ipex_events i;
-
-
-
