@@ -152,13 +152,13 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                 callback=self.parse_search,
             )
 
-    def upsert_law(self, item: dict) -> None:
+    def upsert_law(self, law_data: dict) -> None:
         """
         Insert a new procedure or overwrite the existing row
         whenever any field (except id) has changed.
         """
         # ── Inline normalization ──────────────────────────────
-        data = item.copy()
+        data = law_data.copy()
         data["title"] = " ".join(data["title"].split())
         data["status"] = data["status"].lower()
         if data.get("active_status"):
@@ -204,11 +204,11 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         )
 
         if not has_changed:
-            self.logger.info(f"[SKIP] id={pid} already up‐to‐date (no fields changed)")
+            self.logger.info(f"[SKIP] id={pid} already up-to-date (no fields changed)")
             return
 
         # ── 4. overwrite the row with merged topics ─────────────────────────────────────
         self.logger.info(f"[UPDATE] id={pid}: updating row (merged topics or any field changed)")
         err = self.store_entry(data, on_conflict="id")
         if err:
-            self.logger.error(f"Upsert failed for {item['id']}: {err.error}")
+            self.logger.error(f"Upsert failed for id={pid}: {err.error}")
