@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS polish_presidency_meeting (
-    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     meeting_date DATE NOT NULL,
     meeting_end_date DATE,

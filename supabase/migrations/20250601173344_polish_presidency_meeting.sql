@@ -1,5 +1,5 @@
 create table "public"."polish_presidency_meeting" (
-    "id" text not null default (gen_random_uuid())::text,
+    "id" text not null,
     "title" text not null,
     "meeting_date" date not null,
     "meeting_end_date" date,

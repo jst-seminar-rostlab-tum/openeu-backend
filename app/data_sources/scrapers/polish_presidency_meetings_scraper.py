@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
-from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
 """
@@ -190,8 +189,7 @@ class PolishPresidencyMeetingsScraper(ScraperBase):
         # store entries
         for entry in filtered_entries.values():
             try:
-                meeting_dict = entry.model_dump()
-                supabase.table(POLISH_PRESIDENCY_MEETINGS_TABLE_NAME).upsert(meeting_dict).execute()
+                self.store_entry(entry.model_dump(), embedd_entries=True)
                 self.entries.append(entry)
             except Exception as e:
                 self.logger.error(f"Error inserting meeting {entry.title}: {e}")
@@ -208,7 +206,9 @@ if __name__ == "__main__":
 
     print("Scraping Polish EU Presidency meetings...")
 
-    scraper = PolishPresidencyMeetingsScraper(start_date=datetime.date(2025, 5, 20), end_date=datetime.date(2025, 6, 3))
+    scraper = PolishPresidencyMeetingsScraper(
+        start_date=datetime.date(2025, 5, 20), end_date=datetime.date(2025, 5, 21)
+    )
     result = scraper.scrape()
     meetings = scraper.entries
     if result.success:
