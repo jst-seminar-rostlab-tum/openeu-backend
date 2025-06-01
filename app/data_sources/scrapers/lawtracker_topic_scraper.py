@@ -1,13 +1,10 @@
-# eu_lawtracker/spiders/lawtracker_topic_scraper.py
 import re
-
-# from typing import Generator
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from typing import Any, List, Optional
 from urllib.parse import quote
 
 import scrapy
-from scrapy import Field, Item
+from pydantic import BaseModel
 from scrapy_playwright.page import PageMethod
 
 from app.core.supabase_client import supabase
@@ -47,15 +44,15 @@ TOPICS = {
 }
 
 
-class LawItem(Item):
-    procedure_id = Field()
-    title = Field()
-    status = Field()
-    active_status = Field()
-    started_date = Field()
-    topic_codes = Field()
-    topic_labels = Field()
-    embedding_input = Field()
+class LawItemModel(BaseModel):
+    procedure_id: str
+    title: str
+    status: str
+    active_status: Optional[str] = None
+    started_date: Optional[date] = None
+    topic_codes: List[str]
+    topic_labels: List[str]
+    embedding_input: str
 
 
 class LawTrackerSpider(scrapy.Spider, ScraperBase):
@@ -76,7 +73,6 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
     def __init__(self, *args, **kwargs):
         scrapy.Spider.__init__(self, *args, **kwargs)
         ScraperBase.__init__(self, table_name=LAWS_TABLE)
-        # self._db = ScraperBase(table_name=LAWS_TABLE)
 
     def scrape_once(self, last_entry: Any, **args: Any) -> ScraperResult:
         """
@@ -86,7 +82,6 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         self.logger.info("Starting LawTrackerSpider scrape...")
 
         for req in self.start_requests():
-            # 'self.crawler' is available once the spider is running
             if self.crawler and self.crawler.engine:
                 self.crawler.engine.crawl(req)
             else:
@@ -105,11 +100,8 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                 meta={
                     "playwright": True,
                     "playwright_page_methods": [
-                        # wait for the result cards to load (unsure of which elemt to wait for for optimal performance,
-                        # I tried a few but waiting for: "div.result-card div.title-color"
-                        # proved to be reliable and the fastest by my testing)
+                        # wait for the result cards to load
                         PageMethod("wait_for_selector", "div.result-card div.title-color"),
-                        # PageMethod("wait_for_selector", "div.result-card", state="attached")
                     ],
                     "topic_code": code,
                 },
@@ -129,11 +121,11 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
             started_text = card.css("div:contains('Started')::text").re_first(r"\d{2}/\d{2}/\d{4}")
             started_date = datetime.strptime(started_text, "%d/%m/%Y").date() if started_text else None
 
-            item = LawItem(
+            law_item = LawItemModel(
                 procedure_id=proc_id,
-                title=title,
-                status=status,
-                active_status=active_status,
+                title=" ".join(title.split()),  # normalize whitespace
+                status=status.lower() if status else "",
+                active_status=active_status.lower() if active_status else None,
                 started_date=started_date,
                 topic_codes=[topic_code],
                 topic_labels=[topic_label],
@@ -145,8 +137,9 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                     f'topics: {topic_label}'
                 ),
             )
-            self.upsert_law(dict(item))  # write/update function
-            yield item
+            data_dict = law_item.model_dump()
+            self.upsert_law(data_dict)
+            yield data_dict
 
         # pagination – increase `page=` until there are no more result cards
         m = re.search(r"[?&]page=(\d+)", response.url)
@@ -159,43 +152,33 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                 callback=self.parse_search,
             )
 
-    def parse_detail(self, response):
-        item = response.meta["item"]
-        yield item
-
-    def normalise(self, item: dict) -> dict:
-        item = item.copy()
-        item["title"] = " ".join(item["title"].split())
-        item["status"] = item["status"].lower()
-        item["active_status"] = item["active_status"].lower() if item.get("active_status") else None
-        # return item
-        # JSON‐serialize the date
-        if item.get("started_date"):
-            item["started_date"] = item["started_date"].isoformat()
-        return item
-
     def upsert_law(self, item: dict) -> None:
         """
         Insert a new procedure or overwrite the existing row
         whenever any field (except id) has changed.
-        Diff. procedure_id = new row (new procedure)
         """
-        data = self.normalise(item)
-        if isinstance(data.get("started_date"), datetime):
+        # ── Inline normalization ──────────────────────────────
+        data = item.copy()
+        data["title"] = " ".join(data["title"].split())
+        data["status"] = data["status"].lower()
+        if data.get("active_status"):
+            data["active_status"] = data["active_status"].lower()
+        if data.get("started_date"):
             data["started_date"] = data["started_date"].isoformat()
         pid = data["procedure_id"]
 
         # ── 1. fetch if exists ─────────────────────────────
         res = (
             supabase.table(LAWS_TABLE)
-            .select("id, title, status, active_status, started_date, topic_codes, topic_labels, embedding_input")
+            .select("title, status, active_status, started_date, topic_codes, topic_labels, embedding_input")
             .eq("procedure_id", pid)
             .limit(1)
             .execute()
         )
 
         if not res.data:
-            # new -> INSERT
+            # does not exist -> INSERT
+            self.logger.info(f"[INSERT] new procedure_id={pid}, started_date={data['started_date']}")
             supabase.table(LAWS_TABLE).insert(data).execute()
             return
 
@@ -221,15 +204,11 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         )
 
         if not has_changed:
+            self.logger.info(f"[SKIP] procedure_id={pid} already up‐to‐date (no fields changed)")
             return
 
         # ── 4. overwrite the row with merged topics ─────────────────────────────────────
-        # self._db.store_entry(item, on_conflict="procedure_id")
+        self.logger.info(f"[UPDATE] procedure_id={pid}: updating row (merged topics or any field changed)")
         err = self.store_entry(data, on_conflict="procedure_id")
         if err:
             self.logger.error(f"Upsert failed for {item['procedure_id']}: {err.error}")
-
-        # manual update code if needed, now using store_entry() instead
-        # supabase.table(LAWS_TABLE).update({**data, "updated_at": dt.datetime.now(dt.timezone.utc)}).eq(
-        #     "id", row["id"]
-        # ).execute()

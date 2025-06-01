@@ -1,6 +1,5 @@
 create table if not exists public.eu_law_procedures (
-  id              serial primary key,
-  procedure_id    text        unique not null,
+  procedure_id    text        primary key,
   title           text        not null,
   status          text,
   active_status   text,
