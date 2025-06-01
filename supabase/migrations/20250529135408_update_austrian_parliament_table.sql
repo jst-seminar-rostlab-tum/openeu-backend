@@ -1,13 +1,8 @@
 drop view if exists "public"."v_meetings";
-
 alter table "public"."austrian_parliament_meetings" add column "embedding_input" text not null;
-
 alter table "public"."austrian_parliament_meetings" add column "scraped_at" timestamp with time zone not null default now();
-
 alter table "public"."austrian_parliament_meetings" alter column "id" drop default;
-
 alter table "public"."austrian_parliament_meetings" alter column "id" set data type text using "id"::text;
-
 create or replace view "public"."v_meetings" as  SELECT ((m.id)::text || '_mep_meetings'::text) AS meeting_id,
     (m.id)::text AS source_id,
     'mep_meetings'::text AS source_table,
@@ -63,6 +58,3 @@ UNION ALL
     NULL::text AS source_url,
     i.tags
    FROM ipex_events i;
-
-
-
