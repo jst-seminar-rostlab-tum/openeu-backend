@@ -127,7 +127,7 @@ class PolishPresidencyMeetingsSpider(scrapy.Spider):
                         f"Failed to extract meeting slug from meeting with title: {title}, URL: {meeting_url}"
                     )
                     continue
-                embedding_input = f'"{title}", on {meeting_date}, at {location}'
+                embedding_input = f'"{title}", on {meeting_date}, in {location}'
 
                 polish_meeting = PolishPresidencyMeeting(
                     id=meeting_slug,
