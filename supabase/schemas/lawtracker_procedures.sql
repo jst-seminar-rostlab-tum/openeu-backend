@@ -1,6 +1,6 @@
 -- EU Law Procedures (aka “Law-Tracker by Topic”)
 create table if not exists public.eu_law_procedures (
-    procedure_id    text        primary key,
+    id              text        primary key,
     title           text        not null,
     status          text,
     active_status   text,

@@ -45,7 +45,7 @@ TOPICS = {
 
 
 class LawItemModel(BaseModel):
-    procedure_id: str
+    id: str
     title: str
     status: str
     active_status: Optional[str] = None
@@ -122,7 +122,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
             started_date = datetime.strptime(started_text, "%d/%m/%Y").date() if started_text else None
 
             law_item = LawItemModel(
-                procedure_id=proc_id,
+                id=proc_id,
                 title=" ".join(title.split()),  # normalize whitespace
                 status=status.lower() if status else "",
                 active_status=active_status.lower() if active_status else None,
@@ -165,20 +165,20 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
             data["active_status"] = data["active_status"].lower()
         if data.get("started_date"):
             data["started_date"] = data["started_date"].isoformat()
-        pid = data["procedure_id"]
+        pid = data["id"]
 
         # ── 1. fetch if exists ─────────────────────────────
         res = (
             supabase.table(LAWS_TABLE)
             .select("title, status, active_status, started_date, topic_codes, topic_labels, embedding_input")
-            .eq("procedure_id", pid)
+            .eq("id", pid)
             .limit(1)
             .execute()
         )
 
         if not res.data:
             # does not exist -> INSERT
-            self.logger.info(f"[INSERT] new procedure_id={pid}, started_date={data['started_date']}")
+            self.logger.info(f"[INSERT] new id={pid}, started_date={data['started_date']}")
             supabase.table(LAWS_TABLE).insert(data).execute()
             return
 
@@ -204,11 +204,11 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         )
 
         if not has_changed:
-            self.logger.info(f"[SKIP] procedure_id={pid} already up‐to‐date (no fields changed)")
+            self.logger.info(f"[SKIP] id={pid} already up‐to‐date (no fields changed)")
             return
 
         # ── 4. overwrite the row with merged topics ─────────────────────────────────────
-        self.logger.info(f"[UPDATE] procedure_id={pid}: updating row (merged topics or any field changed)")
-        err = self.store_entry(data, on_conflict="procedure_id")
+        self.logger.info(f"[UPDATE] id={pid}: updating row (merged topics or any field changed)")
+        err = self.store_entry(data, on_conflict="id")
         if err:
-            self.logger.error(f"Upsert failed for {item['procedure_id']}: {err.error}")
+            self.logger.error(f"Upsert failed for {item['id']}: {err.error}")
