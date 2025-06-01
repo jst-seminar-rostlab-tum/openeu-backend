@@ -12,6 +12,7 @@ from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBo
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
+from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
 DAILY_INTERVAL_MINUTES = 24 * 60
@@ -69,6 +70,12 @@ def scrape_mec_prep_bodies_meetings():
 def scrape_austrian_parliament_meetings():
     start_date = datetime.now().date()
     run_scraper(start_date)
+
+
+def scrape_polish_presidency_meetings():
+    today = datetime.now().date()
+    scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape()
 
 
 def clean_up_embeddings():
