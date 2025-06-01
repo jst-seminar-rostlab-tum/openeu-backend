@@ -1,5 +1,5 @@
 create table "public"."spanish_commission_meetings" (
-    "id" uuid not null default gen_random_uuid(),
+    "id" text not null default (gen_random_uuid())::text,
     "date" date not null,
     "time" text,
     "title" text not null,
@@ -10,7 +10,8 @@ create table "public"."spanish_commission_meetings" (
     "description_en" text,
     "url" text,
     "embedding_input" text,
-    "links" jsonb
+    "links" jsonb,
+    "scraped_at" timestamp with time zone not null default now()
 );
 
 
