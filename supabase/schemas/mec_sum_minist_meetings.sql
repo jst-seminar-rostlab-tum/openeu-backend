@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS mec_summit_ministerial_meeting (
     meeting_date DATE NOT NULL,
     meeting_end_date DATE,
     category_abbr TEXT,
+    embedding_input TEXT,
     scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );
