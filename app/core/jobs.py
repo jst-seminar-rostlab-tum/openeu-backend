@@ -95,5 +95,6 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
     )
+    scheduler.register("scrape_polish_presidency_meetings", scrape_polish_presidency_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
