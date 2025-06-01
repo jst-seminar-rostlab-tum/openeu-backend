@@ -1,7 +1,7 @@
 	CREATE OR REPLACE VIEW public.v_meetings AS
 	SELECT
-        m.id || '_mep_meetings'         AS meeting_id,
-	    m.id                            AS source_id,
+        m.id || '_mep_meetings'               AS meeting_id,
+	    m.id                                  AS source_id,
 	    'mep_meetings'                        AS source_table,
 	    m.title                               AS title,
 	    m.meeting_date::timestamptz           AS meeting_start_datetime,
@@ -11,12 +11,13 @@
 	    NULL::text                            AS meeting_url,
 	    NULL::text                            AS status,
 	    NULL::text                            AS source_url,
-	    NULL::text[]                          AS tags
+	    NULL::text[]                          AS tags,
+        m.scraped_at                          AS scraped_at
 	FROM   public.mep_meetings m
 	UNION ALL
 	SELECT
-	    e.id || '_ep_meetings'          AS meeting_id,
-	    e.id                            AS source_id,
+	    e.id || '_ep_meetings'                AS meeting_id,
+	    e.id                                  AS source_id,
 	    'ep_meetings'                         AS source_table,
 	    e.title                               AS title,
 	    e.datetime AT TIME ZONE 'UTC'         AS meeting_start_datetime,
@@ -26,13 +27,14 @@
 	    NULL::text                            AS meeting_url,
 	    NULL::text                            AS status,
 	    NULL::text                            AS source_url,
-	    NULL::text[]                          AS tags
+	    NULL::text[]                          AS tags,
+        e.scraped_at                          AS scraped_at
 	FROM   public.ep_meetings e
     UNION ALL
 
     -- Austrian Parliament Meetings
     SELECT
-        a.id || '_austrian_parliament'  AS meeting_id,
+        a.id || '_austrian_parliament'        AS meeting_id,
         a.id::text                            AS source_id,
         'austrian_parliament_meetings'        AS source_table,
         a.title                               AS title,
@@ -43,7 +45,8 @@
         a.meeting_url                         AS meeting_url,
         NULL::text                            AS status,
         NULL::text                            AS source_url,
-        NULL::text[]                          AS tags
+        NULL::text[]                          AS tags,
+        a.scraped_at                          AS scraped_at
     FROM public.austrian_parliament_meetings a
 
     UNION ALL
@@ -61,5 +64,6 @@
         NULL::text                            AS meeting_url,
         NULL::text                            AS status,
         NULL::text                            AS source_url,
-        i.tags                                AS tags
+        i.tags                                AS tags,
+        i.scraped_at                          AS scraped_at
     FROM public.ipex_events i;

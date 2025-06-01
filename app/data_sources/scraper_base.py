@@ -1,7 +1,9 @@
 import logging
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
 
@@ -9,6 +11,8 @@ from app.core.supabase_client import supabase
 from scripts.embedding_generator import embed_row
 
 logger = logging.getLogger(__name__)
+
+brussels_tz = ZoneInfo("Europe/Brussels")
 
 
 class ScraperResult:
@@ -72,6 +76,8 @@ class ScraperBase(ABC):
         self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True
     ) -> Optional[ScraperResult]:
         try:
+            # add/update scraped_at timestamp
+            entry["scraped_at"] = datetime.now(brussels_tz).isoformat()
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
             if embedd_entries:
                 self.embedd_entries(response)
