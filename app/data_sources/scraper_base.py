@@ -77,7 +77,7 @@ class ScraperBase(ABC):
     ) -> Optional[ScraperResult]:
         try:
             # add/update scraped_at timestamp
-            entry["scraped_at"] = datetime.now(brussels_tz).isoformat()
+            # entry["scraped_at"] = datetime.now(brussels_tz).isoformat()
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
             if embedd_entries:
                 self.embedd_entries(response)
