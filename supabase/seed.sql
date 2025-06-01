@@ -100,7 +100,8 @@ INSERT INTO ipex_events (
     start_date,
     end_date,
     meeting_location,
-    tags
+    tags,
+    embedding_input
 )
 VALUES
 (
@@ -109,7 +110,8 @@ VALUES
     '2025-06-05',
     '2025-06-06',
     'Vienna, Austria',
-    ARRAY['foreign policy', 'EU cooperation', 'diplomacy']
+    ARRAY['foreign policy', 'EU cooperation', 'diplomacy'],
+    'Interparliamentary Conference on Foreign Affairs - Vienna, Austria - foreign policy, EU cooperation, diplomacy'
 ),
 (
     'ipex-2025-002',
@@ -117,5 +119,6 @@ VALUES
     '2025-06-15',
     '2025-06-15',
     'The Hague, Netherlands',
-    ARRAY['security', 'Europol', 'law enforcement']
+    ARRAY['security', 'Europol', 'law enforcement'],
+    'Joint Parliamentary Scrutiny Meeting on Europol - The Hague, Netherlands - security, Europol, law enforcement'
 );
