@@ -44,6 +44,7 @@ class MECSummitMinisterialMeeting(BaseModel):
     meeting_date: str
     meeting_end_date: Optional[str]
     category_abbr: Optional[str]
+    embedding_input: Optional[str] = None
 
 
 class _MeetingDateParser:
@@ -213,12 +214,20 @@ class MECSumMinistMeetingsScraper(ScraperBase):
                     day_range_str=match.group(4),
                 )
 
+                meeting_title = link["text"].strip()
+                embedding_input = f'"{meeting_title}"'
+                if meeting_end_date is not None:
+                    embedding_input += f", from {meeting_date.isoformat()} to {meeting_end_date.isoformat()}"
+                else:
+                    embedding_input += f", on {meeting_date.isoformat()}"
+
                 meeting = MECSummitMinisterialMeeting(
                     url=link["href"],
-                    title=link["text"],
+                    title=meeting_title,
                     meeting_date=meeting_date.isoformat(),
                     meeting_end_date=meeting_end_date.isoformat() if meeting_end_date else None,
                     category_abbr=match.group(1),
+                    embedding_input=embedding_input,
                 )
 
                 if last_entry and meeting == last_entry:
