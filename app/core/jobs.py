@@ -8,6 +8,7 @@ from app.data_sources.apis.austrian_parliament import run_scraper
 from app.data_sources.apis.mep import fetch_and_store_current_meps
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
+from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
@@ -20,6 +21,11 @@ DAILY_INTERVAL_MINUTES = 24 * 60
 WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
 
 logger = logging.getLogger(__name__)
+
+
+def scrape_eu_laws_by_topic():
+    lawtracker = LawTrackerSpider()
+    lawtracker.scrape()
 
 
 def scrape_ipex_calendar():
@@ -91,6 +97,7 @@ def clean_up_embeddings():
 
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
+    scheduler.register("scrape_eu_laws_by_topic", scrape_eu_laws_by_topic, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )
