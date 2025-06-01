@@ -1,6 +1,6 @@
 import re
 from datetime import date, datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 from urllib.parse import quote
 
 import scrapy
@@ -50,8 +50,8 @@ class LawItemModel(BaseModel):
     status: str
     active_status: Optional[str] = None
     started_date: Optional[date] = None
-    topic_codes: List[str]
-    topic_labels: List[str]
+    topic_codes: list[str]
+    topic_labels: list[str]
     embedding_input: str
 
 
