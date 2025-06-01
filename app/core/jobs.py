@@ -12,6 +12,7 @@ from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBo
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
+from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
@@ -72,6 +73,12 @@ def scrape_austrian_parliament_meetings():
     run_scraper(start_date)
 
 
+def scrape_polish_presidency_meetings():
+    today = datetime.now().date()
+    scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape()
+
+
 def scrape_spanish_commission_meetings():
     today = datetime.now().date()
     scraper = SpanishCommissionScraper(date=today)
@@ -95,6 +102,7 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
     )
+    scheduler.register("scrape_polish_presidency_meetings", scrape_polish_presidency_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
