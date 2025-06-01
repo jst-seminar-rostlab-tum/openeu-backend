@@ -16,7 +16,7 @@ select = [
     # isort
     "I",
     #PEP8-Naming
-    "N"
+    "N",
 ]
 
 [tool.poetry]
@@ -25,7 +25,7 @@ version = "0.0.1"
 description = ""
 authors = ["CSEE"]
 readme = "README.md"
-packages = [{include = "app"}]
+packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -49,6 +49,8 @@ rapidfuzz = "^3.13.0"
 tiktoken = "^0.9.0"
 openai = "^1.82.0"
 scrapy-playwright = "^0.0.43"
+playwright = "^1.52.0"
+pygit2 = "1.18.0"
 
 [tool.mypy]
 ignore_missing_imports = true

@@ -60,29 +60,35 @@ VALUES
 -- Seed for austrian_parliament_meetings
 -- ==========================================
 INSERT INTO austrian_parliament_meetings (
+    id,
     title,
     title_de,
     meeting_type,
     meeting_date,
     meeting_location,
-    meeting_url
+    meeting_url,
+    embedding_input
 )
 VALUES
 (
+    'test_1',
     'Committee Hearing on Data Protection Reform',
     'Ausschusssitzung zur Datenschutzreform',
     'Committee Meeting',
     '2025-06-18',
     'Parlament Wien, Sitzungssaal 2',
-    'https://www.parlament.gv.at/PAKT/VHG/XXVII/A-AU/A-AU_00123/index.shtml'
+    'https://www.parlament.gv.at/PAKT/VHG/XXVII/A-AU/A-AU_00123/index.shtml',
+    'Committee Hearing on Data Protection Reform - Ausschusssitzung zur Datenschutzreform'
 ),
 (
+    'test_2',
     'Budget Debate for 2026 Fiscal Year',
     'Budgetdebatte zum Haushaltsjahr 2026',
     'Plenary Session',
     '2025-06-25',
     'Plenarsaal, Parlament Wien',
-    'https://www.parlament.gv.at/PAKT/VHG/XXVII/PLEN/PLEN_00456/index.shtml'
+    'https://www.parlament.gv.at/PAKT/VHG/XXVII/PLEN/PLEN_00456/index.shtml',
+    'Budget Debate for 2026 Fiscal Year - Budgetdebatte zum Haushaltsjahr 2026'
 );
 
 -- ====================
@@ -94,7 +100,8 @@ INSERT INTO ipex_events (
     start_date,
     end_date,
     meeting_location,
-    tags
+    tags,
+    embedding_input
 )
 VALUES
 (
@@ -103,7 +110,8 @@ VALUES
     '2025-06-05',
     '2025-06-06',
     'Vienna, Austria',
-    ARRAY['foreign policy', 'EU cooperation', 'diplomacy']
+    ARRAY['foreign policy', 'EU cooperation', 'diplomacy'],
+    'Interparliamentary Conference on Foreign Affairs - Vienna, Austria - foreign policy, EU cooperation, diplomacy'
 ),
 (
     'ipex-2025-002',
@@ -111,5 +119,6 @@ VALUES
     '2025-06-15',
     '2025-06-15',
     'The Hague, Netherlands',
-    ARRAY['security', 'Europol', 'law enforcement']
+    ARRAY['security', 'Europol', 'law enforcement'],
+    'Joint Parliamentary Scrutiny Meeting on Europol - The Hague, Netherlands - security, Europol, law enforcement'
 );

@@ -5,10 +5,10 @@ from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup, Tag
+from pydantic import BaseModel
 
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from scripts.embedding_generator import embed_row
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,14 @@ BASE_URL_TEMPLATE = (
     "&townCode=&loadingSubType=false&meetingTypeCode=&retention=TODAY&page={page}"
 )
 EVENTS_TABLE_NAME = "ep_meetings"
+
+
+class EPMeetingEntry(BaseModel):
+    datetime: str
+    title: Optional[str]
+    subtitles: Optional[str]
+    place: Optional[str]
+    embedding_input: Optional[str]
 
 
 class EPMeetingCalendarScraper(ScraperBase):
@@ -137,57 +145,21 @@ class EPMeetingCalendarScraper(ScraperBase):
                 logger.warning(f"Failed to parse datetime from date='{date}' and hour='{hour}'")
                 continue
 
-            batch.append({"title": title, "datetime": datetime_obj.isoformat(), "place": place, "subtitles": subtitles})
+            embedding_input = f"{title} {datetime_obj.isoformat()} {place or ''} {subtitles or ''}".strip()
+            batch.append(
+                EPMeetingEntry(
+                    datetime=datetime_obj.isoformat(),
+                    title=title,
+                    subtitles=subtitles,
+                    place=place,
+                    embedding_input=embedding_input,
+                ).model_dump()
+            )
+
         if batch:
             self.store_entry(batch)
         else:
             logger.info("No meetings found on this page")
-
-
-def embed_all_meetings(start_date: date, end_date: date):
-    """
-    Loads entries from the 'ep_meetings' Supabase table (filtered by date range)
-    and generates embeddings for selected content fields.
-    """
-    try:
-        query = supabase.table(EVENTS_TABLE_NAME).select("*")
-
-        if start_date:
-            query = query.gte("datetime", start_date.isoformat())
-
-        if end_date:
-            # Supabase filter is inclusive, so we go up to the end of day
-            query = query.lte("datetime", (end_date + timedelta(days=1)).isoformat())
-
-        response = query.execute()
-        records = response.data
-    except Exception as e:
-        logger.error(f"Failed to load entries from Supabase: {e}")
-        return
-
-    logger.info(f"Embedding {len(records)} rows from '{EVENTS_TABLE_NAME}'")
-
-    for row in records:
-        row_id = str(row.get("id"))
-
-        if not row_id:
-            logger.debug(f"Skipping row without id: {row}")
-            continue
-
-        for content_column in ["subtitles", "title", "place"]:
-            content_text = row.get(content_column)
-            if not content_text:
-                continue
-
-            try:
-                embed_row(
-                    source_table=EVENTS_TABLE_NAME,
-                    row_id=row_id,
-                    content_column=content_column,
-                    content_text=content_text,
-                )
-            except Exception as e:
-                logger.warning(f"Embedding failed for row id={row_id}, column={content_column}: {e}")
 
 
 def run_scraper(start_date: date, end_date: date):
@@ -201,11 +173,10 @@ def run_scraper(start_date: date, end_date: date):
     scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date)
     scraper.delete_entries_in_range()
     scraper.scrape()
-    embed_all_meetings(start_date=start_date, end_date=end_date)
 
 
 if __name__ == "__main__":
     # Example usage
     # start_date = date(2025, 7, 1)
     # end_date = date(2025, 7, 20)
-    run_scraper(date(2025, 5, 26), date(2025, 6, 2))
+    run_scraper(date(2025, 7, 5), date(2025, 7, 10))
