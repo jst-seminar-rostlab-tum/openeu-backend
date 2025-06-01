@@ -1,7 +1,5 @@
-create sequence "public"."spanish_commission_meetings_id_seq";
-
 create table "public"."spanish_commission_meetings" (
-    "id" integer not null default nextval('spanish_commission_meetings_id_seq'::regclass),
+    "id" uuid not null default gen_random_uuid(),
     "date" date not null,
     "time" text,
     "title" text not null,
@@ -15,8 +13,6 @@ create table "public"."spanish_commission_meetings" (
     "links" jsonb
 );
 
-
-alter sequence "public"."spanish_commission_meetings_id_seq" owned by "public"."spanish_commission_meetings"."id";
 
 CREATE UNIQUE INDEX spanish_commission_meetings_pkey ON public.spanish_commission_meetings USING btree (id);
 
