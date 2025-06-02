@@ -87,7 +87,7 @@ class ScraperBase(ABC):
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
             if embedd_entries:
                 self.embedd_entries(response)
-            self.lines_added += 1
+            self.lines_added += len(response.data) if response.data else 0
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
