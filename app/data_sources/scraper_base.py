@@ -16,8 +16,9 @@ brussels_tz = ZoneInfo("Europe/Brussels")
 
 
 class ScraperResult:
-    def __init__(self, success: bool, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
+    def __init__(self, success: bool, lines_added: number = 0, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
         self.success = success
+        self.lines_added = lines_added
         self.error = error
         self.last_entry = last_entry
 
@@ -30,6 +31,7 @@ class ScraperBase(ABC):
         self.table_name = table_name
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.lines_added = 0
         self._last_entry = None
 
     def scrape(self, **args) -> ScraperResult:
@@ -51,6 +53,7 @@ class ScraperBase(ABC):
             if attempt <= self.max_retries:
                 time.sleep(self.retry_delay)
 
+        result.lines_added = self.lines_added
         return result  # Last result after retries
 
     @property
@@ -84,7 +87,7 @@ class ScraperBase(ABC):
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
-            return ScraperResult(False, e, self.last_entry)
+            return ScraperResult(False, self.lines_added, e, self.last_entry)
 
     def store_entry_returning_id(self, entry: Any, on_conflict: Optional[str] = None) -> Optional[str]:
         """
@@ -92,6 +95,7 @@ class ScraperBase(ABC):
         """
         try:
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
+            self.lines_added += 1
             return response.data[0].get("id") if response.data else None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
