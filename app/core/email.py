@@ -59,9 +59,9 @@ class EmailService:
             EmailService.logger.warning("No recipients provided for email, doing nothing")
 
         sender_info = {"name": email.sender_name, "email": email.sender_email}
-        to_field = [{"email": r} for r in email.recipients]
 
         for recipient in email.recipients:
+            to_field = [{"email": recipient}]
             email_data = brevo_python.SendSmtpEmail(
                 sender=sender_info,
                 to=to_field,
