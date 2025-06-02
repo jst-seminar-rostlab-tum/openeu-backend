@@ -1,6 +1,7 @@
 import re
+from collections.abc import Generator
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Optional
 
 import scrapy
 from pydantic import BaseModel
@@ -346,7 +347,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                 translated_content_text = ""
 
         # Prepare a dict mapping for the embedding_input → value (use "n/a" if str is empty)
-        embedding_map: Dict[str, str] = {
+        embedding_map: dict[str, str] = {
             "id": meeting_id,
             "type": meeting_type or "n/a",
             "title": title,
@@ -359,7 +360,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         embedding_input = ", ".join(f"{label}: {val}" for label, val in embedding_map.items())
 
         # ── 8) Build the Pydantic model
-        data_dict: Dict[str, Any] = {
+        data_dict: dict[str, Any] = {
             "id": meeting_id,
             "meeting_type": meeting_type,
             "title": title,
@@ -442,7 +443,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             return
 
         # 3b) Row exists → compare every relevant field in one shot
-        existing: Dict[str, Any] = resp.data[0]
+        existing: dict[str, Any] = resp.data[0]
 
         # Helper to guard .strip() on an Optional[str]
         def _as_str(x: Any) -> str:
