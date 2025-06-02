@@ -24,7 +24,7 @@ class Settings:
             if branch["git_branch"] == self.get_git_branch():
                 branch_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/branches/{branch["id"]}",
+                    f"https://api.supabase.com/v1/branches/{branch['id']}",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
@@ -34,7 +34,7 @@ class Settings:
                 values["branch"] = branch_data_json
                 keys_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/projects/{branch_data_json["ref"]}/api-keys",
+                    f"https://api.supabase.com/v1/projects/{branch_data_json['ref']}/api-keys",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
