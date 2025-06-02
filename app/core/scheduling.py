@@ -42,8 +42,8 @@ class ScheduledJob:
                 {
                     "name": self.name,
                     "last_run_at": now.isoformat(),
-                    "success": self.result.success,
-                    "inserted_rows": self.result.inserted_rows,
+                    "success": True if self.result is None else self.result.success,
+                    "inserted_rows": 0 if self.result is None else self.result.lines_added,
                 },
                 on_conflict=["name"],
             ).execute()

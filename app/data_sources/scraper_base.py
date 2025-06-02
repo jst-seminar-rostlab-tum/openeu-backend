@@ -16,7 +16,7 @@ brussels_tz = ZoneInfo("Europe/Brussels")
 
 
 class ScraperResult:
-    def __init__(self, success: bool, lines_added: number = 0, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
+    def __init__(self, success: bool, lines_added: int = 0, error: Optional[Exception] = None, last_entry: Optional[Any] = None) -> None:
         self.success = success
         self.lines_added = lines_added
         self.error = error
