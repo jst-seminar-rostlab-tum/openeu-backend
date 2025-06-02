@@ -13,7 +13,7 @@ def notify_job_failure(job_name: str, error: Exception) -> None:
     Keeps the template in one place so ScheduledJob doesn’t need to
     know how alerting works.
     """
-    recipients = ["dogayasa@gmail.com", "trungnguyenb0k30@gmail.com", "bohdan.garchu@tum.de"]
+    recipients = ["dogayasa@gmail.com", "trungnguyenb0k30@gmail.com", "bohdan.garchu@tum.de", "nils.jansen@tum.de"]
     reply_to = "trungnguyenb0k30@gmail.com"
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
