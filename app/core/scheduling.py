@@ -61,7 +61,6 @@ class ScheduledJob:
                 self.success = True
             except Exception as e:
                 self.logger.error(f"Error in job '{self.name}': {e}")
-                self.mark_job_error()
                 notify_job_failure(self.name, e)
             finally:
                 self.mark_just_ran()
