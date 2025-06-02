@@ -13,6 +13,7 @@ from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBo
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
+from app.data_sources.scrapers.nl_twka_meetings_scraper import NetherlandsTwkaMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
 from scripts.embedding_cleanup import embedding_cleanup
@@ -21,6 +22,12 @@ DAILY_INTERVAL_MINUTES = 24 * 60
 WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
 
 logger = logging.getLogger(__name__)
+
+
+def scrape_netherlands_twka_meetings():
+    today = datetime.now().date()
+    scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=today)
+    scraper.scrape()
 
 
 def scrape_eu_laws_by_topic():
@@ -113,3 +120,4 @@ def setup_scheduled_jobs():
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_netherlands_twka_meetings", scrape_netherlands_twka_meetings, DAILY_INTERVAL_MINUTES)
