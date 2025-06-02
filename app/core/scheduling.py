@@ -5,6 +5,7 @@ from typing import Callable
 
 from app.core.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperResult
 
 TABLE_NAME = "scheduled_job_runs"
 
@@ -17,6 +18,7 @@ class ScheduledJob:
         self.interval = interval
         self.grace = timedelta(seconds=grace_seconds)
         self.last_run_at: datetime | None = None
+        self.result: ScraperResult | None = None
 
         try:
             result = supabase.table(TABLE_NAME).select("last_run_at").eq("name", name).execute()
@@ -40,6 +42,8 @@ class ScheduledJob:
                 {
                     "name": self.name,
                     "last_run_at": now.isoformat(),
+                    "success": self.result.success,
+                    "inserted_rows": self.result.inserted_rows,
                 },
                 on_conflict=["name"],
             ).execute()
@@ -50,7 +54,7 @@ class ScheduledJob:
         def _run():
             try:
                 self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
-                self.func()
+                self.result = self.func()
             except Exception as e:
                 self.logger.error(f"Error in job '{self.name}': {e}")
                 notify_job_failure(self.name, e)
