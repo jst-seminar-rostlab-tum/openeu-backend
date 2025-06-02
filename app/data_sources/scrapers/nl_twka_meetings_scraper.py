@@ -1,6 +1,6 @@
 import re
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, Optional
 
 import scrapy
 from pydantic import BaseModel
@@ -21,11 +21,11 @@ class MeetingModel(BaseModel):
     end_datetime: Optional[datetime] = None
     location: Optional[str] = None
     link: str
-    attachments_url: Optional[List[str]] = []
+    attachments_url: Optional[list[str]] = []
     commission: Optional[str] = None
-    agenda: Optional[List[str]] = []
-    ministers: Optional[List[str]] = []
-    attendees: Optional[List[str]] = []
+    agenda: Optional[list[str]] = []
+    ministers: Optional[list[str]] = []
+    attendees: Optional[list[str]] = []
     original_content: str
     translated_content: str
     embedding_input: Optional[str] = None
@@ -273,7 +273,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
         # ── 5.3) Agenda (“speaking‐time”) lines
         # Look up the <div class="u-mt-4 h-flow"> block (if exists, some meetings do not have it).
-        agenda_items: List[str] = []
+        agenda_items: list[str] = []
         flow_div = response.xpath(
             "//div[contains(concat(' ', normalize-space(@class), ' '), ' u-mt-4 ')"
             " and contains(concat(' ', normalize-space(@class), ' '), ' h-flow ')]"
@@ -298,7 +298,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                 agenda_items.append(text)
 
         # ── 5.4) Ministers (“Bewindsperso(o)n(en)”)
-        ministers: List[str] = []
+        ministers: list[str] = []
         # locate <h2> where text contains "Bewindsperso"
         header = response.xpath("//h2[normalize-space(text())='Bewindsperso(o)n(en)']")
         if header:
@@ -321,7 +321,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         # If no header was found, ministers stays an empty list
 
         # ── 5.5) Attendees (“Deelnemers”)
-        attendees: List[str] = []
+        attendees: list[str] = []
         attendee_header = response.xpath("//h2[normalize-space(text())='Deelnemers']")
         if attendee_header:
             span_labels = attendee_header.xpath("following-sibling::ul[1]//span[contains(@class,'m-list__label')]")
