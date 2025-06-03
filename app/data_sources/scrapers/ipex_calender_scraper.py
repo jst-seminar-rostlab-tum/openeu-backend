@@ -147,7 +147,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                 title=title.strip() if title else "",
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
-                meeting_location= location if location else None,
+                meeting_location=location if location else None,
                 tags=tags if tags else None,
                 embedding_input=embedding_input,
             )
@@ -166,12 +166,15 @@ class IPEXCalendarAPIScraper(ScraperBase):
         logger.info("Starting IPEX calendar scraping via API...")
 
         if "start_date" not in args:
+            logger.error("Missing parameter 'start_date'")
             return ScraperResult(False, Exception('Missing parameter "start_date"'))
+
         if "end_date" not in args:
+            logger.error("Missing parameter 'end_date'")
             return ScraperResult(False, Exception('Missing parameter "end_date"'))
 
         start_date = args.get("start_date")
-        end_date = args.get("start_date")
+        end_date = args.get("end_date")
         while True:
             try:
                 # Build request payload
@@ -240,9 +243,9 @@ def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = No
 
 if __name__ == "__main__":
     # Example usage with date range
-    # start = date(2025, 5, 1)
-    # end = date(2025, 5, 31)
-    # run_scraper(start_date=start, end_date=end)
+    start = date(2025, 5, 1)
+    end = date(2025, 5, 31)
+    run_scraper(start_date=start, end_date=end)
 
     # Or run without date range to get all events
-    run_scraper()
+    # run_scraper()
