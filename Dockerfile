@@ -5,7 +5,9 @@ WORKDIR /code
 
 #Install supabase
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install nodejs npm -y
+RUN apt-get install -y curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
 RUN npx --yes supabase --version
 
 #Install necessary packages & libraries
