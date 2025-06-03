@@ -18,7 +18,7 @@ COPY README.md README.md
 COPY app app
 
 # Install Python dependencies
-RUN poetry install --no-root --no-interaction
+RUN poetry install 
 
 # Install Playwright browsers
 RUN playwright install
