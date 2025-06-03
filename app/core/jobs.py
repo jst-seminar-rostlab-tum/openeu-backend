@@ -7,6 +7,8 @@ from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
 from app.data_sources.apis.mep import fetch_and_store_current_meps
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
+from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDrucksachenScraper
+from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
 from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
 from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
@@ -91,6 +93,18 @@ def scrape_spanish_commission_meetings():
     return scraper.scrape()
 
 
+def scrape_bundestag_plenary_protocols():
+    today = datetime.now().date()
+    scraper = BundestagPlenarprotokolleScraper()
+    scraper.scrape(start_date=today, end_date=today)
+
+
+def scrape_bundestag_drucksachen():
+    today = datetime.now().date()
+    scraper = BundestagDrucksachenScraper()
+    scraper.scrape(start_date=today, end_date=today)
+
+
 def clean_up_embeddings():
     embedding_cleanup()
 
@@ -111,5 +125,8 @@ def setup_scheduled_jobs():
     )
     scheduler.register("scrape_polish_presidency_meetings", scrape_polish_presidency_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
+
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
