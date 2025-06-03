@@ -428,7 +428,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
             # Generate embedding for the new row
             try:
-                embed_row(self.table_name, item.id, "original_content", item.original_content)
+                embed_row(self.table_name, item.id, "embedding_input", item.embedding_input or "")
             except Exception as e:
                 self.logger.error(f"Embedding generation failed for id={item.id}: {e}")
             return
@@ -476,6 +476,6 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
         # Regenerate embedding for the updated row
         try:
-            embed_row(self.table_name, item.id, "original_content", item.original_content)
+            embed_row(self.table_name, item.id, "embedding_input", item.embedding_input or "")
         except Exception as e:
             self.logger.error(f"Embedding update failed for id={item.id}: {e}")
