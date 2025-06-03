@@ -7,3 +7,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     topic_list TEXT[] NOT NULL,
     embedding VECTOR(1536) NOT NULL
 );
+
+
+create or replace function get_user_by_id(uid uuid)
+returns table(email text) as $$
+begin
+  return query
+  select email from auth.users where id = uid;
+end;
+$$ language plpgsql security definer;
