@@ -9,7 +9,7 @@ from app.data_sources.apis.mep import fetch_and_store_current_meps
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDrucksachenScraper
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
-from app.data_sources.scrapers.ipex_calender_scraper import IPEXCalendarAPIScraper
+from app.data_sources.scrapers.ipex_calender_scraper import run_scraper as run_ipex_calendar_scraper
 from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
@@ -31,8 +31,8 @@ def scrape_eu_laws_by_topic():
 
 
 def scrape_ipex_calendar():
-    ipex_scraper = IPEXCalendarAPIScraper()
-    return ipex_scraper.scrape()
+    today = datetime.now().date()
+    return run_ipex_calendar_scraper(start_date=today, end_date=today)
 
 
 def scrape_meeting_calendar_for_current_day():
