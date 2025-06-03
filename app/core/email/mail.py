@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
+from app.core.supabase_client import supabase
+from app.core.relevant_meetings import fetch_relevant_meetings
+from app.core.email import Email, EmailService
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel
@@ -24,6 +27,25 @@ class Meeting(BaseModel):
 
 class RelevantMeetingsResponse(BaseModel):
     meetings: List[Meeting]
+    
+    
+def get_user_email(user_id: str) -> Optional[str]:
+    """
+    Fetches the email address of a user from the auth.users table using a SQL function.
+    
+    Args:
+        user_id (str): The UUID of the user.
+
+    Returns:
+        str | None: The email of the user if found, else None.
+    """
+    response = supabase.rpc("get_user_by_id", {"uid": user_id}).execute()
+        
+    if response.data and len(response.data) > 0:
+        return response.data[0]["email"]
+    else:
+        print("User not found.")
+        return None
 
 
 # ----------------------------------------------------------------------
@@ -50,6 +72,8 @@ def get_relevant_meetings_for_user(user_id: str) -> List[Meeting]:
             # … more meetings …
         ]
     """
+    
+    
     # Example stub: return an empty list for demonstration
     return [
             {
@@ -79,6 +103,29 @@ def _load_base64_text_file(path: Path) -> str:
     return content
 
 
+def get_user_name(user_id: str) -> Optional[str]:
+    """
+    Fetches the name of a user from the profiles table.
+
+    Args:
+        user_id (str): The UUID of the user.
+
+    Returns:
+        str | None: The name of the user if found, else None.
+    """
+    try:
+        response = supabase.table("profiles").select("name").eq("user_id", user_id).single().execute()
+        
+        if response.data:
+            return response.data["name"]
+        else:
+            return ""
+
+    except Exception as e:
+        return ""
+
+
+
 # ----------------------------------------------------------------------
 # Main function: build the email HTML for a given user_id
 # ----------------------------------------------------------------------
@@ -92,36 +139,28 @@ def build_email_for_user(user_id: str) -> str:
       4. Load the Jinja2 template mail.html.j2 from the same directory.
       5. Render the template with all context variables (meetings, images, current year).
       6. Return the rendered HTML as a string.
-
-    Assumptions:
-      • The two Base64 files are named "image1.b64" and "image2.b64".
-      • The Jinja2 template is named "mail.html.j2".
-      • All three files live in the same folder as this script.
-      • get_relevant_meetings_for_user() returns a List[Meeting] or a list of dicts
-        that can be parsed by the Meeting model.
     """
     # Determine the directory where this script lives
+    
     base_dir = Path(__file__).parent
-
+    
     # 1. Fetch meetings and validate via Pydantic
-    raw_meetings = get_relevant_meetings_for_user(user_id)
-    # If raw_meetings are dicts, we can do:
-    response_obj = RelevantMeetingsResponse(meetings=raw_meetings)
-
-    # 2. Load Base64 images
+    response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
+    
+    name_of_recipient = get_user_name(user_id=user_id)
+    
+    
     image1_path = base_dir / "logo1.b64"
-    image2_path = base_dir / "logo2.b64"
 
     if not image1_path.exists():
         raise FileNotFoundError(f"Expected Base64 file not found: {image1_path}")
-    if not image2_path.exists():
-        raise FileNotFoundError(f"Expected Base64 file not found: {image2_path}")
+   
 
     image1_b64 = _load_base64_text_file(image1_path)
-    image2_b64 = _load_base64_text_file(image2_path)
 
     # 3. Prepare Jinja2 environment and load the mail.html.j2 template
     template_path = base_dir / "mailbody.html.j2"
+    
     if not template_path.exists():
         raise FileNotFoundError(f"Email template not found: {template_path}")
 
@@ -136,6 +175,7 @@ def build_email_for_user(user_id: str) -> str:
         "meetings": response_obj.meetings,
         "image1_base64": image1_b64,
         "current_year": datetime.now().year,
+        "recipient": name_of_recipient
     }
 
     # 5. Render and return the HTML string
@@ -143,11 +183,18 @@ def build_email_for_user(user_id: str) -> str:
     return rendered_html
 
 
-# ----------------------------------------------------------------------
-# Example usage (uncomment to test)
-# ----------------------------------------------------------------------
-user_id = "user_123"
-html_content = build_email_for_user(user_id)
-with open("output_email.html", "w", encoding="utf-8") as f:
-    f.write(html_content)
-print("Generated output_email.html")
+class Newsletter():
+    email_client = EmailService()
+    
+    @staticmethod
+    def send_newsletter_to_user(user_id):
+        #user_mail = get_user_email(user_id=user_id)
+        user_mail = "Janvanderlinde@gmx.de"
+        mail_body = build_email_for_user(user_id=user_id)
+        
+        mail = Email(
+            subject="OpenEU Meeting Newsletter", html_body=mail_body, recipients=[user_mail]
+        )
+        Newsletter.email_client.send_email(mail)
+    
+    
