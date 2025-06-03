@@ -28,7 +28,7 @@ readme = "README.md"
 packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.10"
 pre-commit = "3.7.1"
 python-dotenv = "1.0.1"
 fastapi = "0.115.12"
