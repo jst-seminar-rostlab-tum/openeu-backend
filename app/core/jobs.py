@@ -77,8 +77,8 @@ def scrape_mec_prep_bodies_meetings():
 
 
 def scrape_austrian_parliament_meetings():
-    start_date = datetime.now().date()
-    return run_scraper(start_date)
+    today = datetime.now().date()
+    return run_scraper(start_date=today, end_date=today)
 
 
 def scrape_polish_presidency_meetings():
