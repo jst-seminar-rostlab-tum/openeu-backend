@@ -72,7 +72,7 @@ class AustrianParliamentScraper(ScraperBase):
 
         if self.start_date or self.end_date:
             if self.start_date:
-                start_date_str = f"{self.start_date.isoformat()}T22:00:00.000Z"
+                start_date_str = f"{self.start_date.isoformat()}T00:00:00.000Z"
                 body["DATERANGE"][0] = start_date_str
                 logger.info(f"Using start date: {start_date_str}")
 
@@ -110,6 +110,8 @@ class AustrianParliamentScraper(ScraperBase):
                         "Guided Tour",
                         "Galeriebesuch Nationalrat",
                         "Photo Tour",
+                        "Besuch einer Plenarsitzung",
+                        "Besuch einer Bundesratssitzung",
                     ]
                 ):
                     continue
