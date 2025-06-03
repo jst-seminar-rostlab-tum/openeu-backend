@@ -168,48 +168,47 @@ class AustrianParliamentScraper(ScraperBase):
             return []
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
-        """Clean up and translate the meeting title."""
+        """
+        Clean up and translate the meeting title. 
+        If translation fails, use the German title for both fields.
+        """
         if not title:
             return "", ""
 
         title = title.replace("&nbsp;", " ")
         title = re.sub(r"^(\. )", "", title)
         title = " ".join(title.split())
-        translation_result = self.translator.translate(title)
-
-        return title, translation_result.text
+        try:
+            translation_result = self.translator.translate(title)
+            return title, translation_result.text
+        except Exception as e:
+            logger.warning(f"Translation failed for title '{title}': {e}. Using German title as English title.")
+            return title, title
 
     def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
         """Run a single scraping attempt."""
         logger.info("Starting Austrian Parliament scraping...")
 
-        try:
-            # Build request payload
-            payload = self._build_request_payload()
+        # Build request payload
+        payload = self._build_request_payload()
 
-            # Make request to API
-            response = self.session.post(PARLIAMENT_API_URL, params=payload["params"], json=payload["body"], timeout=2)
-            response.raise_for_status()
+        # Make request to API
+        response = self.session.post(PARLIAMENT_API_URL, params=payload["params"], json=payload["body"], timeout=2)
+        response.raise_for_status()
 
-            # Parse meetings
-            meetings = self._parse_meetings(response.text)
+        # Parse meetings
+        meetings = self._parse_meetings(response.text)
 
-            # Store each meeting
-            for meeting in meetings:
+        # Store each meeting
+        for meeting in meetings:
+            try:
                 self.store_entry(meeting.model_dump(), "id")
+            except Exception as e:
+                logger.warning(f"Failed to store meeting with id {meeting.id}: {e}")
+                continue
 
-            logger.info(f"Successfully processed {len(meetings)} meetings")
-            return ScraperResult(True)
-
-        except requests.RequestException as e:
-            logger.error(f"Network error: {e}")
-            return ScraperResult(False, error=e, last_entry=self.last_entry)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
-            return ScraperResult(False, error=e, last_entry=self.last_entry)
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            return ScraperResult(False, error=e, last_entry=self.last_entry)
+        logger.info(f"Successfully processed {len(meetings)} meetings")
+        return ScraperResult(True)
 
 
 def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
