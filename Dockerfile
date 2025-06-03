@@ -1,4 +1,5 @@
 FROM python:3.13.3-slim
+FROM mcr.microsoft.com/playwright/python:v1.52.0-jammy
 
 WORKDIR /code
 
@@ -13,6 +14,15 @@ COPY pyproject.toml .
 COPY .env .env
 COPY README.md README.md
 COPY app app
+
+# Install Python dependencies
+RUN poetry install --no-root --no-interaction
+
+# Install Playwright browsers
+RUN playwright install
+
+# Run crawl4ai setup
+RUN poetry run crawl4ai-setup
 
 RUN mkdir /.script
 RUN echo "#!/bin/sh" > /.script/start.sh
