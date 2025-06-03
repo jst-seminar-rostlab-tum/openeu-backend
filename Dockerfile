@@ -9,6 +9,7 @@ RUN apt-get install -y curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs
 RUN npx --yes supabase --version
+RUN npm install -g playwright
 
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
