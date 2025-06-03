@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Relevant Meetings</title>
+  </head>
+  <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <!-- Outer container -->
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background-color: #f4f4f4; padding: 20px 0;"
+    >
+      <tr>
+        <td align="center">
+          <!-- Main white card -->
+          <table
+            role="presentation"
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+          >
+            <!-- Logo Section -->
+            <tr>
+              <td style="padding: 40px 20px; text-align: center; background-color: #ffffff;">
+                <img
+                  src="data:image/png;base64,{{ image1_base64 }}"
+                  alt="Logo"
+                  style="width: 160px; height: auto; display: block; margin: 0 auto;"
+                />
+              </td>
+            </tr>
+
+            <!-- Separator and Title -->
+            <tr>
+              <td style="padding: 0 20px 20px 20px; background-color: #ffffff;">
+                <hr style="border: none; border-bottom: 2px solid #e0e0e0; margin: 0 0 20px 0;" />
+                <h1 style="font-size: 28px; color: #2d2d2d; text-align: center; margin: 0 0 10px;">
+                  Your Relevant Meetings
+                </h1>
+              </td>
+            </tr>
+
+            <!-- Body Content -->
+            <tr>
+              <td style="padding: 0 20px 20px 20px; background-color: #ffffff;">
+                <p style="font-size: 16px; color: #333333; margin: 0 0 15px;">
+                  Hi {{ recipient }},
+                </p>
+                <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">
+                  We’ve put together a list of upcoming parliamentary and institutional meetings that might interest you. You’ll find everything from debates and committee hearings to policy roundtables and expert briefings. Just click on the meeting title to see the agenda, join online, or grab any related materials.
+                </p>
+
+                <!-- Meetings Loop -->
+                {% if meetings and meetings | length > 0 %}
+                  {% for meeting in meetings %}
+                    <table
+                      role="presentation"
+                      width="100%"
+                      cellpadding="0"
+                      cellspacing="0"
+                      style="border: 1px solid #dddddd; border-radius: 6px; margin-bottom: 20px;"
+                    >
+                      <tr>
+                        <td style="padding: 15px;">
+                          <!-- Title and Status -->
+                          <h2 style="font-size: 20px; color: #2d2d2d; margin: 0 0 8px;">
+                            {% if meeting.meeting_url %}
+                              <a
+                                href="{{ meeting.meeting_url }}"
+                                style="text-decoration: none; color: #1a73e8;"
+                                >{{ meeting.title }}</a
+                              >
+                            {% else %}
+                              {{ meeting.title }}
+                            {% endif %}
+                          </h2>
+                          {% if meeting.status %}
+                            <p
+                              style="display: inline-block; font-size: 14px; color: #ffffff; background-color: #5cb85c; padding: 3px 8px; border-radius: 4px; margin: 0;"
+                            >
+                              {{ meeting.status }}
+                            </p>
+                          {% endif %}
+
+                          <!-- Date & Time -->
+                          <p style="font-size: 14px; color: #555555; margin: 12px 0 0;">
+                            <strong>Start:</strong>
+                            {{ meeting.meeting_start_datetime }}
+                            {% if meeting.meeting_end_datetime %}
+                              <br />
+                              <strong>End:</strong>
+                              {{ meeting.meeting_end_datetime }}
+                            {% endif %}
+                          </p>
+
+                          <!-- Location -->
+                          {% if meeting.location %}
+                            <p style="font-size: 14px; color: #555555; margin: 6px 0 0;">
+                              <strong>Location:</strong> {{ meeting.location }}
+                            </p>
+                          {% endif %}
+
+                          <!-- Description -->
+                          {% if meeting.description %}
+                            <p style="font-size: 14px; color: #555555; margin: 12px 0 0;">
+                              {{ meeting.description }}
+                            </p>
+                          {% endif %}
+
+                          <!-- Tags -->
+                          {% if meeting.tags and meeting.tags | length > 0 %}
+                            <p style="font-size: 14px; color: #555555; margin: 12px 0 0;">
+                              <strong>Tags:</strong>
+                              {% for tag in meeting.tags %}
+                                <span
+                                  style="display: inline-block; font-size: 12px; color: #555555; background-color: #e1e1e1; padding: 2px 6px; border-radius: 3px; margin-right: 4px;"
+                                  >{{ tag }}</span
+                                >
+                              {% endfor %}
+                            </p>
+                          {% endif %}
+
+                          <!-- Similarity (optional) -->
+                          {% if meeting.similarity is not none %}
+                            <p style="font-size: 14px; color: #555555; margin: 12px 0 0;">
+                              <strong>Relevance Score:</strong>
+                              {{ "%.2f"|format(meeting.similarity * 100) }}%
+                            </p>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    </table>
+                  {% endfor %}
+                {% else %}
+                  <p style="font-size: 16px; color: #333333; margin: 0;">
+                    No relevant meetings were found.
+                  </p>
+                {% endif %}
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 20px; background-color: #f9f9f9; text-align: center;">
+                <p style="font-size: 12px; color: #777777; margin: 0;">
+                  You are receiving this email because you subscribed to meeting
+                  notifications.
+                </p>
+                <p style="font-size: 12px; color: #777777; margin: 5px 0 0;">
+                  &copy; {{ current_year }} Your Company. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
