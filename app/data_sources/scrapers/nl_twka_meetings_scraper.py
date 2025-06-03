@@ -30,8 +30,8 @@ class MeetingModel(BaseModel):
     original_content: str
     translated_content: str
     embedding_input: Optional[str] = None
-    start_time: Optional[str] = None
-    end_time: Optional[str] = None
+    start_time: str
+    end_time: str
 
 
 class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
@@ -40,7 +40,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     Uses the exact HTML structure provided (div.m-tv-guide__item.js-clickable, data-start/data-end attributes, etc.).
     """
 
-    name = "tweedekamer_debat_nojs"
+    name = "netherlands_tweedekamer_meetings_scaper"
 
     # Base URL for agenda (+ later append “?date=YYYY-MM-DD”)
     BASE_AGENDA_URL = "https://www.tweedekamer.nl/debat_en_vergadering"
@@ -162,23 +162,15 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         end_time: Optional[str],
     ) -> None:
         """
-        Parse the detail page for a single meeting.  We assume it’s fully server‐rendered,
-        so everything we need is in the HTML.  We extract:
-          • title
-          • datetime  (combine agenda_date + start_time)
-          • location
-          • attendees
-          • attachments_url
-          • original_content (Dutch transcript)
-          • translated_content (via DeepL)
-        Then we build MeetingModel and upsert into Supabase.
+        Parse the detail page for a single meeting.  It looks to be fully server‐rendered,
+        so everything we need is in the HTML.
         """
 
         self.logger.info(f"[NoJS] Parsing detail for ID={meeting_id}")
 
         # ── 1) Title
         # Find the <span class="h-visually-hidden">, take the next node:
-        title = (
+        title: str = (
             response.xpath(
                 "normalize-space(//h1/span[contains(@class,'h-visually-hidden')]/following-sibling::text()[1])"
             )
@@ -193,7 +185,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         try:
             if start_time:
                 hh_s, mm_s = start_time.split(":")
-                start_dt = datetime(
+                start_dt: datetime = datetime(
                     agenda_date.year,
                     agenda_date.month,
                     agenda_date.day,
@@ -207,6 +199,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             self.logger.warning(f"Could not parse start_time={start_time!r}; using agenda_date at midnight.")
             start_dt = datetime.combine(agenda_date, datetime.min.time())
 
+        end_dt: Optional[datetime]
         try:
             # parse end_time
             if end_time:
@@ -228,7 +221,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         # ── 3) Location (updated selector)
         # detail page wraps “Locatie:” in <strong>, e.g.
         #   <strong>Locatie:</strong> Thorbeckezaal
-        location = (
+        location: Optional[str] = (
             response.xpath(
                 "normalize-space(//strong[contains(normalize-space(.), 'Locatie:')]/following-sibling::text()[1])"
             )
@@ -237,7 +230,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         )
 
         if not location:
-            # If for some reason the <strong> approach fails, you can fallback to looking
+            # If for some reason the <strong> approach fails, fallback to looking
             # for “Locatie:” anywhere in the page and scraping what comes after it:
             location = (
                 response.xpath("normalize-space(//*[contains(text(), 'Locatie')]/text()[normalize-space(.)][2])")
@@ -392,7 +385,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     def upsert_meeting(self, item: MeetingModel) -> None:
         """
         Insert or update the "nl_twka_meetings" row in Supabase for this meeting.
-        We compare every field except “id” to decide if we need to update.
+        Compare every field except “id” to decide if we need to update.
         After insert/update, call embed_row(data) to generate embeddings.
         """
 
@@ -449,7 +442,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         def _as_str(x: Any) -> str:
             return x.strip() if isinstance(x, str) else ""
 
-        # single boolean that is True if any field differs
+        # single boolean that is True if any field changed
         has_changed = any(
             [
                 (existing.get("meeting_type") or "") != (data["meeting_type"] or ""),
