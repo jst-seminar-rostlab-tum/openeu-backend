@@ -2,8 +2,17 @@ FROM python:3.13.3-slim
 
 WORKDIR /code
 
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install nodejs npm -y
+#RUN apt-get update && apt-get upgrade -y
+#RUN apt-get install nodejs npm -y
+#RUN npx --yes supabase --version
+
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
+    curl gnupg wget unzip xvfb nodejs npm \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
+    libcairo2 libasound2 libsecret-1-0 libgles2 && \
+    apt-get clean
 RUN npx --yes supabase --version
 
 #Install necessary packages & libraries
