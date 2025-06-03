@@ -8,6 +8,9 @@ RUN npx --yes supabase --version
 
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
+RUN pip install playwright
+RUN pip install crawl4ai
+
 COPY pyproject.toml .
 #COPY .env .env
 COPY README.md README.md
