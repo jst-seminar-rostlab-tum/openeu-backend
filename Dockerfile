@@ -12,6 +12,7 @@ RUN apt-get update && apt-get upgrade -y && \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
     libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
     libcairo2 libasound2 libsecret-1-0 libgles2 && \
+    libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
     apt-get clean
 RUN npx --yes supabase --version
 
@@ -22,6 +23,7 @@ RUN pip install crawl4ai
 
 COPY pyproject.toml .
 #COPY .env .env
+COPY log_conf.yaml log_conf.yaml
 COPY README.md README.md
 COPY app app
 
@@ -37,7 +39,7 @@ RUN crawl4ai-setup
 RUN mkdir /.script
 RUN echo "#!/bin/sh" > /.script/start.sh
 RUN echo "cd /code" >> /.script/start.sh
-RUN echo "npx supabase migration up --db-url postgresql://supabase_admin:\${POSTGRES_PASSWORD}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME} --debug" >> /.script/start.sh
+RUN echo 'npx supabase migration up --db-url postgresql://supabase_admin:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME} --debug' >> /.script/start.sh
 RUN echo "poetry run uvicorn main:app --host 0.0.0.0 --port 3000 --log-config log_conf.yaml --reload" >> /.script/start.sh
 RUN chmod +x /.script/start.sh
 
