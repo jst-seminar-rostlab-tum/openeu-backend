@@ -11,7 +11,7 @@ RUN npx --yes supabase --version
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
 COPY pyproject.toml .
-COPY .env .env
+#COPY .env .env
 COPY README.md README.md
 COPY app app
 
