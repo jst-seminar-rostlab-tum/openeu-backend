@@ -3,6 +3,7 @@ venv/
 .idea/
 __pycache__/
 supabase/.temp
+volumes/db/data
 
 .env
 .DS_Store

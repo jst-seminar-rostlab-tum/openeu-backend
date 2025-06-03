@@ -53,6 +53,3 @@ UNION ALL
     NULL::text AS source_url,
     i.tags
    FROM ipex_events i;
-
-
-
