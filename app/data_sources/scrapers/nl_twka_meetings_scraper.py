@@ -274,7 +274,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         )
         if flow_div:
             # 1) Grab full HTML (might contain <br> separators)
-            flow_div_html = flow_div.get()
+            flow_div_html = flow_div.get() or ""
 
             # 2) Split on every <br> or <br/> tag
             parts = re.split(r"<br\s*/?>", flow_div_html, flags=re.IGNORECASE)
