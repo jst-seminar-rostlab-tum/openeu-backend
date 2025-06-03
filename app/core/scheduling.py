@@ -20,6 +20,7 @@ class ScheduledJob:
         self.last_run_at: datetime | None = None
         self.success: bool = False
         self.result: ScraperResult | None = None
+        self.error: Exception | None = None
 
         try:
             result = supabase.table(TABLE_NAME).select("last_run_at").eq("name", name).execute()
@@ -40,14 +41,15 @@ class ScheduledJob:
         self.last_run_at = now
         try:
             # Some jobs are not scraper jobs and there don't return a scraper result. Handle it by checking for None.
+            is_result_none = self.result is None
             supabase.table(TABLE_NAME).upsert(
                 {
                     "name": self.name,
                     "last_run_at": now.isoformat(),
-                    "success": self.success if self.result is None else self.result.success,
-                    "inserted_rows": 0 if self.result is None else self.result.lines_added,
+                    "success": self.success if is_result_none else self.result.success,
+                    "inserted_rows": 0 if is_result_none else self.result.lines_added,
+                    "error_msg": repr(self.error) if is_result_none else repr(self.result.error),
                 },
-                on_conflict=["name"],
             ).execute()
         except Exception as e:
             self.logger.error(f"Failed to update last run time for job '{self.name}': {e}")
@@ -55,12 +57,15 @@ class ScheduledJob:
     def run_async(self):
         def _run():
             self.success = False
+            self.error = None
+            self.result = None
             try:
                 self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
                 self.result = self.func()
                 self.success = True
             except Exception as e:
                 self.logger.error(f"Error in job '{self.name}': {e}")
+                self.error = e
                 notify_job_failure(self.name, e)
             finally:
                 self.mark_just_ran()
