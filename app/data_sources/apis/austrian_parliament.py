@@ -203,13 +203,13 @@ class AustrianParliamentScraper(ScraperBase):
 
         except requests.RequestException as e:
             logger.error(f"Network error: {e}")
-            return ScraperResult(False, e, self.last_entry)
+            return ScraperResult(False, error=e, last_entry=self.last_entry)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
-            return ScraperResult(False, e, self.last_entry)
+            return ScraperResult(False, error=e, last_entry=self.last_entry)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
-            return ScraperResult(False, e, self.last_entry)
+            return ScraperResult(False, error=e, last_entry=self.last_entry)
 
 
 def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):

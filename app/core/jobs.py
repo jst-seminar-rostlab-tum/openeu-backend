@@ -27,35 +27,35 @@ logger = logging.getLogger(__name__)
 
 def scrape_eu_laws_by_topic():
     lawtracker = LawTrackerSpider()
-    lawtracker.scrape()
+    return lawtracker.scrape()
 
 
 def scrape_ipex_calendar():
     ipex_scraper = IPEXCalendarAPIScraper()
-    ipex_scraper.scrape()
+    return ipex_scraper.scrape()
 
 
 def scrape_meeting_calendar_for_current_day():
     now = datetime.now()
     ep_meeting_scraper = EPMeetingCalendarScraper(now, now)
-    ep_meeting_scraper.scrape()
+    return ep_meeting_scraper.scrape()
 
 
 def scrape_mep_meetings():
     today = datetime.now().date()
     scraper = MEPMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape()
+    return scraper.scrape()
 
 
 def scrape_mec_sum_minist_meetings():
     today = datetime.now().date()
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape()
+    return scraper.scrape()
 
 
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
-    run_belgian_parliament_scraper(start_date=today, end_date=today)
+    return run_belgian_parliament_scraper(start_date=today, end_date=today)
 
 
 def send_daily_newsletter():
@@ -73,24 +73,24 @@ def send_daily_newsletter():
 def scrape_mec_prep_bodies_meetings():
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape()
+    return scraper.scrape()
 
 
 def scrape_austrian_parliament_meetings():
     start_date = datetime.now().date()
-    run_scraper(start_date)
+    return run_scraper(start_date)
 
 
 def scrape_polish_presidency_meetings():
     today = datetime.now().date()
     scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=today)
-    scraper.scrape()
+    return scraper.scrape()
 
 
 def scrape_spanish_commission_meetings():
     today = datetime.now().date()
     scraper = SpanishCommissionScraper(date=today)
-    scraper.scrape()
+    return scraper.scrape()
 
 
 def scrape_bundestag_plenary_protocols():
