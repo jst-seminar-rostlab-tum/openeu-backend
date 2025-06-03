@@ -56,8 +56,6 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
         """
         When run via `scrapy runspider`, Scrapy looks here for initial requests.
-        We delegate to our existing scrape_once() (passing last_entry=None so that
-        it will scrape the past 7 days).
         """
         yield from self.scrape_once(last_entry=None)
 
@@ -67,8 +65,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         **args: Any,
     ) -> Generator[scrapy.Request, None, ScraperResult]:
         """
-        Called by ScraperBase.  Instead of using `last_entry`, we now
-        loop exactly from self.start_date through self.end_date (inclusive),
+        Called by ScraperBase.  Instead of using `last_entry`,
+        loops exactly from self.start_date through self.end_date (inclusive),
         emitting one Request per date.
         """
         # 1) Convert the two string‐inputs into date objects
@@ -97,13 +95,13 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
     def parse_agenda(self, response: scrapy.http.Response, agenda_date: date):
         """
-        Parse the agenda page for a single date.  We look for all
-        <div class="m-tv-guide__item js-clickable"> blocks and extract:
+        Parse the agenda page for a single date.  Looks for all
+        <div class="m-tv-guide__item js-clickable"> blocks and extracts:
           - detail‐page URL
           - meeting_type (e.g. "Notaoverleg")
           - commission name
           - data-start / data-end (start/end times)
-        Then we schedule a Request to parse_meeting(...) for each block.
+        Then schedules a Request to parse_meeting() for each block.
         """
         self.logger.info(f"[NoJS] Parsing agenda for {agenda_date.isoformat()}")
 
@@ -163,7 +161,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     ) -> None:
         """
         Parse the detail page for a single meeting.  It looks to be fully server‐rendered,
-        so everything we need is in the HTML.
+        so everything is in the HTML.
         """
 
         self.logger.info(f"[NoJS] Parsing detail for ID={meeting_id}")
@@ -385,7 +383,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     def upsert_meeting(self, item: MeetingModel) -> None:
         """
         Insert or update the "nl_twka_meetings" row in Supabase for this meeting.
-        Compare every field except “id” to decide if we need to update.
+        Compare every field except “id” to decide update.
         After insert/update, call embed_row(data) to generate embeddings.
         """
 
