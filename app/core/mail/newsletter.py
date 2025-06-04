@@ -23,7 +23,7 @@ def get_user_email(user_id: str) -> Optional[str]:
         str | None: The email of the user if found, else None.
     """
     response = supabase.rpc("get_user_by_id", {"uid": user_id}).execute()
-    
+
     if response.data and len(response.data) > 0:
         return response.data
     else:
@@ -117,14 +117,17 @@ def build_email_for_user(user_id: str) -> str:
 
 class Newsletter:
     email_client = EmailService()
-    
 
     @staticmethod
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
         mail_body = build_email_for_user(user_id=user_id)
 
-        mail = Email(subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()), html_body=mail_body, recipients=[user_mail])
+        mail = Email(
+            subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
+            html_body=mail_body,
+            recipients=[user_mail],
+        )
         try:
             Newsletter.email_client.send_email(mail)
             logger.info(f"Newsletter sent successfully to user_id={user_id}")
