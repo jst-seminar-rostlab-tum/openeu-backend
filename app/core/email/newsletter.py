@@ -125,9 +125,9 @@ class Newsletter:
         mail = Email(subject="OpenEU Meeting Newsletter", html_body=mail_body, recipients=[user_mail])
         try:
             Newsletter.email_client.send_email(mail)
-            EmailService.logger(f"Newsletter send succesfully to user_id={user_id}")
-        except:
-            EmailService.logger(f"Failed to send newsletter for user_id={user_id}")
+            EmailService.logger(f"Newsletter sent successfully to user_id={user_id}")
+        except Exception as e:
+            EmailService.logger(f"Failed to send newsletter for user_id={user_id}: {e}")
 
         notification_payload = {"user_id": user_id, "type": "newsletter", "message": f"Sent email: {mail.subject}"}
         supabase.table("notifications").insert(notification_payload).execute()
