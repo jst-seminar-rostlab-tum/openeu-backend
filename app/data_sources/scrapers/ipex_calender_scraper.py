@@ -147,7 +147,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                 title=title.strip() if title else "",
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
-                meeting_location= location if location else None,
+                meeting_location=location if location else None,
                 tags=tags if tags else None,
                 embedding_input=embedding_input,
             )
@@ -166,12 +166,15 @@ class IPEXCalendarAPIScraper(ScraperBase):
         logger.info("Starting IPEX calendar scraping via API...")
 
         if "start_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "start_date"'))
+            logger.error("Missing parameter 'start_date'")
+            return ScraperResult(False, error=Exception('Missing parameter "start_date"'))
+
         if "end_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "end_date"'))
+            logger.error("Missing parameter 'end_date'")
+            return ScraperResult(False, error=Exception('Missing parameter "end_date"'))
 
         start_date = args.get("start_date")
-        end_date = args.get("start_date")
+        end_date = args.get("end_date")
         while True:
             try:
                 # Build request payload
@@ -212,13 +215,13 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
             except requests.RequestException as e:
                 logger.error(f"Network error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
             except Exception as e:
                 logger.error(f"Unexpected error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
 
         logger.info(f"Scraping completed. Total events: {len(self.events)}")
 
@@ -240,9 +243,9 @@ def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = No
 
 if __name__ == "__main__":
     # Example usage with date range
-    # start = date(2025, 5, 1)
-    # end = date(2025, 5, 31)
-    # run_scraper(start_date=start, end_date=end)
+    start = date(2025, 5, 1)
+    end = date(2025, 5, 31)
+    run_scraper(start_date=start, end_date=end)
 
     # Or run without date range to get all events
-    run_scraper()
+    # run_scraper()
