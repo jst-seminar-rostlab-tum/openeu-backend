@@ -20,29 +20,25 @@ app.include_router(api_crawler)
 app.include_router(api_scheduler)
 app.include_router(api_chat)
 
-class CustomCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin")
-        is_allowed_origin = (
-            origin
-            and (origin.startswith("http://localhost")
-            or origin.endswith("openeu.netlify.app"))
-        )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        if request.method == "OPTIONS" and is_allowed_origin:
-            response = PlainTextResponse("Preflight OK", status_code=200)
-        else:
-            response = await call_next(request)
 
-        if is_allowed_origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+@app.middleware("http")
+async def dynamic_cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if origin and origin.endswith("openeu.netlify.app"):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
 
         return response
-
-app.add_middleware(CustomCORSMiddleware)
+    return await call_next(request)
 
 @app.get("/")
 async def root() -> dict[str, str | bool]:
