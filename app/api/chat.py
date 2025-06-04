@@ -116,7 +116,13 @@ def get_response(prompt: str, session_id: str):
         )
     except Exception as e:
         logging.error("Error in getting response from OpenAI: %s", e)
-        raise HTTPException(503, "OpenAI server is busy, try again later") from None
+        fallback_text = (
+            "Sorry, I'm currently experiencing technical difficulties and cannot provide an answer. "
+            "Please try again in a few moments."
+        )
+
+        yield f"id: {session_id}\ndata: {fallback_text}\n\n"
+        return  # Stop the generator
     try:
         full_response = ""
         for chunk in response:
