@@ -23,7 +23,7 @@ class ScheduledJob:
         self.error: Exception | None = None
 
         try:
-            result = supabase.table(TABLE_NAME).select("last_run_at").eq("name", name).execute()
+            result = supabase.table(TABLE_NAME).select("last_run_at").eq("name", name).order("last_run_at", desc=True).limit(1).execute()
             if result.data and len(result.data) == 1 and result.data[0].get("last_run_at"):
                 self.last_run_at = datetime.fromisoformat(result.data[0]["last_run_at"])
                 self.logger.info(f"Loaded last run for '{name}': {self.last_run_at}")
