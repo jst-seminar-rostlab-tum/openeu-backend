@@ -88,7 +88,7 @@ def get_response(prompt: str, session_id: str):
                 "chat_session": session_id,
                 "content": prompt,
                 "author": "user",
-                "date": datetime.now(timezone.utc),
+                "date": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
         message_response = (
@@ -115,8 +115,14 @@ def get_response(prompt: str, session_id: str):
             stream=True,
         )
     except Exception as e:
-        logging.error("Error in getting response from OpenAI:", str(e))
-        raise HTTPException(503, "OpenAI server is busy, try again later") from None
+        logging.error("Error in getting response from OpenAI: %s", e)
+        fallback_text = (
+            "Sorry, I'm currently experiencing technical difficulties and cannot provide an answer. "
+            "Please try again in a few moments."
+        )
+
+        yield f"id: {session_id}\ndata: {fallback_text}\n\n"
+        return  # Stop the generator
     try:
         full_response = ""
         for chunk in response:
@@ -126,7 +132,7 @@ def get_response(prompt: str, session_id: str):
                 supabase.table("chat_messages").update(
                     {
                         "content": full_response,
-                        "date": datetime.now(timezone.utc),
+                        "date": datetime.now(timezone.utc).isoformat(),
                     }
                 ).eq("id", message_response.data[0].get("id")).eq("chat_session", session_id).execute()
 
