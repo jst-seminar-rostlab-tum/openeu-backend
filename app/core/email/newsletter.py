@@ -4,6 +4,7 @@ from typing import Optional
 from app.core.supabase_client import supabase
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.email import Email, EmailService
+import logging
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -22,7 +23,7 @@ def get_user_email(user_id: str) -> Optional[str]:
     response = supabase.rpc("get_user_by_id", {"uid": user_id}).execute()
         
     if response.data and len(response.data) > 0:
-        return response.data[0]["email"]
+        return response.data
     else:
         print("User not found.")
         return None
@@ -51,7 +52,7 @@ def get_user_name(user_id: str) -> Optional[str]:
         str | None: The name of the user if found, else None.
     """
     try:
-        response = supabase.table("profiles").select("name").eq("user_id", user_id).single().execute()
+        response = supabase.table("profiles").select("name").eq("id", user_id).single().execute()
         
         if response.data:
             return response.data["name"]
@@ -121,6 +122,8 @@ def build_email_for_user(user_id: str) -> str:
 
 class Newsletter():
     email_client = EmailService()
+    logger = logging.getLogger(__name__)
+
     
     @staticmethod
     def send_newsletter_to_user(user_id):
@@ -130,6 +133,20 @@ class Newsletter():
         mail = Email(
             subject="OpenEU Meeting Newsletter", html_body=mail_body, recipients=[user_mail]
         )
-        Newsletter.email_client.send_email(mail)
-    
+        try:
+            Newsletter.email_client.send_email(mail)
+            EmailService.logger(f"Newsletter send succesfully to user_id={user_id}")
+        except:
+            EmailService.logger(f"Failed to send newsletter for user_id={user_id}")
+            
+            
+        notification_payload = {
+                "user_id": user_id,
+                "type": "newsletter",
+                "message": f"Sent email: {mail.subject}"
+        }
+        supabase.table("notifications").insert(notification_payload).execute()
 
+
+
+Newsletter().send_newsletter_to_user("456378e1-39f2-4715-98d9-78f80698ffb0")

@@ -9,10 +9,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 
-create or replace function get_user_by_id(uid uuid)
-returns table(email text) as $$
-begin
-  return query
-  select email from auth.users where id = uid;
-end;
-$$ language plpgsql security definer;
+CREATE OR REPLACE FUNCTION get_user_by_id(uid UUID)
+  RETURNS TEXT
+AS $$
+  SELECT email
+    FROM auth.users
+   WHERE id = $1;
+$$
+LANGUAGE SQL
+SECURITY DEFINER;
+
