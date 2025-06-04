@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from app.core.email import Email, EmailService
+from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
@@ -60,14 +60,12 @@ def scrape_belgian_parliament_meetings():
 
 def send_daily_newsletter():
     users = supabase.auth.admin.list_users()
-    email_addresses = [user.email for user in users]
-    email_message = Email(
-        subject="OpenEU Daily Newsletter",
-        html_body="<p>Here is your daily newsletter from OpenEU.</p>",
-        recipients=email_addresses,
-    )
-    logger.info(f"Sending daily newsletter to {len(email_addresses)} users")
-    EmailService.send_email(email=email_message)
+    ids = [user.id for user in users]
+
+    logger.info(f"Sending daily newsletter to {len(ids)} users")
+
+    for id in ids:
+        Newsletter.send_newsletter_to_user(id)
 
 
 def scrape_mec_prep_bodies_meetings():
