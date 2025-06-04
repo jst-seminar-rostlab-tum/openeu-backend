@@ -144,7 +144,7 @@ async def get_chat_response(chat_message_item: ChatMessageItem):
 
 
 @router.post("/start", response_model=NewChatResponseModel)
-def create_new_session(new_session_item: NewSessionItem) -> NewChatResponseModel:
+def create_new_session(new_session_item: NewSessionItem) -> dict[str, str]:
     data = {
         "title": new_session_item.title,
         "user_id": new_session_item.user_id,
@@ -177,7 +177,7 @@ def get_all_messages(session_id: str) -> list:
 
 
 @router.get("/sessions", response_model=list[SessionsResponseModel])
-def get_user_sessions(user_id: str) -> list[SessionsResponseModel]:
+def get_user_sessions(user_id: str) -> list[dict[str, str]]:
     try:
         response = supabase.table("chat_sessions").select("*").eq("user_id", user_id).execute()
     except APIError as e:
