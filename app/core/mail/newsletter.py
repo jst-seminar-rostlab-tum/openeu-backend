@@ -22,12 +22,21 @@ def get_user_email(user_id: str) -> Optional[str]:
     Returns:
         str | None: The email of the user if found, else None.
     """
-    response = supabase.rpc("get_user_by_id", {"uid": user_id}).execute()
 
-    if response.data and len(response.data) > 0:
-        return response.data
+    try:
+        user = supabase.auth.admin.get_user_by_id(user_id)
+    except Exception as e:
+        logger.error(f"Error calling get_user_by_id for user_id={user_id}: {e}")
+        return None
+
+    # In supabase-py v1.x, `response` is a dict with a "user" key
+    user_mail = user.email
+
+    if user_mail:
+        return user_mail
+
     else:
-        logger.info("User not found.")
+        logger.info(f"User not found or has no email: user_id={user_id}")
         return None
 
 
