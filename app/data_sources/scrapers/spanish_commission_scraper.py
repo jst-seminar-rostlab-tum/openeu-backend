@@ -87,7 +87,7 @@ class SpanishCommissionSpider(scrapy.Spider):
             # Gather text
             description_parts = description_div.css("::text").getall() if description_div else []
             description_text = " ".join(part.strip() for part in description_parts if part.strip())
-            description_en = self.translator.translate(description_text).text if description_text else ""
+            # description_en = self.translator.translate(description_text).text if description_text else ""
 
             # Title logic
             title = description_div.css("a::text").get() if description_div else "Untitled"
@@ -96,24 +96,24 @@ class SpanishCommissionSpider(scrapy.Spider):
                 description_text = ""
             elif not title:
                 title = "Untitled"
-            title_en = self.translator.translate(title).text if title else "Untitled"
+            # title_en = self.translator.translate(title).text if title else "Untitled"
 
             location = (location_div.css("::text").get() or "").strip() if location_div else None
-            location_en = self.translator.translate(location).text if location else None
+            # location_en = self.translator.translate(location).text if location else None
 
             embedding_input = (
-                f"{title_en} {self.date.isoformat()} {time} {location_en or ''} {description_en or ''}".strip()
+                f"{title} {self.date.isoformat()} {time} {location or ''} {description_text or ''}".strip()
             )
 
             entry = CommissionAgendaEntry(
                 date=self.date.isoformat(),
                 time=time,
                 title=title.strip(),
-                title_en=title_en,
+                # title_en=title_en,
                 location=location,
-                location_en=location_en,
+                # location_en=location_en,
                 description=description_text,
-                description_en=description_en,
+                # description_en=description_en,
                 url=primary_url,
                 embedding_input=embedding_input,
                 links=links or None,
