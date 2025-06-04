@@ -1,9 +1,8 @@
-# app/api/notifications.py
-
 import logging
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from uuid import UUID
 
 from app.core.supabase_client import supabase
 from app.models.notifications import Notification
@@ -27,8 +26,7 @@ def get_notifications_for_user(
     """
     try:
         result = (
-            supabase
-            .table("notifications")
+            supabase.table("notifications")
             .select("*")
             .eq("user_id", str(user_id))
             .order("sent_at", desc=True)
