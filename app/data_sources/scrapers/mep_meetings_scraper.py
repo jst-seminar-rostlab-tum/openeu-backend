@@ -92,6 +92,9 @@ class MEPMeetingsSpider(scrapy.Spider):
         self.meetings: list[MEPMeeting] = []
 
     async def start(self) -> AsyncGenerator[scrapy.Request, None]:
+        """
+        Start the spider.
+        """
         yield self.scrape_page(0)
 
     def scrape_page(self, page: int) -> scrapy.Request:
