@@ -129,81 +129,26 @@ VALUES
 --Seed for users in auth.users--
 --------------------------------
 INSERT INTO auth.users (
-  instance_id,
-  id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  invited_at,
-  confirmation_token,
-  confirmation_sent_at,
-  recovery_token,
-  recovery_sent_at,
-  email_change_token_new,
-  email_change,
-  email_change_sent_at,
-  last_sign_in_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  is_super_admin,
-  created_at,
-  updated_at,
-  phone,
-  phone_confirmed_at,
-  phone_change,
-  phone_change_token,
-  phone_change_sent_at,
-  email_change_token_current,
-  email_change_confirm_status,
-  banned_until,
-  reauthentication_token,
-  reauthentication_sent_at,
-  is_sso_user,
-  deleted_at,
-  is_anonymous
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  invited_at, confirmation_token, confirmation_sent_at, recovery_token,
+  recovery_sent_at, email_change_token_new, email_change, email_change_sent_at,
+  last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
+  created_at, updated_at, phone, phone_confirmed_at, phone_change,
+  phone_change_token, phone_change_sent_at,
+  email_change_token_current, email_change_confirm_status, banned_until,
+  reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at, is_anonymous
 ) VALUES
 (
-  '9ef6c467-f47b-43f4-be9c-6bde6d347f7b',  -- new instance_id v4
-  'e3635af1-7b33-4aa6-b367-159aeebdc03f',  -- new id v4
-  'authenticated',
-  'authenticated',
-  'janvanderlinde@gmx.de',
-  '$2a$10$v1cH69URAjWSMZepjd8XA.dP5CEe1/xQHTQTUisQ52hLmqeRUmfwq',
-  TIMESTAMP WITH TIME ZONE '2025-06-01 09:18:48.530899+00',
-  NULL,
-  NULL,
-  TIMESTAMP WITH TIME ZONE '2025-06-01 09:17:07.41681+00',
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  TIMESTAMP WITH TIME ZONE '2025-06-01 09:19:49.115159+00',
-  '{"provider":"email","providers":["email"]}',
-  '{
-    "sub": "e3635af1-7b33-4aa6-b367-159aeebdc03f",
-    "email": "janvanderlinde@gmx.de",
-    "email_verified": true,
-    "phone_verified": false
-  }',
-  NULL,
-  TIMESTAMP WITH TIME ZONE '2025-06-01 09:17:07.409983+00',
-  TIMESTAMP WITH TIME ZONE '2025-06-01 09:19:49.118124+00',
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  NULL,
-  NULL,
-  NULL,
-  FALSE,
-  NULL,
-  FALSE
+  '00000000-0000-0000-0000-000000000000', 'f82dc603-3148-4ba3-af07-89a34ef3162a', 'authenticated', 'authenticated',
+  'janvanderlinde@gmx.de', '$2a$10$0Qv9zWyP8jfvyQ11HSnzAuvs.sgWNF.AvIEOJs1.X.851Kw0Lp1sa', '2025-06-05 17:29:35.159918+00',
+  NULL, '', NULL, '',
+  NULL, '', '', NULL,
+  '2025-06-05 17:29:35.163414+00',
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{"sub": "f82dc603-3148-4ba3-af07-89a34ef3162a", "email": "janvanderlinde@gmx.de", "email_verified": true, "phone_verified": false}'::jsonb,
+  NULL, '2025-06-05 17:29:35.133839+00', '2025-06-05 17:29:35.170839+00', NULL,
+  NULL, '', '', NULL, '', 0, NULL,
+  '', NULL, false, NULL, false
 );
 
 
@@ -217,7 +162,7 @@ INSERT INTO profiles (
   embedding
 )
 VALUES (
-  'e3635af1-7b33-4aa6-b367-159aeebdc03f',
+  'f82dc603-3148-4ba3-af07-89a34ef3162a',
   'Alice',
   'Smith',
   'BrightWave Technologies',

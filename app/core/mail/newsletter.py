@@ -142,3 +142,4 @@ class Newsletter:
 
 
 
+print(Newsletter.send_newsletter_to_user("f82dc603-3148-4ba3-af07-89a34ef3162a"))
