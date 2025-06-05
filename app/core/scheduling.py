@@ -13,14 +13,22 @@ TABLE_NAME = "scheduled_job_runs"
 
 class ScheduledJob:
     def __init__(
-        self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, use_process: bool = False
+        self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, run_in_process: bool = False
     ):
+        """
+        Initializes a ScheduledJob instance.
+        :param name: Unique name for the job.
+        :param func: The function to run for this job.
+        :param interval: Time interval between runs.
+        :param grace_seconds: Grace period in seconds after the interval during which the job can still run.
+        :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
+        """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
         self.interval = interval
         self.grace = timedelta(seconds=grace_seconds)
-        self.use_process = use_process
+        self.run_in_process = run_in_process
         self.last_run_at: datetime | None = None
         self.success: bool = False
         self.result: ScraperResult | None = None
@@ -81,7 +89,7 @@ class ScheduledJob:
             self.mark_just_ran()
 
     def run_async(self):
-        if self.use_process:
+        if self.run_in_process:
             multiprocessing.Process(target=self._run, daemon=True).start()
         else:
             threading.Thread(target=self._run, daemon=True).start()
@@ -93,13 +101,13 @@ class JobScheduler:
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(self, name: str, func: Callable, interval_minutes: int, use_process: bool = False):
+    def register(self, name: str, func: Callable, interval_minutes: int, run_in_process: bool = False):
         if interval_minutes % 10 != 0:
             raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
         self.job_names.add(name)
-        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes), use_process=use_process)
+        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes), run_in_process=run_in_process)
         self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
 
     def tick(self):
