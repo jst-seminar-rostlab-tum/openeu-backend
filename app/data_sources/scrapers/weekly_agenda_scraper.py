@@ -1,9 +1,8 @@
 import datetime
 import logging
 import re
-from collections.abc import Generator
 from datetime import date, timedelta
-from typing import Callable, Optional
+from typing import AsyncGenerator, Callable, Optional
 
 import scrapy
 from parsel import Selector
@@ -54,7 +53,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
         self.result_callback = result_callback
         self.entries: list[AgendaEntry] = []
 
-    def start_requests(self) -> Generator[scrapy.Request, None, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         """
         Generate requests for each week in the specified date range.
         """
@@ -519,7 +518,7 @@ if __name__ == "__main__":
     print("Scraping weekly agenda...")
 
     # Example: scrape from week 20 to 21
-    start = datetime.date(2024, 11, 18)
+    start = datetime.date(2025, 5, 20)
     end = datetime.date(2025, 5, 26)
 
     #   entries = scrape_agenda(start_date=start, end_date=end)
