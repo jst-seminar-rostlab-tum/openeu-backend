@@ -3,7 +3,8 @@
 # ------------------------------
 import datetime
 import logging
-from typing import AsyncGenerator, Callable, Optional
+from collections.abc import AsyncGenerator
+from typing import Callable, Optional
 
 import scrapy
 from pydantic import BaseModel
