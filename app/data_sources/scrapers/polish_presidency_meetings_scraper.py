@@ -1,9 +1,8 @@
 import logging
 import re
-from collections.abc import Generator
 from datetime import date
 from datetime import datetime as dt
-from typing import Any, Callable, Optional
+from typing import AsyncGenerator, Callable, Optional
 from urllib.parse import urlencode
 
 import scrapy
@@ -77,7 +76,10 @@ class PolishPresidencyMeetingsSpider(scrapy.Spider):
         self.result_callback: Optional[Callable[[list[PolishPresidencyMeeting]], None]] = result_callback
         self.meetings: list[PolishPresidencyMeeting] = []
 
-    def start_requests(self) -> Generator[scrapy.Request, Any, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
+        """
+        Called by Scrapy when the spider starts crawling.
+        """
         params = {
             "StartDate": self.start_date.strftime("%Y-%m-%d"),
             "EndDate": self.end_date.strftime("%Y-%m-%d"),
@@ -206,9 +208,7 @@ if __name__ == "__main__":
 
     print("Scraping Polish EU Presidency meetings...")
 
-    scraper = PolishPresidencyMeetingsScraper(
-        start_date=datetime.date(2025, 5, 20), end_date=datetime.date(2025, 5, 21)
-    )
+    scraper = PolishPresidencyMeetingsScraper(start_date=datetime.date(2025, 6, 3), end_date=datetime.date(2025, 6, 3))
     result = scraper.scrape()
     meetings = scraper.entries
     if result.success:

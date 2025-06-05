@@ -3,7 +3,7 @@ import math
 import re
 from collections.abc import Generator
 from datetime import date
-from typing import Any, Callable, Optional
+from typing import AsyncGenerator, Callable, Optional
 from urllib.parse import urlencode
 
 import scrapy
@@ -91,7 +91,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         self.result_callback: Optional[Callable[[list[MEPMeeting]], None]] = result_callback
         self.meetings: list[MEPMeeting] = []
 
-    def start_requests(self) -> Generator[scrapy.Request, Any, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         yield self.scrape_page(0)
 
     def scrape_page(self, page: int) -> scrapy.Request:

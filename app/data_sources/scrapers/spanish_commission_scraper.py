@@ -3,8 +3,7 @@
 # ------------------------------
 import datetime
 import logging
-from collections.abc import Generator
-from typing import Callable, Optional
+from typing import AsyncGenerator, Callable, Optional
 
 import scrapy
 from pydantic import BaseModel
@@ -52,7 +51,7 @@ class SpanishCommissionSpider(scrapy.Spider):
         self.translator = DeepLTranslator(translator)
         super().__init__()
 
-    def start_requests(self) -> Generator[scrapy.Request, None, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         url = f"https://www.congreso.es/en/agenda?p_p_id=agenda&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_agenda_mvcPath=cambiaragenda&_agenda_tipoagenda=1&_agenda_dia={self.date.day:02d}&_agenda_mes={self.date.month:02d}&_agenda_anio={self.date.year}"
         yield scrapy.Request(url=url, callback=self.parse_day)
 
