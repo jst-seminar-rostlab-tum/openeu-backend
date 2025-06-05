@@ -1,4 +1,30 @@
-CREATE or REPLACE VIEW public.v_meetings as
+-- 1. Create country map table for meetings
+create table if not exists public.country_map_meetings (
+    source_table text primary key,
+    country      text not null,
+    iso2         char(2) not null
+);
+
+-- 2️.  Up-sert country map
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('mep_meetings',                   'European Union', 'EU'),
+  ('ep_meetings',                    'European Union', 'EU'),
+  ('austrian_parliament_meetings',   'Austria',        'AT'),
+  ('ipex_events',                    'European Union', 'EU'),
+
+  -- new
+  ('belgian_parliament_meetings',    'Belgium',        'BE'),
+  ('mec_prep_bodies_meeting',        'European Union', 'EU'),
+  ('mec_summit_ministerial_meeting', 'European Union', 'EU'),
+  ('polish_presidency_meeting',      'Poland',         'PL')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 3️. Rebuild the view with the new schema
+drop view if exists public.v_meetings cascade;
+
+create or replace view public.v_meetings as
 with base as (
     -- MEP meetings
     select
@@ -81,10 +107,10 @@ with base as (
         b.id || '_belgian_parliament'   as meeting_id,
         b.id::text                      as source_id,
         'belgian_parliament_meetings'   as source_table,
-        coalesce(b.title_en, b.title)   as title,                      -- ← pick EN if present
+        coalesce(b.title_en, b.title)   as title,
         b.meeting_date::timestamptz     as meeting_start_datetime,
         null::timestamptz               as meeting_end_datetime,
-        b.location                      as exact_location,             -- room / city, etc.
+        b.location                      as exact_location,
         coalesce(b.description_en, b.description) as description,
         b.meeting_url                   as meeting_url,
         null::text                      as status,
@@ -101,8 +127,6 @@ with base as (
         p.id::text                        as source_id,
         'mec_prep_bodies_meeting'         as source_table,
         p.title                           as title,
-        /*  The scraper stores a *naïve* timestamp.  We treat it as UTC and
-            make it timezone-aware; adjust if that assumption ever changes. */
         (p.meeting_timestamp at time zone 'UTC')::timestamptz
                                           as meeting_start_datetime,
         null::timestamptz                 as meeting_end_datetime,
@@ -123,14 +147,10 @@ with base as (
         s.id::text                              as source_id,
         'mec_summit_ministerial_meeting'        as source_table,
         s.title                                 as title,
-
-        /* `meeting_date` & `meeting_end_date` are DATEs (naïve, no TZ).
-          We treat them as UTC-midnight; adjust if the scraper changes. */
         s.meeting_date::timestamptz             as meeting_start_datetime,
         s.meeting_end_date::timestamptz         as meeting_end_datetime,
-
         null::text                              as exact_location,
-        s.category_abbr                         as description,   -- e.g. “ECOFIN”
+        s.category_abbr                         as description,
         s.url                                   as meeting_url,
         null::text                              as status,
         null::text                              as source_url,
@@ -147,11 +167,8 @@ with base as (
         p.id::text                            as source_id,
         'polish_presidency_meeting'           as source_table,
         p.title                               as title,
-
-        /* Both dates are DATE-only; cast to timestamptz (UTC-midnight). */
         p.meeting_date::timestamptz           as meeting_start_datetime,
         p.meeting_end_date::timestamptz       as meeting_end_datetime,
-
         p.meeting_location                    as exact_location,
         null::text                            as description,
         p.meeting_url                         as meeting_url,
@@ -168,3 +185,4 @@ select
 from base
 join public.country_map_meetings as cm
     on base.source_table = cm.source_table;
+
