@@ -3,9 +3,9 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
-from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
+from zoneinfo import ZoneInfo
 
 from app.core.supabase_client import supabase
 from scripts.embedding_generator import embed_row
@@ -47,6 +47,8 @@ class ScraperBase(ABC):
                     return result
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
+                    if result.error:
+                        logger.error(f"Error: {result.error.__class__} - {result.error}")
             except Exception as e:
                 logger.exception(f"Exception during scrape attempt {attempt + 1}: {e}")
                 result = ScraperResult(success=False, error=e, last_entry=self.last_entry)
