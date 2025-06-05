@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import threading
 from datetime import datetime, timedelta
 from typing import Callable
@@ -11,12 +12,15 @@ TABLE_NAME = "scheduled_job_runs"
 
 
 class ScheduledJob:
-    def __init__(self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30):
+    def __init__(
+        self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, use_process: bool = False
+    ):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
         self.interval = interval
         self.grace = timedelta(seconds=grace_seconds)
+        self.use_process = use_process
         self.last_run_at: datetime | None = None
         self.success: bool = False
         self.result: ScraperResult | None = None
@@ -61,23 +65,26 @@ class ScheduledJob:
         except Exception as e:
             self.logger.error(f"Failed to update last run time for job '{self.name}': {e}")
 
-    def run_async(self):
-        def _run():
-            self.success = False
-            self.error = None
-            self.result = None
-            try:
-                self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
-                self.result = self.func()
-                self.success = True
-            except Exception as e:
-                self.logger.error(f"Error in job '{self.name}': {e}")
-                self.error = e
-                notify_job_failure(self.name, e)
-            finally:
-                self.mark_just_ran()
+    def _run(self):
+        self.success = False
+        self.error = None
+        self.result = None
+        try:
+            self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
+            self.result = self.func()
+            self.success = True
+        except Exception as e:
+            self.logger.error(f"Error in job '{self.name}': {e}")
+            self.error = e
+            notify_job_failure(self.name, e)
+        finally:
+            self.mark_just_ran()
 
-        threading.Thread(target=_run, daemon=True).start()
+    def run_async(self):
+        if self.use_process:
+            multiprocessing.Process(target=self._run, daemon=True).start()
+        else:
+            threading.Thread(target=self._run, daemon=True).start()
 
 
 class JobScheduler:
@@ -86,13 +93,13 @@ class JobScheduler:
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(self, name: str, func: Callable, interval_minutes: int):
+    def register(self, name: str, func: Callable, interval_minutes: int, use_process: bool = False):
         if interval_minutes % 10 != 0:
             raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
         self.job_names.add(name)
-        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes))
+        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes), use_process=use_process)
         self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
 
     def tick(self):
