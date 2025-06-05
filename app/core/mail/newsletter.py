@@ -40,6 +40,8 @@ def get_user_email(user_id: str) -> Optional[str]:
         return None
 
 
+get_user_email("e3635af1-7b33-4aa6-b367-159aeebdc03f")
+
 def _load_base64_text_file(path: Path) -> str:
     """
     Reads a file containing raw Base64 data (no "data:image/..." header)
@@ -145,3 +147,6 @@ class Newsletter:
 
         notification_payload = {"user_id": user_id, "type": "newsletter", "message": str(mail_body)}
         supabase.table("notifications").insert(notification_payload).execute()
+
+
+
