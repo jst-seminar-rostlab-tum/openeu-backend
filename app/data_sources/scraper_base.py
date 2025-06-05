@@ -1,10 +1,10 @@
+import logging
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-import logging
-import time
 from postgrest import APIResponse
 
 from app.core.supabase_client import supabase
