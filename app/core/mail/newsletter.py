@@ -84,11 +84,12 @@ def build_email_for_user(user_id: str) -> str:
 
     base_dir = Path(__file__).parent
 
+    
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
     
-    if not response_obj:
-        raise ValueError(f"No meetings found for user_id {user_id}")
-
+    if response_obj.meetings == []:
+        return ""
+    
     name_of_recipient = get_user_name(user_id=user_id)
 
     image1_path = base_dir / "logo1.b64"
@@ -128,6 +129,10 @@ class Newsletter:
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
         mail_body = build_email_for_user(user_id=user_id)
+        
+        if mail_body == "":
+            logger.info(f"Failed to send newsletter for user_id={user_id}, no meetings found")
+            return
 
         mail = Email(
             subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
