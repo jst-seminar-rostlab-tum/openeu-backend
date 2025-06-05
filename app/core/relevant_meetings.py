@@ -40,12 +40,7 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
     try:
         neighbors = get_top_k_neighbors_by_embedding(
             vector_embedding=profile_embedding,
-            allowed_sources={
-                "ep_meetings": "title",
-                "mep_meetings": "title",
-                "ipex_events": "title",
-                "austrian_parliament_meetings": "title",
-            },
+            allowed_sources={},
             k=k,
         )
     except Exception as e:
