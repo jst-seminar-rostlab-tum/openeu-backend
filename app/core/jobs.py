@@ -115,7 +115,7 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )
-    scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES, run_in_process=True)
     scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
@@ -123,7 +123,12 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
     )
-    scheduler.register("scrape_polish_presidency_meetings", scrape_polish_presidency_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register(
+        "scrape_polish_presidency_meetings",
+        scrape_polish_presidency_meetings,
+        DAILY_INTERVAL_MINUTES,
+        run_in_process=True,
+    )
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
