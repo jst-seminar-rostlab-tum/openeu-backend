@@ -24,13 +24,12 @@ def get_user_email(user_id: str) -> Optional[str]:
     """
 
     try:
-        user = supabase.auth.admin.get_user_by_id(user_id)
+        response = supabase.auth.admin.get_user_by_id(user_id)
     except Exception as e:
         logger.error(f"Error calling get_user_by_id for user_id={user_id}: {e}")
         return None
 
-    # In supabase-py v1.x, `response` is a dict with a "user" key
-    user_mail = user.email
+    user_mail = response.user.email
 
     if user_mail:
         return user_mail
@@ -39,8 +38,6 @@ def get_user_email(user_id: str) -> Optional[str]:
         logger.info(f"User not found or has no email: user_id={user_id}")
         return None
 
-
-get_user_email("e3635af1-7b33-4aa6-b367-159aeebdc03f")
 
 def _load_base64_text_file(path: Path) -> str:
     """
@@ -84,11 +81,9 @@ def build_email_for_user(user_id: str) -> str:
       5. Render the template with all context variables (meetings, images, current year).
       6. Return the rendered HTML as a string.
     """
-    # Determine the directory where this script lives
 
     base_dir = Path(__file__).parent
 
-    # 1. Fetch meetings and validate via Pydantic
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
 
     name_of_recipient = get_user_name(user_id=user_id)
@@ -100,7 +95,6 @@ def build_email_for_user(user_id: str) -> str:
 
     image1_b64 = _load_base64_text_file(image1_path)
 
-    # 3. Prepare Jinja2 environment and load the mail.html.j2 template
     template_path = base_dir / "newsletter_mailbody.html.j2"
 
     if not template_path.exists():
@@ -113,7 +107,6 @@ def build_email_for_user(user_id: str) -> str:
 
     template = env.get_template("newsletter_mailbody.html.j2")
 
-    # 4. Build the context for rendering
     context = {
         "meetings": response_obj.meetings,
         "image1_base64": image1_b64,
@@ -121,7 +114,6 @@ def build_email_for_user(user_id: str) -> str:
         "recipient": name_of_recipient,
     }
 
-    # 5. Render and return the HTML string
     rendered_html = template.render(**context)
     return rendered_html
 
