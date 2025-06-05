@@ -16,10 +16,9 @@ brussels_tz = ZoneInfo("Europe/Brussels")
 
 
 class ScraperResult:
-    def __init__(self, success: bool,
-                 lines_added: int = 0,
-                 error: Optional[Exception] = None,
-                 last_entry: Optional[Any] = None) -> None:
+    def __init__(
+        self, success: bool, lines_added: int = 0, error: Optional[Exception] = None, last_entry: Optional[Any] = None
+    ) -> None:
         self.success = success
         self.lines_added = lines_added
         self.error = error
@@ -30,7 +29,7 @@ class ScraperResult:
 
 
 class ScraperBase(ABC):
-    def __init__(self, table_name: str, max_retries: int = 3, retry_delay: float = 2.0):
+    def __init__(self, table_name: str, max_retries: int = 1, retry_delay: float = 2.0):
         self.table_name = table_name
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -79,7 +78,7 @@ class ScraperBase(ABC):
                 )
 
     def store_entry(
-            self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True
+        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True
     ) -> Optional[ScraperResult]:
         try:
             # add/update scraped_at timestamp
