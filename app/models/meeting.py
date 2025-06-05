@@ -17,6 +17,3 @@ class Meeting(BaseModel):
     description: Optional[str] = None
     tags: Optional[list[str]] = None
     similarity: Optional[float] = None
-
-    class Config:
-        extra = "allow"  # future-proofing: ignores any future columns so the API won’t 500
