@@ -29,7 +29,7 @@ class ScraperResult:
 
 
 class ScraperBase(ABC):
-    def __init__(self, table_name: str, max_retries: int = 3, retry_delay: float = 2.0):
+    def __init__(self, table_name: str, max_retries: int = 1, retry_delay: float = 2.0):
         self.table_name = table_name
         self.max_retries = max_retries
         self.retry_delay = retry_delay
