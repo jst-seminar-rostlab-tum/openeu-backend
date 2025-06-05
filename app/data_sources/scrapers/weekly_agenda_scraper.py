@@ -1,8 +1,9 @@
 import datetime
 import logging
 import re
+from collections.abc import AsyncGenerator
 from datetime import date, timedelta
-from typing import AsyncGenerator, Callable, Optional
+from typing import Callable, Optional
 
 import scrapy
 from parsel import Selector

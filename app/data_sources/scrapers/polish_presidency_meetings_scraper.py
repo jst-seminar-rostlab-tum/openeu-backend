@@ -1,8 +1,9 @@
 import logging
 import re
+from collections.abc import AsyncGenerator
 from datetime import date
 from datetime import datetime as dt
-from typing import AsyncGenerator, Callable, Optional
+from typing import Callable, Optional
 from urllib.parse import urlencode
 
 import scrapy

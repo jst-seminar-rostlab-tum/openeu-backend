@@ -1,9 +1,9 @@
 import logging
 import math
 import re
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from datetime import date
-from typing import AsyncGenerator, Callable, Optional
+from typing import Callable, Optional
 from urllib.parse import urlencode
 
 import scrapy
