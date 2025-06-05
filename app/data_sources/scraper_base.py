@@ -3,9 +3,9 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
-from zoneinfo import ZoneInfo
 
 from app.core.supabase_client import supabase
 from scripts.embedding_generator import embed_row
