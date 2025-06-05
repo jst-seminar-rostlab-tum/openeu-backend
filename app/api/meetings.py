@@ -32,10 +32,17 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
+    topics: Optional[list[str]] = None,
 ):
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
+
+        if topics:
+            if not query:
+                query = ""
+            for topic in topics:
+                query += f" {topic}"
 
         if query:
             neighbors = get_top_k_neighbors(
