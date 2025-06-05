@@ -5,6 +5,19 @@ create table if not exists public.country_map_meetings (
     iso2         char(2) not null
 );
 
+-- 1.1 Grant access on the new table to key roles
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to anon;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to authenticated;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to service_role;
+
 -- 2️.  Up-sert country map
 insert into public.country_map_meetings (source_table, country, iso2) values
   ('mep_meetings',                   'European Union', 'EU'),
