@@ -250,7 +250,13 @@ class MEPMeetingsScraper(ScraperBase):
 
     def scrape_once(self, last_entry, **kwargs) -> ScraperResult:
         try:
-            process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
+            process = CrawlerProcess(
+                settings={
+                    "LOG_LEVEL": "INFO",
+                    "USER_AGENT": "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36"
+                    " (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36",
+                }
+            )
             process.crawl(
                 MEPMeetingsSpider,
                 start_date=self.start_date,
