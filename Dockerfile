@@ -1,11 +1,11 @@
 FROM mcr.microsoft.com/playwright/python:v1.52.0-jammy
 
 WORKDIR /code
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install nodejs npm -y
+#RUN apt-get update && apt-get upgrade -y
+#RUN apt-get install nodejs npm -y
 
     
-RUN npx --yes supabase --version
+#RUN npx --yes supabase --version
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
 RUN pip install playwright
