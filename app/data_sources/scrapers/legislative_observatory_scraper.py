@@ -1,41 +1,84 @@
 import logging
+from typing import Callable
 
 import scrapy
-from postgrest.exceptions import APIError
+from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 
-from app.core.supabase_client import supabase
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
+
+
+class LegislativeObservatory(BaseModel):
+    reference: str
+    link: str | None = None
+    title: str | None = None
+    lastpubdate: str | None = None
+    committee: str | None = None
+    rapporteur: str | None = None
 
 
 class LegislativeObservatorySpider(scrapy.Spider):
     name = "legislative_observatory"
-    start_urls = ["https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML?fullText.mode=EXACT_WORD&year=2025"]
+
+    def __init__(self, result_callback: Callable[[LegislativeObservatory], None], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start_urls = [
+            "https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML?fullText.mode=EXACT_WORD&year=2025"
+        ]
+        self.result_callback = result_callback
 
     def parse(self, response):
+        entries = []
         items = response.xpath("//item")
         for entry in items:
-            data = {
-                "REFERENCE": entry.xpath("./reference/text()").get(),
-                "LINK": entry.xpath("./link/text()").get(),
-                "TITLE": entry.xpath("./title/text()").get(),
-                "LASTPUBDATE": entry.xpath("./lastpubdate/text()").get(),
-                "COMMITTEE": entry.xpath("./committee/committee/text()").get(),
-                "RAPPORTEUR": entry.xpath("./rapporteur/rapporteur/text()").get(),
-            }
+            obj = LegislativeObservatory(
+                reference=entry.xpath("./reference/text()").get(),
+                link=entry.xpath("./link/text()").get(),
+                title=entry.xpath("./title/text()").get(),
+                lastpubdate=entry.xpath("./lastpubdate/text()").get(),
+                committee=entry.xpath("./committee/committee/text()").get(),
+                rapporteur=entry.xpath("./rapporteur/rapporteur/text()").get(),
+            )
+            entries.append(obj)
 
-            self.upsert_record(data)
+        if self.result_callback:
+            self.result_callback(entries)
 
-    def upsert_record(self, record):
+
+class LegislativeObservatoryScraper(ScraperBase):
+    def __init__(self):
+        super().__init__(table_name="legislative_files")
+        self.entries: list[LegislativeObservatory] = []
+        self.logger = logging.getLogger(__name__)
+
+    def scrape_once(self, last_entry=None, **kwargs) -> ScraperResult:
         try:
-            supabase.table("legislative_files").upsert(record).execute()
-            logging.info(f"Upserted record: {record['reference']}")
-        except APIError as e:
-            logging.error(f"Supabase APIError: {e}")
+            process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
+            process.crawl(LegislativeObservatorySpider, result_callback=self._collect_entry)
+            process.start()
+            return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
         except Exception as e:
-            logging.error(f"Unexpected error during upsert: {e}")
+            logging.exception("Failed to scrape legislative observatory")
+            return ScraperResult(success=False, error=e)
+
+    def _collect_entry(self, entries: list[LegislativeObservatory]):
+        for entry in entries:
+            scraper_error_result = self.store_entry(entry.model_dump(), on_conflict="reference", embedd_entries=False)
+            if scraper_error_result is None:
+                self.entries.append(entry)
+            else:
+                self.logger.warning(f"Failed to store entry: {entry.reference} -> {scraper_error_result}")
 
 
+# ------------------------------
+# Testing
+# ------------------------------
 if __name__ == "__main__":
-    process = CrawlerProcess()
-    process.crawl(LegislativeObservatorySpider)
-    process.start()
+    print("Scraping Legislative Observatories...")
+    scraper = LegislativeObservatoryScraper()
+    result = scraper.scrape_once(last_entry=None)
+
+    if result.success:
+        print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
+    else:
+        print(f"Scraping failed with error: {result.error}")
