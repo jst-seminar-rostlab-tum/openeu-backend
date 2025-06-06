@@ -10,9 +10,9 @@ RUN apt-get update && apt-get upgrade -y && \
     libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
     libcairo2 libasound2 libsecret-1-0 libgles2 \
     libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
-    libgdk3.0-cil libgtk-3-common libpangocairo-1.0-0 \
-    libgdk-3-dev libgtk-3-dev libglib2.0-dev \
+    libgtk-3-dev libglib2.0-dev \
     && apt-get clean
+    
 RUN npx --yes supabase --version
 #Install necessary packages & libraries
 RUN pip install poetry==2.1.3
