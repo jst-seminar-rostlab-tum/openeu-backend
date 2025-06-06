@@ -10,7 +10,6 @@ from app.data_sources.scraper_base import ScraperResult
 
 TABLE_NAME = "scheduled_job_runs"
 
-
 class ScheduledJob:
     def __init__(
         self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, run_in_process: bool = False
