@@ -45,6 +45,12 @@ def get_meetings(
                     "mep_meetings": "title",
                     "ipex_events": "title",
                     "austrian_parliament_meetings": "title",
+                    "belgian_parliament_meetings": "title",
+                    "mec_prep_bodies_meeting": "title",
+                    "mec_summit_ministerial_meeting": "title",
+                    "polish_presidency_meeting": "title",
+                    "spanish_commission_meetings": "title",
+                    "weekly_agenda": "title",
                 },
                 k=100,
             )

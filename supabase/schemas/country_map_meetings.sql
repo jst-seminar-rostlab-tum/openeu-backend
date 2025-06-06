@@ -9,12 +9,13 @@ insert into public.country_map_meetings (source_table, country, iso2) values
   ('ep_meetings',                    'European Union', 'EU'),
   ('austrian_parliament_meetings',   'Austria',        'AT'),
   ('ipex_events',                    'European Union', 'EU'),
-
-  -- new
   ('belgian_parliament_meetings',    'Belgium',        'BE'),
   ('mec_prep_bodies_meeting',        'European Union', 'EU'),
   ('mec_summit_ministerial_meeting', 'European Union', 'EU'),
-  ('polish_presidency_meeting',      'Poland',         'PL')
+  ('polish_presidency_meeting',      'Poland',         'PL'),
+  -- new
+  ('spanish_commission_meetings',    'Spain',          'ES'),
+  ('weekly_agenda',                  'European Union', 'EU')
 on conflict (source_table) do update
   set country = excluded.country,
       iso2    = excluded.iso2;
