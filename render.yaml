@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: openeu-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: pro
+    region: frankfurt
