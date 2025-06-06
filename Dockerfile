@@ -15,6 +15,8 @@ COPY pyproject.toml .
 COPY log_conf.yaml log_conf.yaml
 COPY README.md README.md
 COPY app app
+COPY main.py main.py
+
 
 RUN poetry install
 # Install Playwright browsers
