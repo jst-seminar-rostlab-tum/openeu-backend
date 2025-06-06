@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright/python:v1.52.0-jammy
+FROM python:3.13.3-slim
 WORKDIR /code
 #RUN apt-get update && apt-get upgrade -y
 #RUN apt-get install nodejs npm -y
