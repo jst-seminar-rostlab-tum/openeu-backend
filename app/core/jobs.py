@@ -17,6 +17,7 @@ from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendar
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
+from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
 DAILY_INTERVAL_MINUTES = 24 * 60
@@ -74,6 +75,12 @@ def scrape_mec_prep_bodies_meetings():
     return scraper.scrape()
 
 
+def scrape_weekly_agenda():
+    today = datetime.now().date()
+    scraper = WeeklyAgendaScraper(start_date=today, end_date=today)
+    return scraper.scrape()
+
+
 def scrape_austrian_parliament_meetings():
     today = datetime.now().date()
     return run_scraper(start_date=today, end_date=today)
@@ -117,6 +124,7 @@ def setup_scheduled_jobs():
     scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_weekly_agenda", scrape_weekly_agenda, WEEKLY_INTERVAL_MINUTES)
     scheduler.register("scrape_belgian_parliament_meetings", scrape_belgian_parliament_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
