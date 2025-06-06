@@ -19,12 +19,8 @@ RUN npx --yes supabase --version
 RUN pip install poetry==2.1.3
 RUN pip install playwright
 RUN pip install crawl4ai
-COPY pyproject.toml .
-#COPY .env .env
-COPY log_conf.yaml log_conf.yaml
-COPY README.md README.md
-COPY app app
-COPY main.py main.py
+
+COPY . .
 
 RUN poetry install
 # Install Playwright browsers
