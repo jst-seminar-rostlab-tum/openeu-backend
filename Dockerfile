@@ -10,15 +10,17 @@ WORKDIR /code
 RUN pip install poetry==2.1.3
 RUN pip install playwright
 RUN pip install crawl4ai
-COPY pyproject.toml .
+COPY pyproject.toml poetry.lock ./
+RUN poetry install
+
 #COPY .env .env
+#COPY pyproject.toml poetry.lock ./
 COPY log_conf.yaml log_conf.yaml
 COPY README.md README.md
 COPY app app
 COPY main.py main.py
+#COPY . .
 
-
-RUN poetry install
 # Install Playwright browsers
 RUN playwright install
 # Run crawl4ai setup
