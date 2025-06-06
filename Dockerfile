@@ -1,33 +1,26 @@
 FROM mcr.microsoft.com/playwright/python:v1.52.0-jammy
-
 WORKDIR /code
 #RUN apt-get update && apt-get upgrade -y
 #RUN apt-get install nodejs npm -y
 #RUN npx --yes supabase --version
-# Install Poetry
+
+    
+RUN npx --yes supabase --version
+#Install necessary packages & libraries
 RUN pip install poetry==2.1.3
-
-# Copy only dependency files first for caching
-COPY pyproject.toml poetry.lock ./
-
-# Install Python dependencies
-RUN poetry install --no-root --no-interaction
-
-# Install additional Python tools
-RUN poetry run pip install crawl4ai
-
-# Install Playwright browsers (Chromium, Firefox, WebKit)
-RUN playwright install
-
-RUN crawl4ai-setup
-
-
+RUN pip install playwright
+RUN pip install crawl4ai
+COPY pyproject.toml .
+#COPY .env .env
 COPY log_conf.yaml log_conf.yaml
 COPY README.md README.md
 COPY app app
 
-
-
+RUN poetry install
+# Install Playwright browsers
+RUN playwright install
+# Run crawl4ai setup
+RUN crawl4ai-setup
 RUN mkdir /.script
 RUN echo "#!/bin/sh" > /.script/start.sh
 RUN echo "cd /code" >> /.script/start.sh
