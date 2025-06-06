@@ -1,34 +1,33 @@
-FROM python:3.13.3-slim
+FROM mcr.microsoft.com/playwright/python:v1.52.0-jammy
+
 WORKDIR /code
 #RUN apt-get update && apt-get upgrade -y
 #RUN apt-get install nodejs npm -y
 #RUN npx --yes supabase --version
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y \
-    curl gnupg wget unzip xvfb nodejs npm \
-    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-    libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
-    libcairo2 libasound2 libsecret-1-0 libgles2 \
-    libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
-    libgtk-3-dev libglib2.0-dev \
-    && apt-get clean
-    
-RUN npx --yes supabase --version
-#Install necessary packages & libraries
+# Install Poetry
 RUN pip install poetry==2.1.3
-RUN pip install playwright
-RUN pip install crawl4ai
-COPY pyproject.toml .
-#COPY .env .env
+
+# Copy only dependency files first for caching
+COPY pyproject.toml poetry.lock ./
+
+# Install Python dependencies
+RUN poetry install --no-root --no-interaction
+
+# Install additional Python tools
+RUN poetry run pip install crawl4ai
+
+# Install Playwright browsers (Chromium, Firefox, WebKit)
+RUN playwright install
+
+RUN crawl4ai-setup
+
+
 COPY log_conf.yaml log_conf.yaml
 COPY README.md README.md
 COPY app app
 
-RUN poetry install
-# Install Playwright browsers
-RUN playwright install
-# Run crawl4ai setup
-RUN crawl4ai-setup
+
+
 RUN mkdir /.script
 RUN echo "#!/bin/sh" > /.script/start.sh
 RUN echo "cd /code" >> /.script/start.sh
