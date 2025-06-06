@@ -1,4 +1,4 @@
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
     sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
