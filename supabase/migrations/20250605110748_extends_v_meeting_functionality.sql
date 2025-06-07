@@ -1,4 +1,43 @@
-CREATE or REPLACE VIEW public.v_meetings as
+-- 1. Create country map table for meetings
+create table if not exists public.country_map_meetings (
+    source_table text primary key,
+    country      text not null,
+    iso2         char(2) not null
+);
+
+-- 1.1 Grant access on the new table to key roles
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to anon;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to authenticated;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to service_role;
+
+-- 2️.  Up-sert country map
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('mep_meetings',                   'European Union', 'EU'),
+  ('ep_meetings',                    'European Union', 'EU'),
+  ('austrian_parliament_meetings',   'Austria',        'AT'),
+  ('ipex_events',                    'European Union', 'EU'),
+
+  -- new
+  ('belgian_parliament_meetings',    'Belgium',        'BE'),
+  ('mec_prep_bodies_meeting',        'European Union', 'EU'),
+  ('mec_summit_ministerial_meeting', 'European Union', 'EU'),
+  ('polish_presidency_meeting',      'Poland',         'PL')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 3️. Rebuild the view with the new schema
+drop view if exists public.v_meetings cascade;
+
+create or replace view public.v_meetings as
 with base as (
     -- MEP meetings
     select
@@ -159,3 +198,4 @@ select
 from base
 join public.country_map_meetings as cm
     on base.source_table = cm.source_table;
+

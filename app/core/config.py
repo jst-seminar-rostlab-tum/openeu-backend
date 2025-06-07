@@ -42,7 +42,7 @@ class Settings:
                 )
                 keys_data_json = keys_data.json()
                 for key in keys_data_json:
-                    if key["name"] == "anon":
+                    if key["name"] == "service_role":
                         values["key"] = key
         return values
 

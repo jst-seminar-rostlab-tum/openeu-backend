@@ -3,7 +3,7 @@
 # ------------------------------
 import datetime
 import logging
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from typing import Callable, Optional
 
 import scrapy
@@ -52,7 +52,7 @@ class SpanishCommissionSpider(scrapy.Spider):
         self.translator = DeepLTranslator(translator)
         super().__init__()
 
-    def start_requests(self) -> Generator[scrapy.Request, None, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         url = f"https://www.congreso.es/en/agenda?p_p_id=agenda&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_agenda_mvcPath=cambiaragenda&_agenda_tipoagenda=1&_agenda_dia={self.date.day:02d}&_agenda_mes={self.date.month:02d}&_agenda_anio={self.date.year}"
         yield scrapy.Request(url=url, callback=self.parse_day)
 
@@ -68,52 +68,86 @@ class SpanishCommissionSpider(scrapy.Spider):
             description_div = content_divs[0] if len(content_divs) > 0 else None
             location_div = content_divs[1] if len(content_divs) > 1 else None
 
-            # Extract all <a> tag links into a dictionary
             links = {}
             primary_url = None
+            title = "Untitled"
+            description_text = ""
+
             if description_div:
-                for a in description_div.css("a"):
-                    label = a.css("::text").get("").lower().strip().replace(" ", "_")
-                    href = a.css("::attr(href)").get()
-                    if href:
-                        full_url = response.urljoin(href)
-                        if not primary_url:
-                            primary_url = full_url
-                        if label in links:
-                            links[label + "_2"] = full_url
-                        else:
-                            links[label] = full_url
+                a_tags = description_div.css("a")
 
-            # Gather text
-            description_parts = description_div.css("::text").getall() if description_div else []
-            description_text = " ".join(part.strip() for part in description_parts if part.strip())
-            description_en = self.translator.translate(description_text).text if description_text else ""
+                children = description_div.xpath("./node()")
+                node = children[0] if children else None
+                first_element_is_a = False
+                if node is not None and hasattr(node.root, "tag") and node.root.tag == "a":
+                    first_element_is_a = True
 
-            # Title logic
-            title = description_div.css("a::text").get() if description_div else "Untitled"
-            if not title and description_text:
-                title = description_text
-                description_text = ""
-            elif not title:
-                title = "Untitled"
-            title_en = self.translator.translate(title).text if title else "Untitled"
+                if first_element_is_a:
+                    first_a = a_tags[0]
+                    title = first_a.css("::text").get("").strip()
+                    primary_url = response.urljoin(first_a.css("::attr(href)").get(""))
+
+                    links_key = title.lower().strip().replace(" ", "_")
+                    links[links_key] = primary_url
+
+                    # other <a> tags
+                    for a in a_tags[1:]:
+                        label = a.css("::text").get("").lower().strip().replace(" ", "_")
+                        href = a.css("::attr(href)").get()
+                        if href:
+                            full_url = response.urljoin(href)
+                            if label in links:
+                                links[label + "_2"] = full_url
+                            else:
+                                links[label] = full_url
+
+                    # Get description excluding title text
+                    all_text = description_div.css("::text").getall()
+                    cleaned_text = [t.strip() for t in all_text if t.strip()]
+                    if title in cleaned_text:
+                        cleaned_text.remove(title)
+                    description_text = " ".join(cleaned_text).strip()
+
+                else:
+                    # No link at start — treat all text as description
+                    all_text = description_div.css("::text").getall()
+                    cleaned_text = [t.strip() for t in all_text if t.strip()]
+                    if cleaned_text:
+                        title = " ".join(cleaned_text)  # take all cleaned text as title
+                        description_text = ""  # no separate description
+                    else:
+                        title = "Untitled"
+                        description_text = ""
+
+                    # collect any <a> tags just for links
+                    for a in a_tags:
+                        label = a.css("::text").get("").lower().strip().replace(" ", "_")
+                        href = a.css("::attr(href)").get()
+                        if href:
+                            full_url = response.urljoin(href)
+                            if label in links:
+                                links[label + "_2"] = full_url
+                            else:
+                                links[label] = full_url
+
+            # title_en = self.translator.translate(title).text if title else "Untitled"
 
             location = (location_div.css("::text").get() or "").strip() if location_div else None
-            location_en = self.translator.translate(location).text if location else None
+            # location_en = self.translator.translate(location).text if location else None
 
             embedding_input = (
-                f"{title_en} {self.date.isoformat()} {time} {location_en or ''} {description_en or ''}".strip()
+                f"{title} {self.date.isoformat()} {time} {location or ''} {description_text or ''}".strip()
             )
 
             entry = CommissionAgendaEntry(
                 date=self.date.isoformat(),
                 time=time,
                 title=title.strip(),
-                title_en=title_en,
+                title_en=title.strip(), # TODO: replace with translation
                 location=location,
-                location_en=location_en,
+                # location_en=location_en,
                 description=description_text,
-                description_en=description_en,
+                description_en=description_text, # TODO: replace with translation
                 url=primary_url,
                 embedding_input=embedding_input,
                 links=links or None,
@@ -202,7 +236,7 @@ def scrape_agenda(date: datetime.date) -> list[CommissionAgendaEntry]:
 
 if __name__ == "__main__":
     print("Scraping Spanish Commision Agenda...")
-    date = datetime.date(2025, 5, 29)
+    date = datetime.date(2025, 6, 5)
 
     """
     entries = scrape_agenda(date)
