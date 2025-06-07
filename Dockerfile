@@ -39,6 +39,8 @@ RUN chmod +x /.script/start.sh
 EXPOSE 3000
 RUN echo "✅ Checking Playwright..."
 RUN playwright --version && which playwright && ls -l $(which playwright)
+RUN echo "✅ Checking crawl4ai..."
+RUN crawl4ai-doctor
 
 RUN poetry run python healthcheck.py
 

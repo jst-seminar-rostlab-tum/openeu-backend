@@ -8,4 +8,4 @@ with sync_playwright() as p:
     print("✅ Chromium launched and closed successfully.")
 
 print("✅ Verifying crawl4ai CLI access...")
-crawl4ai_main(["--help"])
+crawl4ai_main()
