@@ -58,7 +58,7 @@ class LawItemModel(BaseModel):
 
 class LawTrackerSpider(scrapy.Spider, ScraperBase):
     name = "topic_lawtracker"
-    custom_settings = {
+    custom_settings: dict[str, Any] = {
         # Playwright settings
         "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
         "DOWNLOAD_HANDLERS": {
@@ -69,6 +69,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 60_000,
         "CONCURRENT_REQUESTS": 4,
         "LOG_LEVEL": "INFO",
+        "TELNETCONSOLE_ENABLED": False,
     }
 
     def __init__(self, *args, **kwargs):
