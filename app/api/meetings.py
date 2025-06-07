@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
+from app.models.topic import Topic
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,17 +33,11 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    topics: Optional[list[str]] = None,
+    topics: Optional[list[Topic]] = None,
 ):
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
-
-        if topics:
-            if not query:
-                query = ""
-            for topic in topics:
-                query += f" {topic}"
 
         if query:
             neighbors = get_top_k_neighbors(

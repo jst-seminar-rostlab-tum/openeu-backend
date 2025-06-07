@@ -4,8 +4,10 @@ import numpy as np
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.supabase_client import supabase
+from app.models.meeting import Meeting
 from app.models.topic import Topic
 
 logger = logging.getLogger(__name__)
@@ -34,77 +36,157 @@ EXCLUDED_WORDS = {
     "act",
     "patriots",
     "en",
+    "romanian",
 }
 
 TABLE_NAME = "meeting_topics"
-
+ASSIGNMENTS_TABLE = "meeting_topic_assignments"
+OTHER_TOPIC = "Other"
+SIMILARITY_THRESHOLD = 0.4
 BATCH_SIZE = 500
 
 
-def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE):
+def clear_topics_and_assignments():
+    """
+    Clears all entries in the meeting_topics and meeting_topic_assignments tables.
+    """
+    supabase.table(ASSIGNMENTS_TABLE).delete().not_.is_("id", None).execute()
+    supabase.table(TABLE_NAME).delete().not_.is_("id", None).execute()
+
+
+def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meeting]:
     """
     Fetch a batch of meetings from v_meetings.
     """
     resp = supabase.table("v_meetings").select("*").range(offset, offset + batch_size - 1).execute()
-    return resp.data if resp.data else []
+    return [Meeting(**item) for item in resp.data]
 
 
-def extract_topics_from_meetings(n_clusters=15, top_n_keywords=20):
+def fetch_and_prepare_meetings() -> tuple[list[str], list[Meeting]]:
     """
-    Extracts topics from all meetings in the database by:
-    - Fetching meetings in batches
-    - Extracting keywords from meeting texts
-    - Clustering keyword embeddings to find representative topics
-    - Storing the resulting topics in the meeting_topics table
+    Fetches all meetings in batches and prepares their text for topic extraction.
+    Returns a tuple of (list of texts, list of Meeting objects).
     """
     offset = 0
-    all_texts = []
-
-    # Fetch meetings in batches
+    all_texts: list[str] = []
+    all_meetings: list[Meeting] = []
     while True:
-        batch = fetch_meetings_batch(offset)
+        batch: list[Meeting] = fetch_meetings_batch(offset)
         if not batch:
             break
-
-        texts = [
-            f"{m.get('title', '')}. {m.get('description', '')}".strip()
-            for m in batch
-            if m.get("title") or m.get("description")
-        ]
-        all_texts.extend(texts)
+        for m in batch:
+            if m.title and m.description:
+                text = f"{m.title}. {m.description}".strip()
+                all_texts.append(text)
+                all_meetings.append(m)
         offset += BATCH_SIZE
+    return all_texts, all_meetings
 
-    if not all_texts:
-        return []
 
-    # Extract keywords from all meetings
-    kw_model = KeyBERT("all-MiniLM-L6-v2")
-    all_keywords = []
-    for text in all_texts:
-        keywords = kw_model.extract_keywords(
-            text, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
+def ensure_other_topic() -> int | None:
+    """
+    Ensures the 'Other' topic exists in the topics table and returns its id.
+    """
+    try:
+        resp = supabase.table(TABLE_NAME).upsert({"topic": OTHER_TOPIC}, on_conflict=["topic"]).select("id").execute()
+        return resp.data[0]["id"] if resp.data else None
+    except Exception as e:
+        logger.error(f"Error storing Other topic: {e}")
+        return None
+
+
+class TopicExtractor:
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(model_name)
+        self.kw_model = KeyBERT(model_name)
+
+    def extract_keywords_from_texts(self, all_texts: list[str], top_n_keywords: int) -> list[str]:
+        """
+        Extracts keywords from a list of texts using KeyBERT, excluding generic words.
+        """
+        all_keywords: list[str] = []
+        for text in all_texts:
+            keywords = self.kw_model.extract_keywords(
+                text, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
+            )
+            all_keywords.extend([kw for kw, _ in keywords if kw.lower() not in EXCLUDED_WORDS])
+        return all_keywords
+
+    def cluster_keywords_and_store_topics(self, all_keywords: list[str], n_clusters: int) -> None:
+        """
+        Clusters keyword embeddings and stores topics in the database.
+        """
+        embeddings = self.model.encode(all_keywords)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(embeddings)
+        labels = kmeans.labels_
+        topic_keywords: list[str] = []
+        topic_ids = []
+        for i in range(n_clusters):
+            indices = np.where(labels == i)[0]
+            if len(indices) > 0:
+                topic = all_keywords[indices[0]].capitalize()
+                try:
+                    topic_data = Topic(topic=topic).model_dump()
+                    resp = supabase.table(TABLE_NAME).upsert(topic_data).execute()
+                    topic_id = resp.data[0]["id"] if resp.data else None
+                    topic_keywords.append(topic)
+                    topic_ids.append(topic_id)
+                except Exception as e:
+                    logger.error(f"Error storing entry in Supabase: {e}")
+                    topic_keywords.append(topic)
+                    topic_ids.append(None)
+
+    def assign_meeting_to_topic(self, meeting: Meeting):
+        """
+        Assigns a single meeting to the closest topic (or 'Other') using cosine similarity.
+        """
+        resp = supabase.table(TABLE_NAME).select("id,topic").execute()
+        topics = resp.data
+        if not topics:
+            return {
+                "source_id": meeting.meeting_id,
+                "source_table": meeting.source_table,
+                "topic_id": None,
+            }
+
+        topic_keywords = [t["topic"].lower().strip() for t in topics]
+        topic_ids = [t["id"] for t in topics]
+        other_id = next((t["id"] for t in topics if t["topic"] == OTHER_TOPIC), None)
+
+        topic_embeddings = self.model.encode(topic_keywords, normalize_embeddings=True)
+        meeting_text = f"{meeting.title or ''}. {meeting.description or ''}".strip()
+        meeting_emb = self.model.encode([meeting_text], normalize_embeddings=True)
+        sims = cosine_similarity(meeting_emb, topic_embeddings)[0]
+        best_idx = int(np.argmax(sims))
+        best_score = float(sims[best_idx])
+
+        assigned_topic_id = (
+            topic_ids[best_idx] if topic_ids[best_idx] is not None and best_score >= SIMILARITY_THRESHOLD else other_id
         )
-        all_keywords.extend([kw for kw, _ in keywords if kw.lower() not in EXCLUDED_WORDS])
 
-    if not all_keywords:
-        return []
+        try:
+            supabase.table(ASSIGNMENTS_TABLE).upsert(
+                {
+                    "source_id": meeting.meeting_id,
+                    "source_table": meeting.source_table,
+                    "topic_id": assigned_topic_id,
+                }
+            ).execute()
+        except Exception as e:
+            logger.error(f"Error storing meeting-topic assignments: {e}")
 
-    # Embed keywords and cluster them
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    embeddings = model.encode(all_keywords)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(embeddings)
-
-    # Get a representative keyword for each cluster
-    labels = kmeans.labels_
-    for i in range(n_clusters):
-        indices = np.where(labels == i)[0]
-        if len(indices) > 0:
-            topic = all_keywords[indices[0]].capitalize()
-            try:
-                supabase.table(TABLE_NAME).upsert(
-                    Topic(
-                        topic=topic,
-                    ).model_dump()
-                ).execute()
-            except Exception as e:
-                logger.error(f"Error storing entry in Supabase: {e}")
+    def extract_topics_from_meetings(self, n_clusters=15, top_n_keywords=20):
+        """
+        Orchestrates the extraction of topics and assignment of meetings to topics.
+        """
+        clear_topics_and_assignments()
+        all_texts, all_meetings = fetch_and_prepare_meetings()
+        if not all_texts:
+            return []
+        all_keywords = self.extract_keywords_from_texts(all_texts, top_n_keywords)
+        if not all_keywords:
+            return []
+        self.cluster_keywords_and_store_topics(all_keywords, n_clusters)
+        ensure_other_topic()
+        for meeting in all_meetings:
+            self.assign_meeting_to_topic(meeting)
