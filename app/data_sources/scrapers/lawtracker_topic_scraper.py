@@ -102,7 +102,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                     "playwright": True,
                     "playwright_page_methods": [
                         # wait for the result cards to load
-                        PageMethod("wait_for_selector", "div.result-card div.title-color"),
+                        PageMethod("wait_for_selector", "div.result-card div.title-color", timeout=90_000),
                     ],
                     "topic_code": code,
                 },
