@@ -40,12 +40,7 @@ def get_meetings(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={
-                    "ep_meetings": "title",
-                    "mep_meetings": "title",
-                    "ipex_events": "title",
-                    "austrian_parliament_meetings": "title",
-                },
+                allowed_sources={},
                 k=100,
             )
 
