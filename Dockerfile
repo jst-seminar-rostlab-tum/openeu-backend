@@ -36,4 +36,6 @@ RUN chmod +x /.script/start.sh
 
 #Expose port
 EXPOSE 3000
+RUN playwright --version && which playwright && ls -l $(which playwright)
+
 ENTRYPOINT ["/.script/start.sh"]
