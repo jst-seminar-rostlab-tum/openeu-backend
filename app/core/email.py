@@ -19,7 +19,7 @@ class Email:
         recipients: list[str],
         text_body: Optional[str] = None,
         sender_name: str = "OpenEU",
-        sender_email: str = "mail@openeu.csee.tech",
+        sender_email: str = "noreply@mail.openeu.csee.tech",
         reply_to: Optional[str] = None,
         headers: Optional[dict[str, str]] = None,
     ):
