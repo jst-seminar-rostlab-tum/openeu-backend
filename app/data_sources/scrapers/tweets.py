@@ -1,22 +1,32 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
+from datetime import timezone as tz
 
 import requests
 
 from app.core.config import Settings
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.models.tweet import Tweet
 from app.models.twitter_user import TwitterUser
 
+TWEETS_TABLE_NAME = "tweets"
+SCRAPE_LOOKBACK_DAYS = 4
 
-class TweetScraper:
+logger = logging.getLogger(__name__)
+
+
+class TweetScraper(ScraperBase):
     """
     A class to scrape tweets from a specific Twitter user since a specified date.
     """
 
-    def __init__(self):
+    def __init__(self, usernames: list[str]):
+        super().__init__(TWEETS_TABLE_NAME)
         settings = Settings()
         self.base_url = "https://api.twitterapi.io"
         self.headers = {"X-API-Key": settings.get_twitter_api_key()}
         self.max_recursion_depth = 10
+        self.usernames = usernames
 
     def _get_user(self, username: str) -> TwitterUser:
         """
@@ -36,8 +46,6 @@ class TweetScraper:
     ) -> list[Tweet]:
         if recursion_depth > self.max_recursion_depth:
             raise Exception("Too many pages requested, stopping to prevent infinite loop")
-
-        print("[REQUEST] Fetching tweets for user:", user_id, "with cursor:", cursor)
 
         tweets_response = requests.get(
             "https://api.twitterapi.io/twitter/user/last_tweets",
@@ -63,16 +71,38 @@ class TweetScraper:
         has_next_page = tweets_response_json["has_next_page"]
         next_cursor = tweets_response_json["next_cursor"]
         if has_next_page and next_cursor:
-            next_tweets = self._get_user_tweets_since_rec(user_id, since, next_cursor, recursion_depth + 1)
-            tweets.extend(next_tweets)
-            return tweets
+            try:
+                next_tweets = self._get_user_tweets_since_rec(user_id, since, next_cursor, recursion_depth + 1)
+                tweets.extend(next_tweets)
+                return tweets
+            except Exception as e:
+                logger.error(f"Error fetching next page of tweets, returning what we have so far: {e}")
+                return tweets
         else:
             return tweets
 
-    def get_user_tweets_since(self, username: str, since: datetime) -> list[Tweet]:
+    def _get_user_tweets_since(self, username: str, since: datetime) -> list[Tweet]:
         user = self._get_user(username)
         tweets = self._get_user_tweets_since_rec(user_id=user.id, since=since, cursor="", recursion_depth=0)
         return [tweet for tweet in tweets if tweet.created_at >= since]
 
+    def _scrape_all_usernames(self):
+        since = datetime.now(tz.utc) - timedelta(days=SCRAPE_LOOKBACK_DAYS)
 
-tweet_scraper = TweetScraper()
+        for username in self.usernames:
+            tweets = self._get_user_tweets_since(username, since)
+            for tweet in tweets:
+                error_result = self.store_entry(tweet.model_dump(mode="json"), embedd_entries=True)
+                if error_result:
+                    return error_result
+                self.last_entry = tweet
+
+    def scrape_once(self, last_entry, **args) -> ScraperResult:
+        logger.info(f"Starting tweet scraping for {len(self.usernames)} usernames...")
+        try:
+            self._scrape_all_usernames()
+        except Exception as e:
+            logger.error(f"Error during tweet scraping: {e}")
+            return ScraperResult(False, error=e)
+        logger.info("Tweet scraping completed successfully.")
+        return ScraperResult(True)
