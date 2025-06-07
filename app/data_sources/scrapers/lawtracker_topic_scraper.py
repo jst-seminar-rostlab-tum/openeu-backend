@@ -58,7 +58,7 @@ class LawItemModel(BaseModel):
 
 class LawTrackerSpider(scrapy.Spider, ScraperBase):
     name = "topic_lawtracker"
-    custom_settings: dict[str, Any] = {
+    custom_settings: dict[Any, Any] = {
         # Playwright settings
         "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
         "DOWNLOAD_HANDLERS": {
