@@ -36,6 +36,9 @@ RUN chmod +x /.script/start.sh
 
 #Expose port
 EXPOSE 3000
+RUN echo "✅ Checking Playwright..."
 RUN playwright --version && which playwright && ls -l $(which playwright)
+RUN echo "✅ Checking crawl4ai..."
+RUN poetry run crawl4ai --help >/dev/null 2>&1 && echo "✅ crawl4ai is installed" || echo "❌ crawl4ai not found"
 
 ENTRYPOINT ["/.script/start.sh"]
