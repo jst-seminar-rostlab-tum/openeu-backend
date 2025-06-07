@@ -1,5 +1,6 @@
 [tool.ruff]
 line-length = 120
+ignore = ["I001"]
 
 [tool.ruff.lint]
 select = [
