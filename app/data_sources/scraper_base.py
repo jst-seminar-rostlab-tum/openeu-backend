@@ -3,11 +3,13 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
-from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
+from zoneinfo import ZoneInfo
 
+from app.core.extract_topics import TopicExtractor
 from app.core.supabase_client import supabase
+from app.models.meeting import Meeting
 from scripts.embedding_generator import embed_row
 
 logger = logging.getLogger(__name__)
@@ -89,6 +91,14 @@ class ScraperBase(ABC):
             if embedd_entries:
                 self.embedd_entries(response)
             self.lines_added += len(response.data) if response.data else 0
+
+            try:
+                meeting = Meeting(**entry)
+                extractor = TopicExtractor()
+                extractor.assign_meeting_to_topic(meeting)
+            except Exception as e:
+                logger.info(f"Could not assign topic for meeting: {e}")
+
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
