@@ -25,7 +25,9 @@ COPY . .
 
 RUN poetry install
 # Install Playwright browsers
-RUN playwright install --with-deps
+#RUN playwright install --with-deps
+RUN poetry run playwright install
+
 # Run crawl4ai setup
 RUN crawl4ai-setup
 RUN mkdir /.script
