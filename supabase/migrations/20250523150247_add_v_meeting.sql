@@ -25,6 +25,3 @@ UNION ALL
     NULL::text AS source_url,
     NULL::text[] AS tags
    FROM ep_meetings e;
-
-
-

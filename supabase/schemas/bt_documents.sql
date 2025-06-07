@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS bt_documents (
   titel             TEXT,
   drucksachetyp     TEXT,
   text              TEXT,
-  title_english     TEXT
+  title_english     TEXT,
+  scraped_at        timestamp with time zone NOT NULL DEFAULT now()
 );

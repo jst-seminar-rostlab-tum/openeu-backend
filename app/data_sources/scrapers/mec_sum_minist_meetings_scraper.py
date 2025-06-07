@@ -44,6 +44,7 @@ class MECSummitMinisterialMeeting(BaseModel):
     meeting_date: str
     meeting_end_date: Optional[str]
     category_abbr: Optional[str]
+    embedding_input: Optional[str] = None
 
 
 class _MeetingDateParser:
@@ -213,19 +214,27 @@ class MECSumMinistMeetingsScraper(ScraperBase):
                     day_range_str=match.group(4),
                 )
 
+                meeting_title = link["text"].strip()
+                embedding_input = f'"{meeting_title}"'
+                if meeting_end_date is not None:
+                    embedding_input += f", from {meeting_date.isoformat()} to {meeting_end_date.isoformat()}"
+                else:
+                    embedding_input += f", on {meeting_date.isoformat()}"
+
                 meeting = MECSummitMinisterialMeeting(
                     url=link["href"],
-                    title=link["text"],
+                    title=meeting_title,
                     meeting_date=meeting_date.isoformat(),
                     meeting_end_date=meeting_end_date.isoformat() if meeting_end_date else None,
                     category_abbr=match.group(1),
+                    embedding_input=embedding_input,
                 )
 
                 if last_entry and meeting == last_entry:
                     continue
 
                 found_meetings.append(meeting)
-                scraper_error_result = self.store_entry(meeting.model_dump(), on_conflict="url")
+                scraper_error_result = self.store_entry(meeting.model_dump(), on_conflict="url", embedd_entries=False)
                 if scraper_error_result:
                     return (found_meetings, largest_page, scraper_error_result)
                 self.last_entry = meeting
@@ -272,7 +281,7 @@ class MECSumMinistMeetingsScraper(ScraperBase):
             return asyncio.run(self.scrape_once_async(last_entry))
         except Exception as e:
             logger.error(f"Error while scraping and storing meetings: {e}")
-            return ScraperResult(False, e, None)
+            return ScraperResult(success=False, error=e)
 
 
 # ------------------------------

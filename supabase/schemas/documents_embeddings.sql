@@ -1,7 +1,7 @@
 create extension vector;
 
 create table documents_embeddings (
-  id            uuid             primary key default gen_random_uuid(),
+  id            text             primary key default gen_random_uuid()::text,
   source_table  text             not null,
   source_id     text             not null,
   content_column  text             not null,   -- 'protocol', 'calendar', 'document'

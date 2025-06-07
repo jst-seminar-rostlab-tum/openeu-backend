@@ -39,7 +39,7 @@ MEC_PREP_BODIES_MEETING_TABLE_NAME = "mec_prep_bodies_meeting"
 
 
 class MECPrepBodiesMeeting(BaseModel):
-    id: int
+    id: str
     url: str
     title: str
     meeting_timestamp: str
@@ -131,7 +131,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             meeting_url = link["href"]
             match = meeting_url_pattern.search(meeting_url)
             if match:
-                meeting_id = int(match.group(1))
+                meeting_id = str(match.group(1))
 
                 # scrape meeting details
                 crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
@@ -204,7 +204,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             return asyncio.run(self.scrape_once_async(last_entry))
         except Exception as e:
             logger.error(f"Error while scraping and storing meetings: {e}")
-            return ScraperResult(False, e, None)
+            return ScraperResult(success=False, error=e)
 
 
 # ------------------------------

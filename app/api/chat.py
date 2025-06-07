@@ -21,24 +21,24 @@ class NewSessionItem(BaseModel):
 
 
 class ChatMessageItem(BaseModel):
-    session_id: int
+    session_id: str
     message: str
 
 
 class NewChatResponseModel(BaseModel):
-    session_id: int
+    session_id: str
 
 
 class MessagesResponseModel(BaseModel):
-    id: int
-    chat_session: int
+    id: str
+    chat_session: str
     content: str
     author: str
     date: datetime
 
 
 class SessionsResponseModel(BaseModel):
-    id: int
+    id: str
     user_id: str
     title: str
 
@@ -75,7 +75,7 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     return assistant_system_prompt
 
 
-def get_response(prompt: str, session_id: int):
+def get_response(prompt: str, session_id: str):
     try:
         database_messages = (
             supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
@@ -88,7 +88,7 @@ def get_response(prompt: str, session_id: int):
                 "chat_session": session_id,
                 "content": prompt,
                 "author": "user",
-                "date": datetime.now(timezone.utc),
+                "date": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
         message_response = (
@@ -115,8 +115,14 @@ def get_response(prompt: str, session_id: int):
             stream=True,
         )
     except Exception as e:
-        logging.error("Error in getting response from OpenAI:", str(e))
-        raise HTTPException(503, "OpenAI server is busy, try again later") from None
+        logging.error("Error in getting response from OpenAI: %s", e)
+        fallback_text = (
+            "Sorry, I'm currently experiencing technical difficulties and cannot provide an answer. "
+            "Please try again in a few moments."
+        )
+
+        yield f"id: {session_id}\ndata: {fallback_text}\n\n"
+        return  # Stop the generator
     try:
         full_response = ""
         for chunk in response:
@@ -126,7 +132,7 @@ def get_response(prompt: str, session_id: int):
                 supabase.table("chat_messages").update(
                     {
                         "content": full_response,
-                        "date": datetime.now(timezone.utc),
+                        "date": datetime.now(timezone.utc).isoformat(),
                     }
                 ).eq("id", message_response.data[0].get("id")).eq("chat_session", session_id).execute()
 
@@ -144,7 +150,7 @@ async def get_chat_response(chat_message_item: ChatMessageItem):
 
 
 @router.post("/start", response_model=NewChatResponseModel)
-def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
+def create_new_session(new_session_item: NewSessionItem) -> dict[str, str]:
     data = {
         "title": new_session_item.title,
         "user_id": new_session_item.user_id,
@@ -163,7 +169,7 @@ def create_new_session(new_session_item: NewSessionItem) -> dict[str, int]:
 
 
 @router.get("/sessions/{session_id}", response_model=list[MessagesResponseModel])
-def get_all_messages(session_id: int) -> list:
+def get_all_messages(session_id: str) -> list:
     try:
         response = supabase.table("chat_messages").select("*").order("date").eq("chat_session", session_id).execute()
     except APIError as e:
@@ -177,7 +183,7 @@ def get_all_messages(session_id: int) -> list:
 
 
 @router.get("/sessions", response_model=list[SessionsResponseModel])
-def get_user_sessions(user_id: str) -> list[dict[str, str | int]]:
+def get_user_sessions(user_id: str) -> list[dict[str, str]]:
     try:
         response = supabase.table("chat_sessions").select("*").eq("user_id", user_id).execute()
     except APIError as e:

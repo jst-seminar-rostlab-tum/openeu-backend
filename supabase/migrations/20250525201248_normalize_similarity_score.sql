@@ -1,5 +1,4 @@
 set check_function_bodies = off;
-
 CREATE OR REPLACE FUNCTION public.match_default(query_embedding vector, match_count integer)
  RETURNS TABLE(source_table text, source_id text, content_text text, similarity double precision)
  LANGUAGE plpgsql
@@ -17,9 +16,7 @@ begin
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
-$function$
-;
-
+$function$;
 CREATE OR REPLACE FUNCTION public.match_filtered(src_tables text[], content_columns text[], query_embedding vector, match_count integer)
  RETURNS TABLE(source_table text, source_id text, content_text text, similarity double precision)
  LANGUAGE plpgsql
@@ -40,7 +37,4 @@ begin
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
-$function$
-;
-
-
+$function$;

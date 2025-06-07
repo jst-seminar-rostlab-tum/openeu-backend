@@ -26,10 +26,11 @@ class IPEXEvent(BaseModel):
 
     id: str = Field(alias="identifier")  # Unique identifier for the event
     title: str  # Event title
-    start_date: Optional[date] = None  # Start date of the event
-    end_date: Optional[date] = None  # End date of the event
+    start_date: Optional[str] = None  # Start date of the event
+    end_date: Optional[str] = None  # End date of the event
     meeting_location: Optional[str] = None  # Location where the event takes place
     tags: Optional[list[str]] = None  # Tags/keywords from shared labels
+    embedding_input: str
 
 
 class IPEXCalendarAPIScraper(ScraperBase):
@@ -137,13 +138,18 @@ class IPEXCalendarAPIScraper(ScraperBase):
                     if label.get("language") == "EN":
                         tags.append(label.get("message", ""))
 
+            location = address.strip()
+            # Create embedding input
+            embedding_input = f"{title} {location} {tags}"
+
             return IPEXEvent(
                 identifier=event_id,
                 title=title.strip() if title else "",
-                start_date=start_date,
-                end_date=end_date,
-                meeting_location=address.strip() if address else None,
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
+                meeting_location=location if location else None,
                 tags=tags if tags else None,
+                embedding_input=embedding_input,
             )
 
         except Exception as e:
@@ -160,12 +166,15 @@ class IPEXCalendarAPIScraper(ScraperBase):
         logger.info("Starting IPEX calendar scraping via API...")
 
         if "start_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "start_date"'))
+            logger.error("Missing parameter 'start_date'")
+            return ScraperResult(False, error=Exception('Missing parameter "start_date"'))
+
         if "end_date" not in args:
-            return ScraperResult(False, Exception('Missing parameter "end_date"'))
+            logger.error("Missing parameter 'end_date'")
+            return ScraperResult(False, error=Exception('Missing parameter "end_date"'))
 
         start_date = args.get("start_date")
-        end_date = args.get("start_date")
+        end_date = args.get("end_date")
         while True:
             try:
                 # Build request payload
@@ -192,7 +201,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
                     logger.info(f"Processing event {i + 1}/{len(hits)} on page {page_number}")
                     parsed_event = self._parse_event(event_data)
                     if parsed_event:
-                        result = self.store_entry(parsed_event.model_dump())
+                        result = self.store_entry(parsed_event.model_dump(), embedd_entries=True)
                         if result:
                             return result
                         last_entry = event_data
@@ -206,13 +215,13 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
             except requests.RequestException as e:
                 logger.error(f"Network error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
             except Exception as e:
                 logger.error(f"Unexpected error on page {page_number}: {e}")
-                return ScraperResult(False, e, self.last_entry)
+                return ScraperResult(False, error=e, last_entry=self.last_entry)
 
         logger.info(f"Scraping completed. Total events: {len(self.events)}")
 
@@ -234,9 +243,9 @@ def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = No
 
 if __name__ == "__main__":
     # Example usage with date range
-    # start = date(2025, 5, 1)
-    # end = date(2025, 5, 31)
-    # run_scraper(start_date=start, end_date=end)
+    start = date(2025, 5, 1)
+    end = date(2025, 5, 31)
+    run_scraper(start_date=start, end_date=end)
 
     # Or run without date range to get all events
-    run_scraper()
+    # run_scraper()
