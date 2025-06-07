@@ -25,13 +25,15 @@ COPY . .
 RUN poetry install
 # Install Playwright browsers
 #RUN playwright install --with-deps
-RUN poetry run playwright install
+RUN poetry run playwright install chromium
 
 # Run crawl4ai setup
 RUN crawl4ai-setup
 RUN mkdir /.script
 RUN echo "#!/bin/sh" > /.script/start.sh
 RUN echo "cd /code" >> /.script/start.sh
+
+#Uncomment below for local env
 #RUN echo 'npx supabase migration up --db-url postgresql://supabase_admin:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME} --debug' >> /.script/start.sh
 RUN echo "poetry run uvicorn main:app --host 0.0.0.0 --port 3000 --log-config log_conf.yaml --reload" >> /.script/start.sh
 RUN chmod +x /.script/start.sh
