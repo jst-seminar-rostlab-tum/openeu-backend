@@ -4,15 +4,14 @@ WORKDIR /code
 #RUN apt-get update && apt-get upgrade -y
 #RUN apt-get install nodejs npm -y
 #RUN npx --yes supabase --version
-RUN apt-get update && apt-get install -y \
-    libglib2.0-0 libnss3 libgdk-pixbuf2.0-0 libgtk-3-0 libx11-xcb1 \
-    libxcomposite1 libxdamage1 libxrandr2 libasound2 libxss1 \
-    libxtst6 libxshmfence1 libgbm1 libpango-1.0-0 libatk1.0-0 \
-    libatk-bridge2.0-0 libx11-dev libxext6 libxfixes3 libxrender1 \
-    libxv1 libxv-dev libdrm2 libxcb1 libopus0 libvpx7 libwoff1 \
-    libflite1 libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base \
-    libgstreamer-plugins-good1.0-0 gstreamer1.0-libav libgraphene-1.0-0 \
-    libgtk-4-1 libenchant-2-2 libbhyphen0 libx264-160 \
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
+    curl gnupg wget unzip xvfb nodejs npm \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
+    libcairo2 libasound2 libsecret-1-0 libgles2 \
+    libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
+    libgtk-3-dev libglib2.0-dev \
     && apt-get clean
 
 RUN npx --yes supabase --version
