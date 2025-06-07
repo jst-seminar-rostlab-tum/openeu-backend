@@ -6,6 +6,7 @@ from urllib.parse import quote
 import scrapy
 from pydantic import BaseModel
 from scrapy_playwright.page import PageMethod
+from scrapy.crawler import CrawlerProcess
 
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
@@ -79,13 +80,12 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         Scrape the law tracker by topic codes.
         This method is called by the ScraperBase to perform the scraping.
         """
-        self.logger.info("Starting LawTrackerSpider scrape...")
+        self.logger.info("Starting LawTrackerSpider scrape…")      # ← ➋ kept
 
-        for req in self.start_requests():
-            if self.crawler and self.crawler.engine:
-                self.crawler.engine.crawl(req)
-            else:
-                self.logger.error("Crawler engine is not initialized.")
+        # ➌ Run this spider *properly* inside its own Scrapy process.
+        process = CrawlerProcess(settings=self.custom_settings)
+        process.crawl(self.__class__)      # hand over the *class*, Scrapy instantiates it
+        process.start()                    # blocks until the crawl is finished
 
         self.logger.info("LawTrackerSpider scrape completed.")
         return ScraperResult(success=True, last_entry=last_entry)
