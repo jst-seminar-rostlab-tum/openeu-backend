@@ -66,7 +66,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
             "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
         },
         "PLAYWRIGHT_BROWSER_TYPE": "chromium",
-        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 60_000,
+        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 600_000,
         "CONCURRENT_REQUESTS": 4,
         "LOG_LEVEL": "INFO",
         "TELNETCONSOLE_ENABLED": False,
