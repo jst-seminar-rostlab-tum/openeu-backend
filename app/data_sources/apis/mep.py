@@ -26,7 +26,7 @@ def fetch_current_meps() -> list[Person]:
     return [Person(**item) for item in json_data["data"]]
 
 
-def fetch_and_store_current_meps() -> list[Person]:
+def fetch_and_store_current_meps():
     """
     Fetch current MEPs and store them in the database.
     """
@@ -37,5 +37,3 @@ def fetch_and_store_current_meps() -> list[Person]:
         meps_dicts,
         upsert=True,
     ).execute()
-
-    return meps
