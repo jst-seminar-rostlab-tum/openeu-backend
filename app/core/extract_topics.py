@@ -88,7 +88,8 @@ def ensure_other_topic() -> int | None:
     Ensures the 'Other' topic exists in the topics table and returns its id.
     """
     try:
-        resp = supabase.table(TABLE_NAME).upsert({"topic": OTHER_TOPIC}, on_conflict=["topic"]).select("id").execute()
+        topic_data = Topic(topic=OTHER_TOPIC).model_dump()
+        resp = supabase.table(TABLE_NAME).upsert(topic_data).execute()
         return resp.data[0]["id"] if resp.data else None
     except Exception as e:
         logger.error(f"Error storing Other topic: {e}")
