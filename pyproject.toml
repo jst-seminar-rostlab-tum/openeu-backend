@@ -52,6 +52,7 @@ scrapy-playwright = "^0.0.43"
 playwright = "^1.52.0"
 pygit2 = "1.18.0"
 jinja2 = "3.1.3"
+twscrape = "^0.17.0"
 
 [tool.mypy]
 ignore_missing_imports = true

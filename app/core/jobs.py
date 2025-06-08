@@ -18,6 +18,7 @@ from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendar
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
+from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
@@ -111,6 +112,12 @@ def scrape_bundestag_drucksachen():
     scraper.scrape(start_date=today, end_date=today)
 
 
+def scrape_tweets():
+    usernames = ["EU_Commission", "EUCouncil", "epc_eu", "Euractiv"]
+    scraper = TweetScraper(usernames=usernames)
+    return scraper.scrape()
+
+
 def scrape_legislative_observatory():
     scraper = LegislativeObservatoryScraper()
     return scraper.scrape()
@@ -148,3 +155,4 @@ def setup_scheduled_jobs():
 
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_tweets", scrape_tweets, DAILY_INTERVAL_MINUTES)
