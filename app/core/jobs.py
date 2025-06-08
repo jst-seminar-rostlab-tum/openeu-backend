@@ -11,6 +11,7 @@ from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDru
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
 from app.data_sources.scrapers.ipex_calender_scraper import run_scraper as run_ipex_calendar_scraper
 from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
+from app.data_sources.scrapers.legislative_observatory_scraper import LegislativeObservatoryScraper
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
@@ -114,6 +115,9 @@ def scrape_bundestag_drucksachen():
 def scrape_tweets():
     usernames = ["EU_Commission", "EUCouncil", "epc_eu", "Euractiv"]
     scraper = TweetScraper(usernames=usernames)
+
+def scrape_legislative_observatory():
+    scraper = LegislativeObservatoryScraper()
     return scraper.scrape()
 
 
@@ -145,6 +149,7 @@ def setup_scheduled_jobs():
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_legislative_observatory", scrape_legislative_observatory, DAILY_INTERVAL_MINUTES)
 
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
