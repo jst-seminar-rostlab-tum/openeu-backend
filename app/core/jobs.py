@@ -115,6 +115,8 @@ def scrape_bundestag_drucksachen():
 def scrape_tweets():
     usernames = ["EU_Commission", "EUCouncil", "epc_eu", "Euractiv"]
     scraper = TweetScraper(usernames=usernames)
+    return scraper.scrape()
+
 
 def scrape_legislative_observatory():
     scraper = LegislativeObservatoryScraper()
