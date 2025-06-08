@@ -10,7 +10,7 @@ from app.models.tweet import Tweet
 from app.models.twitter_user import TwitterUser
 
 TWEETS_TABLE_NAME = "tweets"
-SCRAPE_LOOKBACK_DAYS = 4
+SCRAPE_LOOKBACK_DAYS = 1
 
 logger = logging.getLogger(__name__)
 
