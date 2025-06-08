@@ -26,11 +26,11 @@ class CommissionAgendaEntry(BaseModel):
     date: str
     time: Optional[str]
     title: str
-    title_en: Optional[str] = None
+    title_english: Optional[str] = None
     location: Optional[str]
-    location_en: Optional[str] = None
+    location_english: Optional[str] = None
     description: Optional[str]
-    description_en: Optional[str] = None
+    description_english: Optional[str] = None
     url: Optional[str]
     embedding_input: Optional[str]
     links: Optional[dict[str, str]] = None
@@ -143,11 +143,11 @@ class SpanishCommissionSpider(scrapy.Spider):
                 date=self.date.isoformat(),
                 time=time,
                 title=title.strip(),
-                title_en=title.strip(), # TODO: replace with translation
+                title_english=title.strip(),  # TODO: replace with translation
                 location=location,
                 # location_en=location_en,
                 description=description_text,
-                description_en=description_text, # TODO: replace with translation
+                description_english=description_text,  # TODO: replace with translation
                 url=primary_url,
                 embedding_input=embedding_input,
                 links=links or None,
