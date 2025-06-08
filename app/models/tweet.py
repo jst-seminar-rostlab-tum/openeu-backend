@@ -13,6 +13,8 @@ class BaseTweet(BaseModel):
     text: str
     author: TwitterUser
 
+    embedding_input: Optional[str] = None
+
     created_at: datetime = Field(alias="createdAt")
 
     @field_validator("created_at", mode="before")

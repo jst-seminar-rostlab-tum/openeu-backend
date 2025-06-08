@@ -62,6 +62,8 @@ class TweetScraper(ScraperBase):
 
         tweets_json = tweets_response_json["data"]["tweets"]
         tweets = [Tweet(**tweet) for tweet in tweets_json]
+        for tweet in tweets:
+            tweet.embedding_input = str(tweet)
 
         # Check if the last tweet is older than the specified date
         if tweets and tweets[-1].created_at < since:
