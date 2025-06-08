@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
-from app.models.topic import Topic
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    topics: Optional[list[Topic]] = None,
+    topics: Optional[list[str]] = None,
 ):
     try:
         start = to_utc_aware(start)
@@ -80,15 +79,20 @@ def get_meetings(
 
             return JSONResponse(status_code=200, content={"data": results})
 
-        db_query = supabase.table("v_meetings").select("*")
+        # get topic ids, not done yet
+        topic_ids = topics or None
 
-        if start:
-            db_query = db_query.gte("meeting_start_datetime", start.isoformat())
-        if end:
-            db_query = db_query.lte("meeting_start_datetime", end.isoformat())
+        rpc_result = supabase.rpc(
+            "get_meetings_filtered",
+            {
+                "start_time": start.isoformat() if start else None,
+                "end_time": end.isoformat() if end else None,
+                "topic_ids": topic_ids if topic_ids else None,
+                "result_limit": limit,
+            },
+        ).execute()
 
-        result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
-        data = result.data
+        data = rpc_result.data or []
 
         if not isinstance(data, list):
             raise ValueError("Expected list of records from Supabase")
