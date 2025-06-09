@@ -70,7 +70,7 @@ def get_user_name(user_id: str) -> Optional[str]:
         return ""
 
 
-def build_email_for_user(user_id: str) -> str:
+def build_email_for_user(user_id: str) -> tuple[str, float]:
     """
     Renders and returns an HTML email (as a string) for the given user_id.
     This function will:
@@ -84,12 +84,8 @@ def build_email_for_user(user_id: str) -> str:
 
     base_dir = Path(__file__).parent
 
-    
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
-    
-    if response_obj.meetings == []:
-        return ""
-    
+
     name_of_recipient = get_user_name(user_id=user_id)
 
     image1_path = base_dir / "logo1.b64"
@@ -111,6 +107,9 @@ def build_email_for_user(user_id: str) -> str:
 
     template = env.get_template("newsletter_mailbody.html.j2")
 
+    similarities = [m.similarity for m in response_obj.meetings if m.similarity is not None]
+    mean_similarity = sum(similarities) / len(similarities) if similarities else 0.0
+
     context = {
         "meetings": response_obj.meetings,
         "image1_base64": image1_b64,
@@ -119,7 +118,7 @@ def build_email_for_user(user_id: str) -> str:
     }
 
     rendered_html = template.render(**context)
-    return rendered_html
+    return rendered_html, mean_similarity
 
 
 class Newsletter:
@@ -128,11 +127,7 @@ class Newsletter:
     @staticmethod
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
-        mail_body = build_email_for_user(user_id=user_id)
-        
-        if mail_body == "":
-            logger.info(f"Failed to send newsletter for user_id={user_id}, no meetings found")
-            return
+        mail_body, mean_sim = build_email_for_user(user_id=user_id)
 
         mail = Email(
             subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
@@ -145,5 +140,10 @@ class Newsletter:
         except Exception as e:
             logger.error(f"Failed to send newsletter for user_id={user_id}: {e}")
 
-        notification_payload = {"user_id": user_id, "type": "newsletter", "message": str(mail_body)}
+        notification_payload = {
+            "user_id": user_id,
+            "type": "newsletter",
+            "message": str(mail_body),
+            "relevance_score": mean_sim,
+        }
         supabase.table("notifications").insert(notification_payload).execute()

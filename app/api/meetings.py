@@ -34,16 +34,18 @@ def get_meetings(
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
+    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
 ):
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
 
+        # --- SEMANTIC QUERY CASE ---
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
                 allowed_sources={},
-                k=100,
+                k=limit * 3,
             )
 
             if not neighbors:
@@ -67,18 +69,23 @@ def get_meetings(
                         continue
 
                     meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    assert meeting_time is not None
+                    if not meeting_time:
+                        continue
 
                     should_include = True
-                    if start is not None and meeting_time < start:
+                    if start and meeting_time < start:
                         should_include = False
-                    if end is not None and meeting_time > end:
+                    if end and meeting_time > end:
+                        should_include = False
+
+                    location = record.get("location")
+                    if country and (not location or location.lower() != country.lower()):
                         should_include = False
 
                     if should_include:
                         results.append(record)
 
-            return JSONResponse(status_code=200, content={"data": results})
+            return JSONResponse(status_code=200, content={"data": results[:limit]})
 
         # Map topic names to topic ids
         topic_ids = None
@@ -94,6 +101,8 @@ def get_meetings(
             except Exception as topic_exc:
                 logger.warning(f"Failed to map topics to ids: {topic_exc}")
                 topic_ids = None
+        # --- DEFAULT QUERY CASE ---
+        db_query = supabase.table("v_meetings").select("*")
 
         rpc_result = supabase.rpc(
             "get_meetings_filtered",
@@ -105,6 +114,11 @@ def get_meetings(
             },
         ).execute()
 
+        if country:
+            db_query = db_query.ilike("location", country)
+
+        result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
+        data = result.data
         data = rpc_result.data or []
 
         if not isinstance(data, list):

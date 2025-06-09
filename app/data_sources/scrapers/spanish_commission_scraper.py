@@ -143,11 +143,11 @@ class SpanishCommissionSpider(scrapy.Spider):
                 date=self.date.isoformat(),
                 time=time,
                 title=title.strip(),
-                title_en=title.strip(), # TODO: replace with translation
+                title_en=title.strip(),  # TODO: replace with translation
                 location=location,
                 # location_en=location_en,
                 description=description_text,
-                description_en=description_text, # TODO: replace with translation
+                description_en=description_text,  # TODO: replace with translation
                 url=primary_url,
                 embedding_input=embedding_input,
                 links=links or None,
