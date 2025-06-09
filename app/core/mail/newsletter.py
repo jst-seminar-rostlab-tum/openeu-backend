@@ -106,6 +106,9 @@ def build_email_for_user(user_id: str) -> str:
     )
 
     template = env.get_template("newsletter_mailbody.html.j2")
+    
+    similarities = [m.similarity for m in response_obj.meetings if m.similarity is not None]
+    mean_similarity = sum(similarities) / len(similarities) if similarities else 0.0
 
     context = {
         "meetings": response_obj.meetings,
@@ -115,7 +118,7 @@ def build_email_for_user(user_id: str) -> str:
     }
 
     rendered_html = template.render(**context)
-    return rendered_html
+    return rendered_html, mean_similarity
 
 
 class Newsletter:
@@ -124,7 +127,7 @@ class Newsletter:
     @staticmethod
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
-        mail_body = build_email_for_user(user_id=user_id)
+        mail_body, mean_sim = build_email_for_user(user_id=user_id)
         
 
         mail = Email(
@@ -138,5 +141,6 @@ class Newsletter:
         except Exception as e:
             logger.error(f"Failed to send newsletter for user_id={user_id}: {e}")
 
-        notification_payload = {"user_id": user_id, "type": "newsletter", "message": str(mail_body)}
+        
+        notification_payload = {"user_id": user_id, "type": "newsletter", "message": str(mail_body), "relevance_score": mean_sim}
         supabase.table("notifications").insert(notification_payload).execute()
