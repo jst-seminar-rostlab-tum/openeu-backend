@@ -38,25 +38,16 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
 
     # 2) call `get_top_k_neighbors_by_embedding`
     try:
-        response = (
-                supabase
-                .table("v_meetings")
-                .select("source_table")
-                .execute()
-        )
+        response = supabase.table("v_meetings").select("source_table").execute()
 
-        allowed_sources = {
-            row["source_table"]: "embedding_input"
-            for row in response.data
-            if row.get("source_table")
-        }
-        
+        allowed_sources = {row["source_table"]: "embedding_input" for row in response.data if row.get("source_table")}
+
         neighbors = get_top_k_neighbors_by_embedding(
             vector_embedding=profile_embedding,
             allowed_sources=allowed_sources,
             k=k,
         )
-        
+
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
         return RelevantMeetingsResponse(meetings=[])
@@ -82,10 +73,10 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
         except Exception:
             logger.exception("Unexpected error fetching %s", source_table)
             continue
-        
+
         if not rows:
             logger.info(f"No rows found for {source_table} with ids {id_list} ind v_meetings")
-            
+
         for row in rows:
             fetched[(source_table, row["source_id"])] = row
 

@@ -85,7 +85,7 @@ def build_email_for_user(user_id: str) -> str:
     base_dir = Path(__file__).parent
 
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
-    
+
     name_of_recipient = get_user_name(user_id=user_id)
 
     image1_path = base_dir / "logo1.b64"
@@ -106,7 +106,7 @@ def build_email_for_user(user_id: str) -> str:
     )
 
     template = env.get_template("newsletter_mailbody.html.j2")
-    
+
     similarities = [m.similarity for m in response_obj.meetings if m.similarity is not None]
     mean_similarity = sum(similarities) / len(similarities) if similarities else 0.0
 
@@ -128,7 +128,6 @@ class Newsletter:
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
         mail_body, mean_sim = build_email_for_user(user_id=user_id)
-        
 
         mail = Email(
             subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
@@ -141,6 +140,10 @@ class Newsletter:
         except Exception as e:
             logger.error(f"Failed to send newsletter for user_id={user_id}: {e}")
 
-        
-        notification_payload = {"user_id": user_id, "type": "newsletter", "message": str(mail_body), "relevance_score": mean_sim}
+        notification_payload = {
+            "user_id": user_id,
+            "type": "newsletter",
+            "message": str(mail_body),
+            "relevance_score": mean_sim,
+        }
         supabase.table("notifications").insert(notification_payload).execute()
