@@ -84,7 +84,6 @@ def build_email_for_user(user_id: str) -> str:
 
     base_dir = Path(__file__).parent
 
-    
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
     
     name_of_recipient = get_user_name(user_id=user_id)
