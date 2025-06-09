@@ -38,21 +38,25 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
 
     # 2) call `get_top_k_neighbors_by_embedding`
     try:
+        response = (
+                supabase
+                .table("v_meetings")
+                .select("source_table")
+                .execute()
+        )
+
+        allowed_sources = {
+            row["source_table"]: "embedding_input"
+            for row in response.data
+            if row.get("source_table")
+        }
+        
         neighbors = get_top_k_neighbors_by_embedding(
             vector_embedding=profile_embedding,
-            allowed_sources={
-                "ep_meetings" : "embedding_input",
-                "austrian_parliament_meetings" : "embedding_input",
-                "ipex_events" : "embedding_input",
-                "belgian_parliament_meetings" : "embedding_input",
-                "mec_prep_bodies_meeting" : "embedding_input",
-                "mec_summit_ministerial_meeting" : "embedding_input",
-                "polish_presidency_meeting" : "embedding_input",
-                "mep_meetings" : "embedding_input",
-                "weekly_agenda" : "embedding_input",
-                },
+            allowed_sources=allowed_sources,
             k=k,
         )
+        
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
         return RelevantMeetingsResponse(meetings=[])
