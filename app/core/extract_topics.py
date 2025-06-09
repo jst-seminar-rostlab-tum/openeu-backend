@@ -39,7 +39,7 @@ EXCLUDED_WORDS = {
     "romanian",
 }
 
-TABLE_NAME = "meeting_topics"
+TOPICS_TABLE = "meeting_topics"
 ASSIGNMENTS_TABLE = "meeting_topic_assignments"
 OTHER_TOPIC = "Other"
 SIMILARITY_THRESHOLD = 0.4
@@ -51,7 +51,7 @@ def clear_topics_and_assignments():
     Clears all entries in the meeting_topics and meeting_topic_assignments tables.
     """
     supabase.table(ASSIGNMENTS_TABLE).delete().not_.is_("id", None).execute()
-    supabase.table(TABLE_NAME).delete().not_.is_("id", None).execute()
+    supabase.table(TOPICS_TABLE).delete().not_.is_("id", None).execute()
 
 
 def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meeting]:
@@ -89,7 +89,7 @@ def ensure_other_topic() -> int | None:
     """
     try:
         topic_data = Topic(topic=OTHER_TOPIC).model_dump()
-        resp = supabase.table(TABLE_NAME).upsert(topic_data).execute()
+        resp = supabase.table(TOPICS_TABLE).upsert(topic_data).execute()
         return resp.data[0]["id"] if resp.data else None
     except Exception as e:
         logger.error(f"Error storing Other topic: {e}")
@@ -128,7 +128,7 @@ class TopicExtractor:
                 topic = all_keywords[indices[0]].capitalize()
                 try:
                     topic_data = Topic(topic=topic).model_dump()
-                    resp = supabase.table(TABLE_NAME).upsert(topic_data).execute()
+                    resp = supabase.table(TOPICS_TABLE).upsert(topic_data).execute()
                     topic_id = resp.data[0]["id"] if resp.data else None
                     topic_keywords.append(topic)
                     topic_ids.append(topic_id)
@@ -141,11 +141,11 @@ class TopicExtractor:
         """
         Assigns a single meeting to the closest topic (or 'Other') using cosine similarity.
         """
-        resp = supabase.table(TABLE_NAME).select("id,topic").execute()
+        resp = supabase.table(TOPICS_TABLE).select("id,topic").execute()
         topics = resp.data
         if not topics:
             return {
-                "source_id": meeting.meeting_id,
+                "source_id": meeting.source_id,
                 "source_table": meeting.source_table,
                 "topic_id": None,
             }
@@ -168,7 +168,7 @@ class TopicExtractor:
         try:
             supabase.table(ASSIGNMENTS_TABLE).upsert(
                 {
-                    "source_id": meeting.meeting_id,
+                    "source_id": meeting.source_id,
                     "source_table": meeting.source_table,
                     "topic_id": assigned_topic_id,
                 }
