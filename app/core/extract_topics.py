@@ -97,9 +97,17 @@ def ensure_other_topic() -> int | None:
 
 
 class TopicExtractor:
+    _sentence_model = None
+    _keybert_model = None
+
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(model_name)
-        self.kw_model = KeyBERT(model_name)
+        print(TopicExtractor._sentence_model)
+        if TopicExtractor._sentence_model is None:
+            TopicExtractor._sentence_model = SentenceTransformer(model_name)
+        if TopicExtractor._keybert_model is None:
+            TopicExtractor._keybert_model = KeyBERT(model_name)
+        self.model = TopicExtractor._sentence_model
+        self.kw_model = TopicExtractor._keybert_model
 
     def extract_keywords_from_texts(self, all_texts: list[str], top_n_keywords: int) -> list[str]:
         """
