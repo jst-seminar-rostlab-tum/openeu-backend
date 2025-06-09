@@ -18,6 +18,7 @@ router = APIRouter()
 
 _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
+_TOPICS = Query(None, description="List of topic names (repeat or comma-separated)")
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -32,7 +33,7 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    topics: Optional[list[str]] = None,
+    topics: Optional[list[str]] = _TOPICS,
 ):
     try:
         start = to_utc_aware(start)
@@ -79,8 +80,20 @@ def get_meetings(
 
             return JSONResponse(status_code=200, content={"data": results})
 
-        # get topic ids, not done yet
-        topic_ids = topics or None
+        # Map topic names to topic ids
+        topic_ids = None
+        if topics:
+            try:
+                # Fetch topic ids for the provided topic names
+                resp = supabase.table("meeting_topics").select("id,topic").in_("topic", topics).execute()
+                topic_map = {row["topic"]: row["id"] for row in resp.data} if resp.data else {}
+                topic_ids = [topic_map[t] for t in topics if t in topic_map]
+                if not topic_ids:
+                    logger.warning(f"No valid topic ids found for topics: {topics}")
+                    topic_ids = None
+            except Exception as topic_exc:
+                logger.warning(f"Failed to map topics to ids: {topic_exc}")
+                topic_ids = None
 
         rpc_result = supabase.rpc(
             "get_meetings_filtered",
