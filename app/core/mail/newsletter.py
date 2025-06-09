@@ -70,7 +70,7 @@ def get_user_name(user_id: str) -> Optional[str]:
         return ""
 
 
-def build_email_for_user(user_id: str) -> str:
+def build_email_for_user(user_id: str) -> tuple[str, float]:
     """
     Renders and returns an HTML email (as a string) for the given user_id.
     This function will:
