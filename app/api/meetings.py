@@ -82,44 +82,37 @@ def get_meetings(
                     if country and (not location or location.lower() != country.lower()):
                         should_include = False
 
+                    if topics:
+                        record_topic = record.get("topic")
+                        if len(topics) == 1 and "," in topics[0]:
+                            topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+                        if not record_topic or record_topic not in topics:
+                            should_include = False
+
                     if should_include:
                         results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
-        # Map topic names to topic ids
-        topic_ids = None
-        if topics:
-            try:
-                # Fetch topic ids for the provided topic names
-                resp = supabase.table("meeting_topics").select("id,topic").in_("topic", topics).execute()
-                topic_map = {row["topic"]: row["id"] for row in resp.data} if resp.data else {}
-                topic_ids = [topic_map[t] for t in topics if t in topic_map]
-                if not topic_ids:
-                    logger.warning(f"No valid topic ids found for topics: {topics}")
-                    topic_ids = None
-            except Exception as topic_exc:
-                logger.warning(f"Failed to map topics to ids: {topic_exc}")
-                topic_ids = None
         # --- DEFAULT QUERY CASE ---
         db_query = supabase.table("v_meetings").select("*")
 
-        rpc_result = supabase.rpc(
-            "get_meetings_filtered",
-            {
-                "start_time": start.isoformat() if start else None,
-                "end_time": end.isoformat() if end else None,
-                "topic_ids": topic_ids if topic_ids else None,
-                "result_limit": limit,
-            },
-        ).execute()
+        if start:
+            db_query = db_query.gte("meeting_start_datetime", start.isoformat())
+        if end:
+            db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
         if country:
             db_query = db_query.ilike("location", country)
 
+        # --- TOPIC FILTERING ---
+        if topics:
+            if len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+            db_query = db_query.in_("topic", topics)
+
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data
-        data = rpc_result.data or []
 
         if not isinstance(data, list):
             raise ValueError("Expected list of records from Supabase")

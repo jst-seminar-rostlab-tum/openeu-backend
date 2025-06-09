@@ -151,11 +151,25 @@ with base as (
         null::text[]                          as tags,
         p.scraped_at                          as scraped_at
     from public.polish_presidency_meeting p
+),
+base_with_location AS (
+    SELECT
+        base.*,
+        cm.country AS location
+    FROM base
+    JOIN public.country_map_meetings AS cm
+        ON base.source_table = cm.source_table
+),
+base_with_topic AS (
+    SELECT
+        bwl.*,
+        mt.topic AS topic
+    FROM base_with_location bwl
+    LEFT JOIN public.meeting_topic_assignments mta
+        ON mta.source_id = bwl.source_id
+        AND mta.source_table = bwl.source_table
+    LEFT JOIN public.meeting_topics mt
+        ON mt.id = mta.topic_id
 )
 
-select
-    base.*,
-    cm.country as location
-from base
-join public.country_map_meetings as cm
-    on base.source_table = cm.source_table;
+SELECT * FROM base_with_topic;

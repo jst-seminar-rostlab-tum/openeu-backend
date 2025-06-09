@@ -75,15 +75,17 @@ def fetch_and_prepare_meetings() -> tuple[list[str], list[Meeting]]:
         if not batch:
             break
         for m in batch:
-            if m.title and m.description:
-                text = f"{m.title}. {m.description}".strip()
-                all_texts.append(text)
-                all_meetings.append(m)
+            text = m.title
+            if m.description:
+                text = f"{text}. {m.description}"
+            text = text.strip()
+            all_texts.append(text)
+            all_meetings.append(m)
         offset += BATCH_SIZE
     return all_texts, all_meetings
 
 
-def ensure_other_topic() -> int | None:
+def add_other_topic() -> int | None:
     """
     Ensures the 'Other' topic exists in the topics table and returns its id.
     """
@@ -101,7 +103,6 @@ class TopicExtractor:
     _keybert_model = None
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        print(TopicExtractor._sentence_model)
         if TopicExtractor._sentence_model is None:
             TopicExtractor._sentence_model = SentenceTransformer(model_name)
         if TopicExtractor._keybert_model is None:
@@ -144,6 +145,7 @@ class TopicExtractor:
                     logger.error(f"Error storing entry in Supabase: {e}")
                     topic_keywords.append(topic)
                     topic_ids.append(None)
+        add_other_topic()
 
     def assign_meeting_to_topic(self, meeting: Meeting):
         """
@@ -196,6 +198,5 @@ class TopicExtractor:
         if not all_keywords:
             return []
         self.cluster_keywords_and_store_topics(all_keywords, n_clusters)
-        ensure_other_topic()
         for meeting in all_meetings:
             self.assign_meeting_to_topic(meeting)
