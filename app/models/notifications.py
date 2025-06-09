@@ -11,3 +11,4 @@ class Notification(BaseModel):
     sent_at: datetime
     type: str
     message: Optional[str]
+    relevance_score: Optional[float]
