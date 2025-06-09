@@ -93,7 +93,15 @@ class ScraperBase(ABC):
             self.lines_added += len(response.data) if response.data else 0
 
             try:
-                meeting = Meeting(**entry)
+                meeting_data = response.data[0]
+                mapped = {
+                    "source_id": meeting_data["id"],
+                    "source_table": self.table_name,
+                    "meeting_start_datetime": meeting_data["datetime"],
+                    "title": meeting_data["title"],
+                    "meeting_id": meeting_data["id"],
+                }
+                meeting = Meeting(**mapped)
                 extractor = TopicExtractor()
                 extractor.assign_meeting_to_topic(meeting)
             except Exception as e:
