@@ -127,9 +127,6 @@ class Newsletter:
         user_mail = get_user_email(user_id=user_id)
         mail_body = build_email_for_user(user_id=user_id)
         
-        if mail_body == "":
-            logger.info(f"Failed to send newsletter for user_id={user_id}, no meetings found")
-            return
 
         mail = Email(
             subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
