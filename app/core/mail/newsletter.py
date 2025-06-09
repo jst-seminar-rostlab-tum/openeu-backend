@@ -87,9 +87,6 @@ def build_email_for_user(user_id: str) -> str:
     
     response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
     
-    if response_obj.meetings == []:
-        return ""
-    
     name_of_recipient = get_user_name(user_id=user_id)
 
     image1_path = base_dir / "logo1.b64"
