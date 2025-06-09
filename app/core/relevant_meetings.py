@@ -49,6 +49,7 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
                 "mec_summit_ministerial_meeting" : "embedding_input",
                 "polish_presidency_meeting" : "embedding_input",
                 "mep_meetings" : "embedding_input",
+                "weekly_agenda" : "embedding_input",
                 },
             k=k,
         )
