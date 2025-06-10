@@ -89,6 +89,9 @@ def get_meetings(
                         if not record_topic or record_topic not in topics:
                             should_include = False
 
+                    if "similarity" in neighbor:
+                        record["similarity"] = neighbor["similarity"]
+
                     if should_include:
                         results.append(record)
 
