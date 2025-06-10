@@ -40,18 +40,7 @@ def get_meetings(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={
-                    "ep_meetings": "title",
-                    "mep_meetings": "title",
-                    "ipex_events": "title",
-                    "austrian_parliament_meetings": "title",
-                    "belgian_parliament_meetings": "title",
-                    "mec_prep_bodies_meeting": "title",
-                    "mec_summit_ministerial_meeting": "title",
-                    "polish_presidency_meeting": "title",
-                    "spanish_commission_meetings": "title",
-                    "weekly_agenda": "title",
-                },
+                allowed_sources={},  # empty dict -> allows every source
                 k=100,
             )
 
