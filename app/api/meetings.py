@@ -43,25 +43,28 @@ def get_meetings(
             neighbors = get_top_k_neighbors(
                 query=query,
                 allowed_sources={},
-                k=limit * 3,
+                k=limit * 2,
             )
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
-            results = []
+            or_params = []
+            map_table_and_id_to_similarity = {}
             for neighbor in neighbors:
-                match = (
-                    supabase.table("v_meetings")
-                    .select("*")
-                    .eq("source_table", neighbor["source_table"])
-                    .eq("source_id", neighbor["source_id"])
-                    .limit(1)
-                    .execute()
-                )
+                or_params.append(f"and(source_table.eq.{neighbor['source_table']},source_id.eq.{neighbor['source_id']})")
+                map_table_and_id_to_similarity[f"{neighbor['source_table']}_{neighbor['source_id']}"] = neighbor[
+                    "similarity"]
 
-                if match.data:
-                    record = match.data[0]
+            match = (supabase.table("v_meetings")
+                     .select("*")
+                     .or_(','.join(or_params))
+                     .limit(limit)
+                     .execute())
+
+            results = []
+            if match.data:
+                for record in match.data:
                     meeting_time_str = record.get("meeting_start_datetime")
                     if not meeting_time_str:
                         continue
@@ -80,8 +83,7 @@ def get_meetings(
                     if country and (not location or location.lower() != country.lower()):
                         should_include = False
 
-                    if "similarity" in neighbor:
-                        record["similarity"] = neighbor["similarity"]
+                    record["similarity"] = map_table_and_id_to_similarity[f"{record['source_table']}_{record['source_id']}"]
 
                     if should_include:
                         results.append(record)
