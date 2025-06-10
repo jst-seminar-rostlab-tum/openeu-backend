@@ -7,3 +7,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     topic_list TEXT[] NOT NULL,
     embedding VECTOR(1536) NOT NULL
 );
+
+
+CREATE OR REPLACE FUNCTION get_user_by_id(uid UUID)
+  RETURNS TEXT
+AS $$
+  SELECT email
+    FROM auth.users
+   WHERE id = $1;
+$$
+LANGUAGE SQL
+SECURITY DEFINER;
+

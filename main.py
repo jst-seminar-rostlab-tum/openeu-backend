@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.api import profile
 from app.api.chat import router as api_chat
 from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
+from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
@@ -19,14 +20,16 @@ app.include_router(api_meetings)
 app.include_router(api_crawler)
 app.include_router(api_scheduler)
 app.include_router(api_chat)
+app.include_router(notifications_router)
+
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
-        is_allowed_origin = (
-            origin
-            and (origin.startswith("http://localhost")
-            or origin.endswith("openeu.netlify.app"))
+        is_allowed_origin = origin and (
+            origin.startswith("http://localhost")
+            or origin.endswith("openeu.netlify.app")
+            or origin.endswith("openeu.csee.tech")
         )
 
         if request.method == "OPTIONS" and is_allowed_origin:
@@ -42,7 +45,9 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
 app.add_middleware(CustomCORSMiddleware)
+
 
 @app.get("/")
 async def root() -> dict[str, str | bool]:

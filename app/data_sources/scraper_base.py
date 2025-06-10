@@ -47,6 +47,8 @@ class ScraperBase(ABC):
                     return result
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
+                    if result.error:
+                        logger.error(f"Error: {result.error.__class__} - {result.error}")
             except Exception as e:
                 logger.exception(f"Exception during scrape attempt {attempt + 1}: {e}")
                 result = ScraperResult(success=False, error=e, last_entry=self.last_entry)

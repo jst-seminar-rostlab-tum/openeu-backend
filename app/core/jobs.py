@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from app.core.email import Email, EmailService
+from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
@@ -11,12 +11,15 @@ from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDru
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
 from app.data_sources.scrapers.ipex_calender_scraper import run_scraper as run_ipex_calendar_scraper
 from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
+from app.data_sources.scrapers.legislative_observatory_scraper import LegislativeObservatoryScraper
 from app.data_sources.scrapers.mec_prep_bodies_meetings_scraper import MECPrepBodiesMeetingsScraper
 from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMinistMeetingsScraper
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
+from app.data_sources.scrapers.tweets import TweetScraper
+from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
 DAILY_INTERVAL_MINUTES = 24 * 60
@@ -60,19 +63,23 @@ def scrape_belgian_parliament_meetings():
 
 def send_daily_newsletter():
     users = supabase.auth.admin.list_users()
-    email_addresses = [user.email for user in users]
-    email_message = Email(
-        subject="OpenEU Daily Newsletter",
-        html_body="<p>Here is your daily newsletter from OpenEU.</p>",
-        recipients=email_addresses,
-    )
-    logger.info(f"Sending daily newsletter to {len(email_addresses)} users")
-    EmailService.send_email(email=email_message)
+    ids = [user.id for user in users]
+
+    logger.info(f"Sending daily newsletter to {len(ids)} users")
+
+    for id in ids:
+        Newsletter.send_newsletter_to_user(id)
 
 
 def scrape_mec_prep_bodies_meetings():
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
+    return scraper.scrape()
+
+
+def scrape_weekly_agenda():
+    today = datetime.now().date()
+    scraper = WeeklyAgendaScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
@@ -105,6 +112,17 @@ def scrape_bundestag_drucksachen():
     scraper.scrape(start_date=today, end_date=today)
 
 
+def scrape_tweets():
+    usernames = ["EU_Commission", "EUCouncil", "epc_eu", "Euractiv"]
+    scraper = TweetScraper(usernames=usernames)
+    return scraper.scrape()
+
+
+def scrape_legislative_observatory():
+    scraper = LegislativeObservatoryScraper()
+    return scraper.scrape()
+
+
 def clean_up_embeddings():
     embedding_cleanup()
 
@@ -115,18 +133,28 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )
-    scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES, run_in_process=True)
     scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_weekly_agenda", scrape_weekly_agenda, WEEKLY_INTERVAL_MINUTES, run_in_process=True)
     scheduler.register("scrape_belgian_parliament_meetings", scrape_belgian_parliament_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
     )
-    scheduler.register("scrape_polish_presidency_meetings", scrape_polish_presidency_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register(
+        "scrape_polish_presidency_meetings",
+        scrape_polish_presidency_meetings,
+        DAILY_INTERVAL_MINUTES,
+        run_in_process=True,
+    )
     scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
+    scheduler.register(
+        "scrape_legislative_observatory", scrape_legislative_observatory, DAILY_INTERVAL_MINUTES, run_in_process=True
+    )
 
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_tweets", scrape_tweets, DAILY_INTERVAL_MINUTES)

@@ -1,7 +1,7 @@
 import datetime
 import logging
 import re
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from datetime import date, timedelta
 from typing import Callable, Optional
 
@@ -54,7 +54,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
         self.result_callback = result_callback
         self.entries: list[AgendaEntry] = []
 
-    def start_requests(self) -> Generator[scrapy.Request, None, None]:
+    async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         """
         Generate requests for each week in the specified date range.
         """
@@ -155,38 +155,43 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
     def parse_plenary_session(self, event: Selector, date: date, event_type: str) -> list[AgendaEntry]:
         entries = []
+        global_location = event.css("h3 .ep_subtitle .ep_name::text").get()
+        global_location = global_location.strip() if global_location else None
 
-        time_range = event.css("div.ep-layout_date time::text").get()
-        location = event.css("div.ep-subtitle span.ep_name::text").get()
+        # Each block for a time slot
+        for li in event.css("ol.ep-m_product > li.ep_gridrow"):
+            time_text = li.css("div.ep-layout_date time::text").get()
+            time_text = time_text.strip() if time_text else None
 
-        for block in event.css("ol.ep-m_product li.ep_gridrow"):
-            header = block.css("h4::text").get()
-            title = header.strip() if header else ""
+            # Look for the title inside the first .ep_title span.ep_name (e.g., "Debates")
+            title = li.css("div.ep-layout_text .ep_title span.ep_name::text").get()
+            title = title.strip() if title else "Untitled"
 
-            # Option 1: Try <p> tags
-            topic_parts = block.css("p::text").getall()
+            # Collect all topic/subtopic text as description
+            description_parts = []
 
-            # Option 2: If <p> not found, fallback to span.ep_name inside ep-p_text
-            if not topic_parts:
-                topic_parts = block.css("div.ep-p_text span.ep_name::text").getall()
+            for node in li.css("div.ep-layout_text > *"):
+                text_parts = node.xpath(".//text()").getall()
+                text = " ".join(t.strip() for t in text_parts if t.strip())
+                if text:
+                    description_parts.append(text)
 
-            topic = "; ".join(p.strip() for p in topic_parts if p.strip())
+            # Combine everything into final description
+            description = "; ".join(description_parts)
 
-            procedures = block.css("a::text").re(r"\d{4}/\d{4}\(\w+\)")
-            if procedures:
-                topic += " | Procedures: " + ", ".join(procedures)
-
-            embedding_input = f"{title} {date.isoformat()} {time_range or ''} {location or ''} {topic}".strip()
+            embedding_input = (
+                f"{title} {date.isoformat()} {time_text or ''} {global_location or ''} {description}".strip()
+            )
 
             entries.append(
                 AgendaEntry(
                     type=event_type,
                     date=date.isoformat(),
-                    time=time_range.strip() if time_range else None,
+                    time=time_text,
                     title=title,
                     committee=None,
-                    location=location.strip() if location else None,
-                    description=topic if topic else None,
+                    location=global_location,
+                    description=description,
                     embedding_input=embedding_input,
                 )
             )
@@ -196,8 +201,8 @@ class WeeklyAgendaSpider(scrapy.Spider):
     def parse_president_diary(self, event: Selector, date: date, event_type: str) -> list[AgendaEntry]:
         entries = []
 
-        for p in event.css("p.ep-wysiwig_paragraph::text"):
-            full_text = p.get().strip()
+        for p in event.css("p.ep-wysiwig_paragraph"):
+            full_text = " ".join(p.css("*::text").getall()).strip()
             if not full_text:
                 continue
 
@@ -261,6 +266,8 @@ class WeeklyAgendaSpider(scrapy.Spider):
         return entries
 
     def parse_committee_meetings(self, event: Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
+        # TODO: add links
+
         entries = []
 
         for item in event.css("ol.ep_gridcolumn.ep-m_product > li.ep_gridrow"):
@@ -303,37 +310,55 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
         return entries
 
-    def parse_delegation_event(self, event: Selector, date: date, event_type: str) -> Optional[AgendaEntry]:
+    def parse_delegation_event(self, event: Selector, date: date, event_type: str) -> list[AgendaEntry]:
         """
         Parses a 'Delegations' agenda event.
         Extracts the event title and descriptive paragraphs.
         """
-        try:
-            # Title: real agenda title under ep-layout_text > span.ep_name
-            title = event.css("div.ep-layout_text span.ep_name::text").get()
-            title = title.strip() if title else "Delegation"
+        # TODO: add links
+        entries = []
 
-            # Combine full inner text from each paragraph (includes text + link text)
-            paragraph_nodes = event.css("div.ep-a_text p.ep-wysiwig_paragraph")
-            paragraph_texts = ["".join(p.css("::text").getall()).strip() for p in paragraph_nodes]
-            topic = " ".join(paragraph_texts)
+        # Each <li> is a delegation sub-event
+        for li in event.css("ol.ep-m_product > li.ep_gridrow"):
+            try:
+                # Title
+                title = li.css("div.ep-layout_text span.ep_name::text").get()
+                title = title.strip() if title else "Delegation"
 
-            embedding_input = f"{title} {date.isoformat()} {topic}".strip()
+                # Description from <li> inside ep-a_text
+                description_container = li.css("div.ep-a_text")
+                description_parts = []
 
-            return AgendaEntry(
-                type=event_type,
-                date=date.isoformat(),
-                time=None,
-                title=title,
-                committee=None,
-                location=None,
-                description=topic,
-                embedding_input=embedding_input,
-            )
+                # Loop through both li and p elements
+                for node in description_container.css("li, p"):
+                    text = " ".join(node.css("::text").getall()).strip()
+                    href = node.css("a::attr(href)").get()
+                    if href:
+                        text += f" ({href})"
+                    if text:
+                        description_parts.append(text)
 
-        except Exception as e:
-            self.logger.error(f"Failed to parse delegation event: {e}")
-            return None
+                description = " ".join(description_parts) if description_parts else None
+
+                embedding_input = f"{title} {date.isoformat()} {description or ''}".strip()
+
+                entry = AgendaEntry(
+                    type=event_type,
+                    date=date.isoformat(),
+                    time=None,
+                    title=title,
+                    committee=None,
+                    location=None,
+                    description=description,
+                    embedding_input=embedding_input,
+                )
+
+                entries.append(entry)
+
+            except Exception as e:
+                self.logger.error(f"Failed to parse a delegation sub-event: {e}")
+
+        return entries
 
     def parse_other_event(self, event: Selector, date: datetime.date, event_type: str) -> list[AgendaEntry]:
         entries = []
@@ -345,9 +370,11 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
             # Extract title
             title = item.css(".ep-layout_text .ep_name::text").get()
+            location = item.css(".ep-layout_text .ep_subtitle .ep-layout_location .ep_name::text").get()
 
             # Extract description paragraphs
-            description_items = item.css(".ep-layout_text .ep-a_text li")
+            # changed li to p.ep-wysiwig_paragraph
+            description_items = item.css(".ep-layout_text .ep-a_text p.ep-wysiwig_paragraph")
             parts = []
 
             for desc in description_items:
@@ -368,7 +395,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 title=title.strip() if title else "Untitled",
                 type=event_type,
                 committee=None,
-                location=None,
+                location=location,
                 description=description,
                 embedding_input=embedding_input,
             )
@@ -517,9 +544,8 @@ def scrape_agenda(start_date: date, end_date: date) -> list[AgendaEntry]:
 
 if __name__ == "__main__":
     print("Scraping weekly agenda...")
-
     # Example: scrape from week 20 to 21
-    start = datetime.date(2024, 11, 18)
+    start = datetime.date(2025, 5, 20)
     end = datetime.date(2025, 5, 26)
 
     #   entries = scrape_agenda(start_date=start, end_date=end)
