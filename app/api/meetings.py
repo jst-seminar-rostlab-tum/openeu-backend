@@ -80,6 +80,9 @@ def get_meetings(
                     if country and (not location or location.lower() != country.lower()):
                         should_include = False
 
+                    if "similarity" in neighbor:
+                        record["similarity"] = neighbor["similarity"]
+
                     if should_include:
                         results.append(record)
 
