@@ -64,24 +64,19 @@ def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meet
 
 def fetch_and_prepare_meetings() -> tuple[list[str], list[Meeting]]:
     """
-    Fetches all meetings in batches and prepares their text for topic extraction.
+    Fetches up to 500 meetings and prepares their text for topic extraction.
     Returns a tuple of (list of texts, list of Meeting objects).
     """
-    offset = 0
+    batch: list[Meeting] = fetch_meetings_batch(0, batch_size=BATCH_SIZE)
     all_texts: list[str] = []
     all_meetings: list[Meeting] = []
-    while True:
-        batch: list[Meeting] = fetch_meetings_batch(offset)
-        if not batch:
-            break
-        for m in batch:
-            text = m.title
-            if m.description:
-                text = f"{text}. {m.description}"
-            text = text.strip()
-            all_texts.append(text)
-            all_meetings.append(m)
-        offset += BATCH_SIZE
+    for m in batch:
+        text = m.title
+        if m.description:
+            text = f"{text}. {m.description}"
+        text = text.strip()
+        all_texts.append(text)
+        all_meetings.append(m)
     return all_texts, all_meetings
 
 
