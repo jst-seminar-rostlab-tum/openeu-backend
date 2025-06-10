@@ -83,7 +83,9 @@ def get_meetings(
                     if country and (not location or location.lower() != country.lower()):
                         should_include = False
 
-                    record["similarity"] = map_table_and_id_to_similarity[f"{record['source_table']}_{record['source_id']}"]
+                    record["similarity"] = map_table_and_id_to_similarity[
+                        f"{record['source_table']}_{record['source_id']}"
+                    ]
 
                     if should_include:
                         results.append(record)
