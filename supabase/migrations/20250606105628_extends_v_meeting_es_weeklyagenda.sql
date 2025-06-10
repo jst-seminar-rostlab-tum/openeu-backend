@@ -1,6 +1,5 @@
 -- 1. Add source table -> location mapping to country_map_meetings (spanish_commission_meetings, weeky_agenda)
 insert into public.country_map_meetings (source_table, country, iso2) values
-  ('spanish_commission_meetings',    'Spain',          'ES'),
   ('weekly_agenda',                  'European Union', 'EU')
 on conflict (source_table) do update
   set country = excluded.country,
@@ -164,44 +163,28 @@ with base as (
 
     union all
 
-    -- Spanish Commission meetings
-    select
-        s.id || '_spanish_commission'              as meeting_id,
-        s.id                                       as source_id,
-        'spanish_commission_meetings'              as source_table,
-        coalesce(s.title_en, s.title)              as title,
-        (
-            -- date is DATE, time is optional TEXT -> build timestamptz
-            -- fallback to time = 00:00, if no time provided
-            (s.date
-             + coalesce(s.time::time, '00:00'::time)
-            )                                     ::timestamptz
-        )                                          as meeting_start_datetime,
-        null::timestamptz                          as meeting_end_datetime,
-        coalesce(s.location_en, s.location)        as exact_location,
-        coalesce(s.description_en, s.description)  as description,
-        s.url                                      as meeting_url,
-        null::text                                 as status,
-        null::text                                 as source_url,
-        null::text[]                               as tags,
-        s.scraped_at                               as scraped_at
-    from public.spanish_commission_meetings s
-
-    union all
-
     -- Weekly agenda (EP generic calendar)
     select
         w.id || '_weekly_agenda'                     as meeting_id,
         w.id                                         as source_id,
         'weekly_agenda'                              as source_table,
         w.title                                      as title,
-        (
-            -- builds timestamptz, fallback to time = 00:00 if no time provided
-            (w.date
-             + coalesce(w.time::time, '00:00'::time)
-            )                                       ::timestamptz
-        )                                            as meeting_start_datetime,
-        null::timestamptz                            as meeting_end_datetime,
+        -- build timestamptz from date + parsed start, fallback to time = 00:00 if no time provided
+        ( w.date
+          + coalesce(
+                CASE
+                    WHEN w.time IS NULL THEN NULL
+                    WHEN strpos(w.time, '-')  > 0 THEN trim(split_part(w.time, '-', 1))::time
+                    ELSE trim(w.time)::time
+                END
+            , '00:00'::time)
+        )                                            ::timestamptz as meeting_start_datetime,
+        -- build timestamptz from date + parsed end (or NULL)
+        CASE
+            WHEN w.time IS NULL              THEN NULL
+            WHEN strpos(w.time, '-') > 0     THEN (w.date + trim(split_part(w.time, '-', 2))::time)::timestamptz
+                        ELSE NULL
+        END                                          as meeting_end_datetime,
         w.location                                   as exact_location,
         w.description                                as description,
         null::text                                   as meeting_url,
