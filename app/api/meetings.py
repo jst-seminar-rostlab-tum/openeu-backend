@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
