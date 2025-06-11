@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.get_meetings_by_source_arrays(
+CREATE OR REPLACE FUNCTION public.get_meetings_by_filter(
     source_tables text[],
     source_ids text[],
     max_results integer,

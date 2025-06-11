@@ -65,7 +65,7 @@ def get_meetings(
                 'end_date': end,
                 'country': country,
             }
-            match = supabase.rpc('get_meetings_by_source_arrays', params=params).execute()
+            match = supabase.rpc('get_meetings_by_filter', params=params).execute()
 
             results = []
             if match.data:
