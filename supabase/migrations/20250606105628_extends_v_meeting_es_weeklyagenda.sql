@@ -179,11 +179,20 @@ with base as (
                 END
             , '00:00'::time)
         )                                            ::timestamptz as meeting_start_datetime,
-        -- build timestamptz from date + parsed end (or NULL)
+        -- build timestamptz from date + parsed end (or NULL), adding 1 day when end < start
         CASE
-            WHEN w.time IS NULL              THEN NULL
-            WHEN strpos(w.time, '-') > 0     THEN (w.date + trim(split_part(w.time, '-', 2))::time)::timestamptz
-                        ELSE NULL
+        WHEN strpos(w.time, '-') > 0 THEN
+        (
+            w.date
+            + trim(split_part(w.time, '-', 2))::time
+            + CASE
+                WHEN trim(split_part(w.time, '-', 2))::time
+                    < trim(split_part(w.time, '-', 1))::time
+                THEN INTERVAL '1 day'
+                ELSE INTERVAL '0'
+            END
+        )::timestamptz
+        ELSE NULL
         END                                          as meeting_end_datetime,
         w.location                                   as exact_location,
         w.description                                as description,
