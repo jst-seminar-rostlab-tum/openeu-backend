@@ -43,24 +43,27 @@ def get_meetings(
             neighbors = get_top_k_neighbors(
                 query=query,
                 allowed_sources={},
-                k=limit * 2,
+                k=limit * 3,
             )
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
-            or_params = []
             map_table_and_id_to_similarity = {}
+            source_tables = []
+            source_ids = []
             for neighbor in neighbors:
-                or_params.append(f"and(source_table.eq.{neighbor['source_table']},source_id.eq.{neighbor['source_id']})")
+                source_tables.append(neighbor["source_table"])
+                source_ids.append(neighbor["source_id"])
                 map_table_and_id_to_similarity[f"{neighbor['source_table']}_{neighbor['source_id']}"] = neighbor[
                     "similarity"]
 
-            match = (supabase.table("v_meetings")
-                     .select("*")
-                     .or_(','.join(or_params))
-                     .limit(limit)
-                     .execute())
+            params = {
+                'source_tables': source_tables,
+                'source_ids': source_ids,
+                'limit': limit,
+            }
+            match = supabase.rpc('get_meetings_by_source_arrays', params=params).execute()
 
             results = []
             if match.data:
@@ -73,22 +76,20 @@ def get_meetings(
                     if not meeting_time:
                         continue
 
-                    should_include = True
                     if start and meeting_time < start:
-                        should_include = False
+                        continue
                     if end and meeting_time > end:
-                        should_include = False
+                        continue
 
                     location = record.get("location")
                     if country and (not location or location.lower() != country.lower()):
-                        should_include = False
+                        continue
 
                     record["similarity"] = map_table_and_id_to_similarity[
                         f"{record['source_table']}_{record['source_id']}"
                     ]
 
-                    if should_include:
-                        results.append(record)
+                    results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
