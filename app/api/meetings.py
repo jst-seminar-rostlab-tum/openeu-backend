@@ -48,14 +48,11 @@ def get_meetings(
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
-            map_table_and_id_to_similarity = {}
-            source_tables = []
-            source_ids = []
-            for neighbor in neighbors:
-                source_tables.append(neighbor["source_table"])
-                source_ids.append(neighbor["source_id"])
-                map_table_and_id_to_similarity[f"{neighbor['source_table']}_{neighbor['source_id']}"] = neighbor[
-                    "similarity"]
+            map_table_and_id_to_similarity = {
+                f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
+            }
+            source_tables = [n["source_table"] for n in neighbors]
+            source_ids = [n["source_id"] for n in neighbors]
 
             params = {
                 'source_tables': source_tables,
