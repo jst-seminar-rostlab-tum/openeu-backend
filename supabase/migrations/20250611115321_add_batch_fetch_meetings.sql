@@ -16,6 +16,6 @@ AS $$
      AND vm.source_id = src.source_id
     WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
       AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
-      AND (country IS NULL OR vm.location ILIKE '%' || country || '%')
+      AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
     LIMIT max_results;
 $$;
