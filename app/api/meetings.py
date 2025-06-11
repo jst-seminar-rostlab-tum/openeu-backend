@@ -62,29 +62,15 @@ def get_meetings(
                 'source_tables': source_tables,
                 'source_ids': source_ids,
                 'limit': limit,
+                'start_date': start if start.isoformat() else None,
+                'end_date': end if end.isoformat() else None,
+                'country': country,
             }
             match = supabase.rpc('get_meetings_by_source_arrays', params=params).execute()
 
             results = []
             if match.data:
                 for record in match.data:
-                    meeting_time_str = record.get("meeting_start_datetime")
-                    if not meeting_time_str:
-                        continue
-
-                    meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    if not meeting_time:
-                        continue
-
-                    if start and meeting_time < start:
-                        continue
-                    if end and meeting_time > end:
-                        continue
-
-                    location = record.get("location")
-                    if country and (not location or location.lower() != country.lower()):
-                        continue
-
                     record["similarity"] = map_table_and_id_to_similarity[
                         f"{record['source_table']}_{record['source_id']}"
                     ]

@@ -1,7 +1,10 @@
 CREATE OR REPLACE FUNCTION public.get_meetings_by_source_arrays(
     source_tables text[],
     source_ids text[],
-    max_results integer
+    max_results integer,
+    start_date timestamp with time zone DEFAULT NULL,
+    end_date timestamp with time zone DEFAULT NULL,
+    country text DEFAULT NULL
 )
 RETURNS SETOF v_meetings
 LANGUAGE sql
@@ -11,5 +14,8 @@ AS $$
     JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
       ON vm.source_table = src.source_table
      AND vm.source_id = src.source_id
+    WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
+      AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
+      AND (country IS NULL OR vm.location ILIKE '%' || country || '%')
     LIMIT max_results;
 $$;
