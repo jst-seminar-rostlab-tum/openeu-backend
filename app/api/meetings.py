@@ -61,9 +61,9 @@ def get_meetings(
             params = {
                 'source_tables': source_tables,
                 'source_ids': source_ids,
-                'limit': limit,
-                'start_date': start if start.isoformat() else None,
-                'end_date': end if end.isoformat() else None,
+                'max_results': limit,
+                'start_date': start,
+                'end_date': end,
                 'country': country,
             }
             match = supabase.rpc('get_meetings_by_source_arrays', params=params).execute()
