@@ -42,7 +42,7 @@ def get_meetings(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={},
+                allowed_sources={},  # empty dict -> allows every source
                 k=limit * 3,
             )
 
