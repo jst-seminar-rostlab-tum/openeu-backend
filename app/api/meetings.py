@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -49,42 +48,30 @@ def get_meetings(
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
+            map_table_and_id_to_similarity = {
+                f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
+            }
+            source_tables = [n["source_table"] for n in neighbors]
+            source_ids = [n["source_id"] for n in neighbors]
+
+            params = {
+                'source_tables': source_tables,
+                'source_ids': source_ids,
+                'max_results': limit,
+                'start_date': start.isoformat() if start is not None else None,
+                'end_date': end.isoformat() if end is not None else None,
+                'country': country,
+            }
+            match = supabase.rpc('get_meetings_by_filter', params=params).execute()
+
             results = []
-            for neighbor in neighbors:
-                match = (
-                    supabase.table("v_meetings")
-                    .select("*")
-                    .eq("source_table", neighbor["source_table"])
-                    .eq("source_id", neighbor["source_id"])
-                    .limit(1)
-                    .execute()
-                )
+            if match.data:
+                for record in match.data:
+                    record["similarity"] = map_table_and_id_to_similarity[
+                        f"{record['source_table']}_{record['source_id']}"
+                    ]
 
-                if match.data:
-                    record = match.data[0]
-                    meeting_time_str = record.get("meeting_start_datetime")
-                    if not meeting_time_str:
-                        continue
-
-                    meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    if not meeting_time:
-                        continue
-
-                    should_include = True
-                    if start and meeting_time < start:
-                        should_include = False
-                    if end and meeting_time > end:
-                        should_include = False
-
-                    location = record.get("location")
-                    if country and (not location or location.lower() != country.lower()):
-                        should_include = False
-
-                    if "similarity" in neighbor:
-                        record["similarity"] = neighbor["similarity"]
-
-                    if should_include:
-                        results.append(record)
+                    results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
