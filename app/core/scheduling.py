@@ -4,11 +4,12 @@ import threading
 from datetime import datetime, timedelta
 from typing import Callable
 
-from app.core.notify_job_failure import notify_job_failure
+from app.core.mail.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperResult
 
 TABLE_NAME = "scheduled_job_runs"
+
 
 class ScheduledJob:
     def __init__(
