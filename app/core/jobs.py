@@ -129,7 +129,6 @@ def clean_up_embeddings():
 
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
-    scheduler.register("scrape_eu_laws_by_topic", scrape_eu_laws_by_topic, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )
