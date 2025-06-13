@@ -167,7 +167,13 @@ class BelgianParliamentScraper(ScraperBase):
         if not title_element:
             raise ValueError("Title element not found")
         title = title_element.text.strip()
-        title_en = self.translator.translate(title).text
+        title_en = ""
+        try:
+            translation_result = self.translator.translate(title)
+            title_en = translation_result.text
+        except Exception as e:
+            logger.warning(f"Translation failed for title '{title}': {e}. Using Belgian title as English title.")
+            title_en = title
 
         # Get the URL first as we possibly need it for the full description
         link_list = entry.find('ul', class_='card__link-list')
@@ -222,8 +228,16 @@ class BelgianParliamentScraper(ScraperBase):
                     description = f"{h3_text}: {p_text}" if h3_text else p_text
         else:
             description = ""
-        
-        description_en = self.translator.translate(description).text if description else ""
+    
+        description_en = ""
+        if description:
+            try:
+                translation_result = self.translator.translate(description)
+                description_en = translation_result.text
+            except Exception as e:
+                logger.warning(f"Translation failed for description '{description}': {e}. Using Belgian description as English description.")
+                description_en = description
+
 
         # Extract date and location
         date_element = entry.find('div', class_='card__date')
