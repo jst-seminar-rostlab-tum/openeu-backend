@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from app.core.supabase_client import supabase
 from scripts.embedding_generator import embed_row
+from app.core.mail.notify_job_failure import notify_job_failure
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ class ScraperBase(ABC):
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
                     if result.error:
+                        error_message = f"{result.error.__class__.__name__}"
+
+                        notify_job_failure(error_message, result.error)
                         logger.error(f"Error: {result.error.__class__} - {result.error}")
             except Exception as e:
                 logger.exception(f"Exception during scrape attempt {attempt + 1}: {e}")
