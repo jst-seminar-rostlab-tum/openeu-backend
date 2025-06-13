@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
@@ -58,8 +58,7 @@ def scrape_mec_sum_minist_meetings():
 
 def scrape_belgian_parliament_meetings():
     today = datetime.now().date()
-    yesterday = today - timedelta(days=4)
-    return run_belgian_parliament_scraper(start_date=yesterday, end_date=today)
+    return run_belgian_parliament_scraper(start_date=today, end_date=today)
 
 
 def send_daily_newsletter():

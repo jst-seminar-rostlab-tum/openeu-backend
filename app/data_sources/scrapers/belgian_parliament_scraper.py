@@ -235,7 +235,8 @@ class BelgianParliamentScraper(ScraperBase):
                 translation_result = self.translator.translate(description)
                 description_en = translation_result.text
             except Exception as e:
-                logger.warning(f"Translation failed for description '{description}': {e}. Using Belgian description as English description.")
+                logger.warning(f"Translation failed for description '{description}': {e}. \
+                               Using Belgian description as English description.")
                 description_en = description
 
 
@@ -247,8 +248,10 @@ class BelgianParliamentScraper(ScraperBase):
         # Split on " - " to separate time and location
         location = date_location.split(" - ", 1)[1]
 
+        meeting_date = self.current_date.strftime("%Y-%m-%d")
+
         # create embedding input
-        embedding_input = f"{title_en} {description_en} {location}"
+        embedding_input = f"{title_en} {description_en} {meeting_date} {location}"
 
         return BelgianParliamentMeeting(
             id=meeting_id,
@@ -256,7 +259,7 @@ class BelgianParliamentScraper(ScraperBase):
             title_en=title_en,
             description=description,
             description_en=description_en,
-            meeting_date=self.current_date.strftime("%Y-%m-%d"),
+            meeting_date=meeting_date,
             location=location,
             meeting_url=meeting_url,
             embedding_input=embedding_input
