@@ -1,86 +1,102 @@
 import logging
-from typing import Dict, List
+from typing import Optional
 
-import tiktoken
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import OpenAIEmbeddings
 from postgrest.exceptions import APIError
 
 from app.core.config import Settings
-from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
 from app.core.supabase_client import supabase
 
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
+embedder = OpenAIEmbeddings(model=settings.EMBED_MODEL)
 
-def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:
-    enc = tiktoken.encoding_for_model(EMBED_MODEL)
-    tokens = enc.encode(text)
-    chunks = []
-    for i in range(0, len(tokens), max_tokens):
-        chunk_toks = tokens[i : i + max_tokens]
-        chunks.append(enc.decode(chunk_toks))
-    return chunks
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=settings.MAX_TOKENS,
+    chunk_overlap=100,
+)
+
+META_DELIM = '::META::'
+
+conflict_map = {
+    "documents_embeddings": ["source_table", "source_id", "content_text"],
+    "meeting_embeddings": ["source_table", "source_id"],
+}
+
+class embeddingGenerator:
+    
+    try:
+        response = supabase.table("v_meetings").select("source_table").execute().data
+    except Exception as e:
+        logging.error(f"Failed to init embeddingGenerator with exception: {e}")
+        raise e
+    
+    
+    def embed_row(
+        source_table: str, row_id: str, content_column: str, 
+        content_text: str, destination_table: Optional[str]
+        ) -> None:
+
+        """
+        Splits content_text into chunks using LangChain's text splitter, embeds each chunk with metadata
+        included in the embedding input (separated by a delimiter), and upserts to Supabase.
+
+        Args:
+            source_table: Name of the source table for provenance.
+            row_id: Primary key or unique identifier of the source row.
+            content_column: Column name where text came from.
+            content_text: The full text for embedding.
+            metadata: Optional dict of extra metadata to attach to every chunk.
+        """
+        
+        conflicts = conflict_map[destination_table] or []
+        destination_table = destination_table or "documents_embeddings"
+        
+        if source_table in embeddingGenerator.response:
+            destination_table = "meeting_embeddings"
+        
+        base_meta = ""
+
+        if META_DELIM in content_text:
+            base_meta, content_text = content_text.split(META_DELIM, 1)
 
 
-def embed_batch(texts: List[str]) -> List[List[float]]:
-    resp = openai.embeddings.create(model=EMBED_MODEL, input=texts)
-    data = resp.data
-    embs = [d.embedding for d in data]
-    return embs
+        chunks = text_splitter.split_text(content_text)
 
-
-def embed_row(source_table: str, row_id: str, content_column: str, content_text: str) -> None:
-    """
-    Generates and stores OpenAI embeddings for content_text in the doucments_embedding table
-
-    - Chunks text, batches requests to OpenAI, embeds, and upserts results.
-    - Writes to `documents_embeddings` with unique (source_table, source_id, content_text).
-
-    Args:
-        source_table (str): Name of the source table (e.g. 'bt_documents').
-        row_id (str): Primary key column in the source table.
-        content_column (str): Column containing text to embed.
-        content_text   (str): Content to generate embedding for
-
-    Returns:
-        None. Writes results directly to Supabase.
-
-    Logs and skips errors; continues with next batch.
-    """
-
-    upsert_rows: List[Dict] = []
-
-    chunks = chunk_text(content_text)
-    for chunk in chunks:
-        upsert_rows.append(
-            {
+        upsert_rows: list[dict] = []
+        for chunk in chunks:
+            merged_meta = base_meta + chunk
+            upsert_rows.append({
                 "source_table": source_table,
                 "source_id": row_id,
                 "content_column": content_column,
-                "content_text": chunk,
+                "content_text": merged_meta,
                 "embedding": None,
-            }
-        )
+            })
 
-    for i in range(0, len(upsert_rows), BATCH_SZ):
-        batch = upsert_rows[i : i + BATCH_SZ]
-        texts = [r["content_text"] for r in batch]
-        try:
-            vectors = embed_batch(texts)
-            for rec, vec in zip(batch, vectors):
-                rec["embedding"] = vec
+        batch_size = settings.BATCH_SZ
+        for i in range(0, len(upsert_rows), batch_size):
+            batch = upsert_rows[i : i + batch_size]
+            texts_to_embed = [row["content_text"] for row in batch]
 
-        except Exception as e:
-            logging.error(f"Embedding failed on batch {i // BATCH_SZ + 1}: {e}")
-            continue
+            try:
+                embeddings = embedder.embed_documents(texts_to_embed)
+                for row, emb in zip(batch, embeddings):
+                    row["embedding"] = emb
+            except Exception as e:
+                logging.error(f"Embedding failed on batch {i // batch_size + 1}: {e}")
+                continue
+            
+            try:
 
-        try:
-            (
-                supabase.table("documents_embeddings")
-                .upsert(batch, on_conflict="source_table, source_id, content_text")
-                .execute()
-            )
-        except APIError as e:
-            logging.error(f"Supabase APIError: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error during upsert for {i // BATCH_SZ + 1}: {e}: {e}")
+                supabase.table("documents_embeddings").upsert(
+                    batch,
+                    on_conflict=conflicts
+                ).execute()
+
+            except APIError as e:
+                logging.error(f"Supabase APIError: {e}")
+            except Exception as e:
+                logging.error(f"Unexpected error during upsert for batch {i // batch_size + 1}: {e}")
