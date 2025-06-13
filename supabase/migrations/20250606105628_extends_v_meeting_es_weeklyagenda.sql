@@ -1,3 +1,13 @@
+-- 1. Add source table -> location mapping to country_map_meetings (spanish_commission_meetings, weeky_agenda)
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('weekly_agenda',                  'European Union', 'EU')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 2. Rebuild the view with the new schema (adding: spanish_commission_meetings, weeky_agenda)
+drop view if exists public.v_meetings cascade;
+
 CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings
@@ -201,25 +211,3 @@ select
 from base
 join public.country_map_meetings as cm
     on base.source_table = cm.source_table;
-
-CREATE OR REPLACE FUNCTION public.get_meetings_by_filter(
-    source_tables text[],
-    source_ids text[],
-    max_results integer,
-    start_date timestamp with time zone DEFAULT NULL,
-    end_date timestamp with time zone DEFAULT NULL,
-    country text DEFAULT NULL
-)
-RETURNS SETOF v_meetings
-LANGUAGE sql
-AS $$
-    SELECT vm.*
-    FROM v_meetings vm
-    JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
-      ON vm.source_table = src.source_table
-     AND vm.source_id = src.source_id
-    WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
-      AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
-      AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
-    LIMIT max_results;
-$$;

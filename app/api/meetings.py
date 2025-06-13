@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -32,58 +31,60 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
+    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
 ):
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
 
+        # --- SEMANTIC QUERY CASE ---
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={},
-                k=100,
+                allowed_sources={},  # empty dict -> allows every source
+                k=limit * 3,
             )
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
+            map_table_and_id_to_similarity = {
+                f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
+            }
+            source_tables = [n["source_table"] for n in neighbors]
+            source_ids = [n["source_id"] for n in neighbors]
+
+            params = {
+                'source_tables': source_tables,
+                'source_ids': source_ids,
+                'max_results': limit,
+                'start_date': start.isoformat() if start is not None else None,
+                'end_date': end.isoformat() if end is not None else None,
+                'country': country,
+            }
+            match = supabase.rpc('get_meetings_by_filter', params=params).execute()
+
             results = []
-            for neighbor in neighbors:
-                match = (
-                    supabase.table("v_meetings")
-                    .select("*")
-                    .eq("source_table", neighbor["source_table"])
-                    .eq("source_id", neighbor["source_id"])
-                    .limit(1)
-                    .execute()
-                )
+            if match.data:
+                for record in match.data:
+                    record["similarity"] = map_table_and_id_to_similarity[
+                        f"{record['source_table']}_{record['source_id']}"
+                    ]
 
-                if match.data:
-                    record = match.data[0]
-                    meeting_time_str = record.get("meeting_start_datetime")
-                    if not meeting_time_str:
-                        continue
+                    results.append(record)
 
-                    meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    assert meeting_time is not None
+            return JSONResponse(status_code=200, content={"data": results[:limit]})
 
-                    should_include = True
-                    if start is not None and meeting_time < start:
-                        should_include = False
-                    if end is not None and meeting_time > end:
-                        should_include = False
-
-                    if should_include:
-                        results.append(record)
-
-            return JSONResponse(status_code=200, content={"data": results})
-
+        # --- DEFAULT QUERY CASE ---
         db_query = supabase.table("v_meetings").select("*")
 
         if start:
             db_query = db_query.gte("meeting_start_datetime", start.isoformat())
         if end:
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
+
+        if country:
+            db_query = db_query.ilike("location", country)
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data

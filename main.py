@@ -26,7 +26,11 @@ app.include_router(notifications_router)
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
-        is_allowed_origin = origin and (origin.startswith("http://localhost") or origin.endswith("openeu.netlify.app"))
+        is_allowed_origin = origin and (
+            origin.startswith("http://localhost")
+            or origin.endswith("openeu.netlify.app")
+            or origin.endswith("openeu.csee.tech")
+        )
 
         if request.method == "OPTIONS" and is_allowed_origin:
             response = PlainTextResponse("Preflight OK", status_code=200)
