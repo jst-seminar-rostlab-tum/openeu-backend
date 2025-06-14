@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, Tag
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
 
@@ -73,8 +74,12 @@ class BelgianParliamentScraper(ScraperBase):
 
             with sync_playwright() as p:
                 # Launch browser
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
+                try:
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                except Exception as e:
+                    logger.error(f"Failed to launch browser: {e}")
+                    return ScraperResult(success=False, error=e, last_entry=self.last_entry)
 
                 # Iterate through each day in the date range
                 while current_date <= self.end_date:
@@ -83,14 +88,23 @@ class BelgianParliamentScraper(ScraperBase):
                         day_url = f"{MEETINGS_URL}?period={current_date.isoformat()}&view=day"
                         logger.info(f"Scraping meetings for {current_date.isoformat()}")
                         
-                        # Update current_date for this iteration
                         self.current_date = current_date
 
                         # Navigate to the page
-                        page.goto(day_url)
-                        
-                        # Wait for the content to load
-                        page.wait_for_selector('.meeting-card', timeout=10000)
+                        try:
+                            page.goto(day_url)
+                        except Exception as e:
+                            logger.error(f"Failed to navigate to {day_url}: {e}")
+                            # Major error: abort scraping
+                            return ScraperResult(success=False, error=e, last_entry=self.last_entry)
+
+                        # Wait for the content to load, but skip if no meetings
+                        try:
+                            page.wait_for_selector('.meeting-card', timeout=10000)
+                        except PlaywrightTimeoutError:
+                            logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
+                            current_date += timedelta(days=1)
+                            continue
 
                         # Get the page content
                         content = page.content()
@@ -121,7 +135,9 @@ class BelgianParliamentScraper(ScraperBase):
                                 continue
 
                     except Exception as e:
+                        # Major error for the whole day: log and skip the day, or abort
                         logger.error(f"Error scraping day {current_date}: {e}")
+                        # Abort scraping (uncomment to abort)
                         return ScraperResult(success=False, error=e, last_entry=self.last_entry)
 
                     # Move to next day
@@ -130,7 +146,7 @@ class BelgianParliamentScraper(ScraperBase):
                 # Close browser
                 browser.close()
                 
-                return ScraperResult(success=True, last_entry=last_entry)
+                return ScraperResult(success=True, last_entry=self.last_entry)
 
         except Exception as e:
             logger.error(f"Error during scraping: {e}")
@@ -151,7 +167,13 @@ class BelgianParliamentScraper(ScraperBase):
         if not title_element:
             raise ValueError("Title element not found")
         title = title_element.text.strip()
-        title_en = self.translator.translate(title).text
+        title_en = ""
+        try:
+            translation_result = self.translator.translate(title)
+            title_en = translation_result.text
+        except Exception as e:
+            logger.warning(f"Translation failed for title '{title}': {e}. Using Belgian title as English title.")
+            title_en = title
 
         # Get the URL first as we possibly need it for the full description
         link_list = entry.find('ul', class_='card__link-list')
@@ -206,8 +228,17 @@ class BelgianParliamentScraper(ScraperBase):
                     description = f"{h3_text}: {p_text}" if h3_text else p_text
         else:
             description = ""
-        
-        description_en = self.translator.translate(description).text if description else ""
+    
+        description_en = ""
+        if description:
+            try:
+                translation_result = self.translator.translate(description)
+                description_en = translation_result.text
+            except Exception as e:
+                logger.warning(f"Translation failed for description '{description}': {e}. \
+                               Using Belgian description as English description.")
+                description_en = description
+
 
         # Extract date and location
         date_element = entry.find('div', class_='card__date')
@@ -217,8 +248,10 @@ class BelgianParliamentScraper(ScraperBase):
         # Split on " - " to separate time and location
         location = date_location.split(" - ", 1)[1]
 
+        meeting_date = self.current_date.strftime("%Y-%m-%d")
+
         # create embedding input
-        embedding_input = f"{title_en} {description_en} {location}"
+        embedding_input = f"{title_en} {description_en} {meeting_date} {location}"
 
         return BelgianParliamentMeeting(
             id=meeting_id,
@@ -226,7 +259,7 @@ class BelgianParliamentScraper(ScraperBase):
             title_en=title_en,
             description=description,
             description_en=description_en,
-            meeting_date=self.current_date.strftime("%Y-%m-%d"),
+            meeting_date=meeting_date,
             location=location,
             meeting_url=meeting_url,
             embedding_input=embedding_input
