@@ -41,8 +41,8 @@ class DeepLTranslator:
 
     def translate(self, text: str) -> TextResult:
         if not self.prod:
-            result = f"untranslated: {text}"
-            return cast(TextResult, result)
+            result_unstranlated = f"untranslated: {text}"
+            return cast(TextResult, result_unstranlated)
 
         cleaned_text = TextPreprocessor.clean(text)
         result = self.translator.translate_text(cleaned_text, target_lang="EN-US")
