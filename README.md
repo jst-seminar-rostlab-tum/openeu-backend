@@ -10,9 +10,9 @@
 
 You can test and explore the API via:
 
-- 🧪 Swagger UI: https://openeu-backend.onrender.com/docs
-- 📕 ReDoc: https://openeu-backend.onrender.com/redoc
-- 🧾 OpenAPI JSON: https://openeu-backend.onrender.com/openapi.json
+- 🧪 Swagger UI: https://openeu-backend-1.onrender.com/docs
+- 📕 ReDoc: https://openeu-backend-1.onrender.com/redoc
+- 🧾 OpenAPI JSON: https://openeu-backend-1.onrender.com/openapi.json
 
 ## 📦 Project Structure
 
@@ -130,11 +130,11 @@ In order to test the `crawler` endpoint you need to do the following:
 The deployment of our backend application is fully automated using GitHub Actions.
 Each time a commit is pushed to the main branch, a deployment workflow is triggered to ensure that the latest changes are live without manual intervention.
 
-The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend.onrender.com```
+The application is hosted on Render, and the latest version of the backend can be accessed at: ```https://openeu-backend-1.onrender.com```
 
 ### Environment Variables
 Please ensure that you added all necessary environment variables to production before pushing to main.
-You can add the environment variables for production [here](https://dashboard.render.com/web/srv-d0fpj1idbo4c73ankui0/env).
+You can add the environment variables for production [here](https://dashboard.render.com/web/srv-d0vdf7vfte5s739i276g/env).
 
 ## Background Jobs
 In our project, each background job is associated with a dedicated API endpoint. 

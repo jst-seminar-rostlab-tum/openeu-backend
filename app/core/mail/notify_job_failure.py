@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app.core.email import Email, EmailService
 
 GITHUB_URL = "https://github.com/jst-seminar-rostlab-tum/openeu-backend"
-RENDER_LOG_URL = "https://dashboard.render.com/web/srv-d0fpj1idbo4c73ankui0/logs"
+RENDER_LOG_URL = "https://dashboard.render.com/web/srv-d0vdf7vfte5s739i276g/logs"
 
 
 def notify_job_failure(job_name: str, error: Exception) -> None:
