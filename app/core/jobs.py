@@ -67,8 +67,10 @@ def send_daily_newsletter():
 
     logger.info(f"Sending daily newsletter to {len(ids)} users")
 
-    for id in ids:
-        Newsletter.send_newsletter_to_user(id)
+    for user_id in ids:
+        subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
+        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
+            Newsletter.send_newsletter_to_user(user_id)
 
 
 def scrape_mec_prep_bodies_meetings():
