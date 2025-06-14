@@ -56,6 +56,9 @@ def get_meetings(
             source_tables = [n["source_table"] for n in neighbors]
             source_ids = [n["source_id"] for n in neighbors]
 
+            if topics and len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+
             params = {
                 "source_tables": source_tables,
                 "source_ids": source_ids,
@@ -63,6 +66,7 @@ def get_meetings(
                 "start_date": start.isoformat() if start is not None else None,
                 "end_date": end.isoformat() if end is not None else None,
                 "country": country,
+                "topics": topics if topics else None,
             }
             match = supabase.rpc("get_meetings_by_filter", params=params).execute()
 
