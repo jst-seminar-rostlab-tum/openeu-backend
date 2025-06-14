@@ -17,6 +17,7 @@ router = APIRouter()
 
 _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
+_TOPICS = Query(None, description="List of topic names (repeat or comma-separated)")
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -31,7 +32,8 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
+    topics: Optional[list[str]] = _TOPICS,
+    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
 ):
     try:
         start = to_utc_aware(start)
@@ -54,15 +56,19 @@ def get_meetings(
             source_tables = [n["source_table"] for n in neighbors]
             source_ids = [n["source_id"] for n in neighbors]
 
+            if topics and len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+
             params = {
-                'source_tables': source_tables,
-                'source_ids': source_ids,
-                'max_results': limit,
-                'start_date': start.isoformat() if start is not None else None,
-                'end_date': end.isoformat() if end is not None else None,
-                'country': country,
+                "source_tables": source_tables,
+                "source_ids": source_ids,
+                "max_results": limit,
+                "start_date": start.isoformat() if start is not None else None,
+                "end_date": end.isoformat() if end is not None else None,
+                "country": country,
+                "topics": topics if topics else None,
             }
-            match = supabase.rpc('get_meetings_by_filter', params=params).execute()
+            match = supabase.rpc("get_meetings_by_filter", params=params).execute()
 
             results = []
             if match.data:
@@ -85,6 +91,12 @@ def get_meetings(
 
         if country:
             db_query = db_query.ilike("location", country)
+
+        # --- TOPIC FILTERING ---
+        if topics:
+            if len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+            db_query = db_query.in_("topic", topics)
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data

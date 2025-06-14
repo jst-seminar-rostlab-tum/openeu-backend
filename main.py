@@ -8,6 +8,7 @@ from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
+from app.api.topics import router as api_topics
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
 
@@ -20,6 +21,8 @@ app.include_router(api_meetings)
 app.include_router(api_crawler)
 app.include_router(api_scheduler)
 app.include_router(api_chat)
+app.include_router(api_topics)
+
 app.include_router(notifications_router)
 
 

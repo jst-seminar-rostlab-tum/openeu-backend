@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class Meeting(BaseModel):
     meeting_id: str
     source_table: str
+    source_id: str
     title: str
     status: Optional[str] = None
     meeting_url: Optional[str] = None

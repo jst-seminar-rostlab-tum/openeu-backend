@@ -193,14 +193,28 @@ with base as (
         w.scraped_at                                 as scraped_at
     from public.weekly_agenda w
 
+),
+base_with_location AS (
+    SELECT
+        base.*,
+        cm.country AS location
+    FROM base
+    JOIN public.country_map_meetings AS cm
+        ON base.source_table = cm.source_table
+),
+base_with_topic AS (
+    SELECT
+        bwl.*,
+        mt.topic AS topic
+    FROM base_with_location bwl
+    LEFT JOIN public.meeting_topic_assignments mta
+        ON mta.source_id = bwl.source_id
+        AND mta.source_table = bwl.source_table
+    LEFT JOIN public.meeting_topics mt
+        ON mt.id = mta.topic_id
 )
 
-select
-    base.*,
-    cm.country as location
-from base
-join public.country_map_meetings as cm
-    on base.source_table = cm.source_table;
+SELECT * FROM base_with_topic;
 
 CREATE OR REPLACE FUNCTION public.get_meetings_by_filter(
     source_tables text[],
@@ -208,18 +222,20 @@ CREATE OR REPLACE FUNCTION public.get_meetings_by_filter(
     max_results integer,
     start_date timestamp with time zone DEFAULT NULL,
     end_date timestamp with time zone DEFAULT NULL,
-    country text DEFAULT NULL
+    country text DEFAULT NULL,
+    topics text[] DEFAULT NULL
 )
 RETURNS SETOF v_meetings
 LANGUAGE sql
 AS $$
-    SELECT vm.*
-    FROM v_meetings vm
-    JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
-      ON vm.source_table = src.source_table
-     AND vm.source_id = src.source_id
-    WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
-      AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
-      AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
+SELECT vm.*
+FROM v_meetings vm
+         JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
+              ON vm.source_table = src.source_table
+                  AND vm.source_id = src.source_id
+WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
+  AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
+  AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
+  AND (topics IS NULL OR vm.topic = ANY(topics))
     LIMIT max_results;
 $$;
