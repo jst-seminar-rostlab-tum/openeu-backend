@@ -24,7 +24,7 @@ class Settings:
             if branch["git_branch"] == self.get_git_branch():
                 branch_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/branches/{branch["id"]}",
+                    f"https://api.supabase.com/v1/branches/{branch['id']}",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
@@ -34,7 +34,7 @@ class Settings:
                 values["branch"] = branch_data_json
                 keys_data = requests.request(
                     "GET",
-                    f"https://api.supabase.com/v1/projects/{branch_data_json["ref"]}/api-keys",
+                    f"https://api.supabase.com/v1/projects/{branch_data_json['ref']}/api-keys",
                     headers={
                         "Authorization": "Bearer " + self.get_supabase_rest_key(),
                     },
@@ -42,7 +42,7 @@ class Settings:
                 )
                 keys_data_json = keys_data.json()
                 for key in keys_data_json:
-                    if key["name"] == "anon":
+                    if key["name"] == "service_role":
                         values["key"] = key
         return values
 
@@ -109,6 +109,12 @@ class Settings:
     def get_git_branch(self) -> str:
         render = os.getenv("RENDER")
         value = Repository(".").head.shorthand if render is None else os.getenv("RENDER_GIT_BRANCH")
+        if value is None:
+            value = ""
+        return value
+
+    def get_twitter_api_key(self) -> str:
+        value = os.getenv("TWITTER_API_KEY")
         if value is None:
             value = ""
         return value

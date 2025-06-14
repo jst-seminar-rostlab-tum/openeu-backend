@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 
 import brevo_python
-from brevo_python.rest import ApiException
 
 from app.core.config import Settings
 
@@ -20,7 +19,7 @@ class Email:
         recipients: list[str],
         text_body: Optional[str] = None,
         sender_name: str = "OpenEU",
-        sender_email: str = "mail@openeu.csee.tech",
+        sender_email: str = "noreply@mail.openeu.csee.tech",
         reply_to: Optional[str] = None,
         headers: Optional[dict[str, str]] = None,
     ):
@@ -72,9 +71,6 @@ class EmailService:
                 headers=email.headers or None,
             )
 
-            try:
-                EmailService.client.send_transac_email(email_data)
-                anonymized_recipient = EmailService._anonymize_email(recipient)
-                EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")
-            except ApiException as e:
-                EmailService.logger.error(f"Error sending email: {e}")
+            EmailService.client.send_transac_email(email_data)
+            anonymized_recipient = EmailService._anonymize_email(recipient)
+            EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")

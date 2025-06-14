@@ -1,8 +1,9 @@
-CREATE TABLE IF NOT EXISTS legislative_files (
-  reference   TEXT PRIMARY KEY,
-  link        TEXT NOT NULL,
-  title       TEXT NOT NULL,
-  lastpubdate TEXT NOT NULL,
-  committee   TEXT,
-  rapporteur  TEXT
+create table if not exists public.legislative_files (
+    reference text primary key,
+    link text,
+    title text,
+    lastpubdate text,
+    committee text,
+    rapporteur text,
+    scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );

@@ -1,4 +1,43 @@
-CREATE or REPLACE VIEW public.v_meetings as
+-- 1. Create country map table for meetings
+create table if not exists public.country_map_meetings (
+    source_table text primary key,
+    country      text not null,
+    iso2         char(2) not null
+);
+
+-- 1.1 Grant access on the new table to key roles
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to anon;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to authenticated;
+
+grant select, insert, update, delete, truncate, references, trigger
+  on table public.country_map_meetings
+  to service_role;
+
+-- 2️.  Up-sert country map
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('mep_meetings',                   'European Union', 'EU'),
+  ('ep_meetings',                    'European Union', 'EU'),
+  ('austrian_parliament_meetings',   'Austria',        'AT'),
+  ('ipex_events',                    'European Union', 'EU'),
+
+  -- new
+  ('belgian_parliament_meetings',    'Belgium',        'BE'),
+  ('mec_prep_bodies_meeting',        'European Union', 'EU'),
+  ('mec_summit_ministerial_meeting', 'European Union', 'EU'),
+  ('polish_presidency_meeting',      'Poland',         'PL')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 3️. Rebuild the view with the new schema
+drop view if exists public.v_meetings cascade;
+
+create or replace view public.v_meetings as
 with base as (
     -- MEP meetings
     select
@@ -135,6 +174,7 @@ with base as (
     union all
 
     -- Polish Presidency meetings
+
     select
         p.id || '_polish_presidency'          as meeting_id,
         p.id::text                            as source_id,
@@ -150,49 +190,6 @@ with base as (
         null::text[]                          as tags,
         p.scraped_at                          as scraped_at
     from public.polish_presidency_meeting p
-
-    union all
-
-    -- Weekly agenda (EP generic calendar)
-    select
-        w.id || '_weekly_agenda'                     as meeting_id,
-        w.id                                         as source_id,
-        'weekly_agenda'                              as source_table,
-        w.title                                      as title,
-        -- build timestamptz from date + parsed start, fallback to time = 00:00 if no time provided
-        ( w.date
-          + coalesce(
-                CASE
-                    WHEN w.time IS NULL THEN NULL
-                    WHEN strpos(w.time, '-')  > 0 THEN trim(split_part(w.time, '-', 1))::time
-                    ELSE trim(w.time)::time
-                END
-            , '00:00'::time)
-        )                                            ::timestamptz as meeting_start_datetime,
-        -- build timestamptz from date + parsed end (or NULL), adding 1 day when end < start
-        CASE
-        WHEN strpos(w.time, '-') > 0 THEN
-        (
-            w.date
-            + trim(split_part(w.time, '-', 2))::time
-            + CASE
-                WHEN trim(split_part(w.time, '-', 2))::time
-                    < trim(split_part(w.time, '-', 1))::time
-                THEN INTERVAL '1 day'
-                ELSE INTERVAL '0'
-            END
-        )::timestamptz
-        ELSE NULL
-        END                                          as meeting_end_datetime,
-        w.location                                   as exact_location,
-        w.description                                as description,
-        null::text                                   as meeting_url,
-        null::text                                   as status,
-        null::text                                   as source_url,
-        array[w.type]::text[]                        as tags,
-        w.scraped_at                                 as scraped_at
-    from public.weekly_agenda w
-
 )
 
 select
@@ -202,24 +199,3 @@ from base
 join public.country_map_meetings as cm
     on base.source_table = cm.source_table;
 
-CREATE OR REPLACE FUNCTION public.get_meetings_by_filter(
-    source_tables text[],
-    source_ids text[],
-    max_results integer,
-    start_date timestamp with time zone DEFAULT NULL,
-    end_date timestamp with time zone DEFAULT NULL,
-    country text DEFAULT NULL
-)
-RETURNS SETOF v_meetings
-LANGUAGE sql
-AS $$
-    SELECT vm.*
-    FROM v_meetings vm
-    JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
-      ON vm.source_table = src.source_table
-     AND vm.source_id = src.source_id
-    WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
-      AND (end_date IS NULL OR vm.meeting_start_datetime <= end_date)
-      AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
-    LIMIT max_results;
-$$;

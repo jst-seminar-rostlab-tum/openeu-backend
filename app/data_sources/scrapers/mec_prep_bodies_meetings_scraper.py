@@ -204,7 +204,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             return asyncio.run(self.scrape_once_async(last_entry))
         except Exception as e:
             logger.error(f"Error while scraping and storing meetings: {e}")
-            return ScraperResult(False, e, None)
+            return ScraperResult(success=False, error=e)
 
 
 # ------------------------------
