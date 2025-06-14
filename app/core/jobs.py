@@ -69,7 +69,7 @@ def send_daily_newsletter():
 
     for user_id in ids:
         subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
-        if subscribed.data[0]["subscribed_newsletter"] is True:
+        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
             Newsletter.send_newsletter_to_user(user_id)
 
 
