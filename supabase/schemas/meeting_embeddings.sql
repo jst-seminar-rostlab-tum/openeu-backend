@@ -14,9 +14,6 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 
 --TODO: Analyze should be run on the table every 10000 updates or so to keep ivfflat efficient!
 
-
-
-
 --Remote Procedure Call to query for K-NN
 -- src_tables:   list of table names
 -- content_columns: corresponding list of column names
@@ -81,4 +78,85 @@ begin
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
+$$;
+
+
+-- combined K‑NN over both tables
+create or replace function public.match_combined_embeddings(
+  query_embedding vector(1536),
+  match_count     int
+)
+returns table(
+  source_table  text,
+  source_id     text,
+  content_text  text,
+  similarity    float
+)
+language sql
+stable
+as $$
+  with all_embeddings as (
+    select
+      source_table,
+      source_id,
+      content_text,
+      embedding
+    from meeting_embeddings
+    union all
+    select
+      source_table,
+      source_id,
+      content_text,
+      embedding
+    from document_embeddings
+  )
+  select
+    ae.source_table,
+    ae.source_id,
+    ae.content_text,
+    -- convert cosine distance to a [0–1] similarity score
+    (1 - (ae.embedding <#> query_embedding)) as similarity
+  from all_embeddings ae
+  order by ae.embedding <#> query_embedding
+  limit match_count;
+$$;
+
+CREATE OR REPLACE FUNCTION public.match_combined_filtered_embeddings(
+  src_tables      TEXT[],            -- list of source_table values to include
+  query_embedding VECTOR(1536),      -- your query vector
+  match_count     INT                -- number of neighbors to return
+)
+RETURNS TABLE (
+  source_table  TEXT,
+  source_id     TEXT,
+  content_text  TEXT,
+  similarity    FLOAT
+)
+LANGUAGE SQL
+STABLE
+AS $$
+  WITH all_embeddings AS (
+    SELECT
+      source_table,
+      source_id,
+      content_text,
+      embedding
+    FROM meeting_embeddings
+    UNION ALL
+    SELECT
+      source_table,
+      source_id,
+      content_text,
+      embedding
+    FROM document_embeddings
+  )
+  SELECT
+    ae.source_table,
+    ae.source_id,
+    ae.content_text,
+    (1 - (ae.embedding <#> query_embedding)) AS similarity
+  FROM all_embeddings ae
+  WHERE ae.source_table = ANY(src_tables)
+  ORDER BY ae.embedding <#> query_embedding
+  LIMIT match_count;
 $$;
