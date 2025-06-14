@@ -68,8 +68,10 @@ def send_daily_newsletter():
 
     logger.info(f"Sending daily newsletter to {len(ids)} users")
 
-    for id in ids:
-        Newsletter.send_newsletter_to_user(id)
+    for user_id in ids:
+        subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
+        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
+            Newsletter.send_newsletter_to_user(user_id)
 
 
 def scrape_mec_prep_bodies_meetings():
@@ -135,7 +137,6 @@ def extract_topics_from_meetings():
 
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
-    scheduler.register("scrape_eu_laws_by_topic", scrape_eu_laws_by_topic, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )

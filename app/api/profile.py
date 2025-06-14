@@ -44,7 +44,6 @@ async def create_profile(profile: ProfileCreate):
     payload["embedding"] = embedding
 
     try:
-        logger.info("Upserting profile %s into Supabase", payload["id"])
         supabase.table("profiles").upsert(payload).execute()
         logger.info("Successfully upserted profile %s", payload["id"])
     except Exception as e:

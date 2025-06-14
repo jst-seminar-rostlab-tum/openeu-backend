@@ -3,14 +3,15 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
-from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
+from zoneinfo import ZoneInfo
 
 from app.core.extract_topics import TopicExtractor
 from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
 from scripts.embedding_generator import embed_row
+from app.core.mail.notify_job_failure import notify_job_failure
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ class ScraperBase(ABC):
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
                     if result.error:
+                        job_name = f"{self.__class__.__name__}"
+
+                        notify_job_failure(job_name, result.error)
                         logger.error(f"Error: {result.error.__class__} - {result.error}")
             except Exception as e:
                 logger.exception(f"Exception during scrape attempt {attempt + 1}: {e}")
