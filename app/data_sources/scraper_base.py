@@ -49,7 +49,7 @@ class ScraperBase(ABC):
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
                     if result.error:
-                        error_message = f"{result.error.__class__.__name__}"
+                        error_message = f"{self.__class__.__name__}"
 
                         notify_job_failure(error_message, result.error)
                         logger.error(f"Error: {result.error.__class__} - {result.error}")
