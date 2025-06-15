@@ -29,10 +29,20 @@ class DeepLTranslator:
     - Free tier: 500,000 characters/month
     """
 
-    def __init__(self, deepl_translator: Translator):
+    def __init__(self, deepl_translator: Translator, prod: bool = False):
+        """
+        Initialize the translator.
+
+        :param deepl_translator: Instance of DeepL Translator.
+        :param prod: Flag to indicate whether translations should be performed (True for production).
+        """
         self.translator = deepl_translator
+        self.prod = prod
 
     def translate(self, text: str) -> TextResult:
+        if not self.prod:
+            return TextResult(text=text, detected_source_lang="unknown", billed_characters=0)
+
         cleaned_text = TextPreprocessor.clean(text)
         result = self.translator.translate_text(cleaned_text, target_lang="EN-US")
         return cast(TextResult, result)
