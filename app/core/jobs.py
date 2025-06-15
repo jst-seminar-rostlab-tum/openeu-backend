@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from app.core.extract_topics import TopicExtractor
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
@@ -129,6 +130,11 @@ def clean_up_embeddings():
     embedding_cleanup()
 
 
+def extract_topics_from_meetings():
+    extractor = TopicExtractor()
+    extractor.extract_topics_from_meetings(n_clusters=15, top_n_keywords=20)
+
+
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
@@ -158,4 +164,5 @@ def setup_scheduled_jobs():
 
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("extract_topics_from_meetings", extract_topics_from_meetings, WEEKLY_INTERVAL_MINUTES)
     scheduler.register("scrape_tweets", scrape_tweets, DAILY_INTERVAL_MINUTES)
