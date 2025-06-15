@@ -8,7 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
-from app.models.topic import Topic
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ def add_other_topic() -> int | None:
     Ensures the 'Other' topic exists in the topics table and returns its id.
     """
     try:
-        topic_data = Topic(topic=OTHER_TOPIC).model_dump()
+        topic_data = {"topic": OTHER_TOPIC}
         resp = supabase.table(TOPICS_TABLE).upsert(topic_data).execute()
         return resp.data[0]["id"] if resp.data else None
     except Exception as e:
@@ -131,7 +130,7 @@ class TopicExtractor:
             if len(indices) > 0:
                 topic = all_keywords[indices[0]].capitalize()
                 try:
-                    topic_data = Topic(topic=topic).model_dump()
+                    topic_data = {"topic": topic}
                     resp = supabase.table(TOPICS_TABLE).upsert(topic_data).execute()
                     topic_id = resp.data[0]["id"] if resp.data else None
                     topic_keywords.append(topic)
