@@ -8,9 +8,6 @@ create table "public"."meeting_embeddings" (
     "created_at" timestamp with time zone default now()
 );
 
-
-alter table "public"."tweets" drop column "embedding_input";
-
 CREATE INDEX meeting_embeddings_embedding_idx ON public.meeting_embeddings USING ivfflat (embedding) WITH (lists='100');
 
 CREATE UNIQUE INDEX meeting_embeddings_pkey ON public.meeting_embeddings USING btree (id);
