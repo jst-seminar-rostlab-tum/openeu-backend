@@ -32,7 +32,11 @@ def get_top_k_neighbors(
 
     # Generate embedding if only query is provided
     if embedding is None:
-        embedding = openai.embeddings.create(input=[query], model=EMBED_MODEL).data[0].embedding
+        assert query is not None
+        embedding = openai.embeddings.create(
+            input=query,       
+            model=EMBED_MODEL
+        ).data[0].embedding
 
     tables = list(allowed_sources or {})
     cols = list((allowed_sources or {}).values())
