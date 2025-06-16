@@ -8,3 +8,4 @@ volumes/db/data
 .env
 .DS_Store
 poetry.lock
+config.toml
