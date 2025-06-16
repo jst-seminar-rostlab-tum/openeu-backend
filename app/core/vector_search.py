@@ -7,7 +7,7 @@ from app.core.supabase_client import supabase
 def get_top_k_neighbors(
     query: Optional[str] = None,
     embedding: Optional[list[float]] = None,
-    allowed_sources: dict[str, str] = {},
+    allowed_sources: Optional[dict[str, str]] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -72,8 +72,9 @@ def get_top_k_neighbors_by_embedding(
     ]
     vector_embedding: list of floats representing the embedding
     """
-    tables = list(allowed_sources.keys())
-    cols = list(allowed_sources.values())
+    if allowed_sources:
+        tables = list(allowed_sources.keys())
+        cols = list(allowed_sources.values())
 
     if sources == ["document_embeddings"]:
         if allowed_sources:
