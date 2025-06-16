@@ -9,3 +9,4 @@ volumes/db/data
 .DS_Store
 poetry.lock
 config.toml
+config.prod.toml
