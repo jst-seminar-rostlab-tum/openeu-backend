@@ -1,13 +1,12 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from postgrest.exceptions import APIError
 
 from app.core.config import Settings
-from app.core.supabase_client import supabase
 from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
-
+from app.core.supabase_client import supabase
 
 
 class EmbeddingGenerator:
@@ -17,7 +16,7 @@ class EmbeddingGenerator:
     except Exception as e:
         logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
         raise e
-    
+
     settings = Settings()
     logging.basicConfig(level=logging.INFO)
 
@@ -26,7 +25,7 @@ class EmbeddingGenerator:
         chunk_overlap=100,
     )
 
-    META_DELIM = '::META::'
+    META_DELIM = "::META::"
 
     conflict_map = {
         "documents_embeddings": "source_table, source_id, content_text",
@@ -43,10 +42,10 @@ class EmbeddingGenerator:
         row_id: str,
         content_column: str,
         content_text: str,
-        destination_table: Optional[str] = None
+        destination_table: Optional[str] = None,
     ) -> None:
         """
-        Splits content_text using LangChain, embeds each chunk with optional metadata, 
+        Splits content_text using LangChain, embeds each chunk with optional metadata,
         and writes the results to Supabase.
 
         Args:
@@ -76,16 +75,18 @@ class EmbeddingGenerator:
 
         for chunk in chunks:
             full_text = base_meta + chunk
-            upsert_rows.append({
-                "source_table": source_table,
-                "source_id": row_id,
-                "content_column": content_column,
-                "content_text": full_text,
-                "embedding": None,
-            })
-        
+            upsert_rows.append(
+                {
+                    "source_table": source_table,
+                    "source_id": row_id,
+                    "content_column": content_column,
+                    "content_text": full_text,
+                    "embedding": None,
+                }
+            )
+
         logging.info(f"Embedding {source_table}")
-        
+
         for i in range(0, len(upsert_rows), BATCH_SZ):
             batch = upsert_rows[i : i + BATCH_SZ]
             texts = [r["content_text"] for r in batch]

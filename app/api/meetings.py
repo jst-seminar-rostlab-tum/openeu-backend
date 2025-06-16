@@ -32,7 +32,7 @@ def get_meetings(
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
+    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
 ):
     try:
         start = to_utc_aware(start)

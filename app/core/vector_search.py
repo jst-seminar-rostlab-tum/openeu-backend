@@ -1,14 +1,13 @@
+from typing import Optional, Union
+
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
-from typing import Optional,Union
-
-
 
 
 def get_top_k_neighbors(
     query: Optional[str] = None,
     embedding: Optional[list[float]] = None,
-    allowed_sources: dict[str, str] = None,
+    allowed_sources: dict[str, str] = {},
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -41,14 +40,12 @@ def get_top_k_neighbors(
     # Determine which RPC to call based on sources
     if sources == ["document_embeddings"]:
         rpc_name = "match_filtered" if tables else "match_default"
-        
+
     elif sources == ["meeting_embeddings"]:
         rpc_name = "match_filtered_meetings" if tables else "match_default_meetings"
-        
+
     else:
-        rpc_name = (
-            "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
-        )
+        rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
 
     rpc_args: dict[str, Union[list, int]] = {
         "query_embedding": embedding,
@@ -63,7 +60,7 @@ def get_top_k_neighbors(
 
 
 def get_top_k_neighbors_by_embedding(
-    vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources = Optional[list]
+    vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources=Optional[list]
 ) -> list[dict]:
     """
     allowed_sources = {
@@ -77,7 +74,7 @@ def get_top_k_neighbors_by_embedding(
     """
     tables = list(allowed_sources.keys())
     cols = list(allowed_sources.values())
-    
+
     if sources == ["document_embeddings"]:
         if allowed_sources:
             resp = supabase.rpc(
@@ -86,7 +83,7 @@ def get_top_k_neighbors_by_embedding(
             ).execute()
         else:
             resp = supabase.rpc("match_default", {"query_embedding": vector_embedding, "match_count": k}).execute()
-            
+
     if sources == ["meeting_embeddings"]:
         if allowed_sources:
             resp = supabase.rpc(
@@ -94,8 +91,10 @@ def get_top_k_neighbors_by_embedding(
                 {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
             ).execute()
         else:
-            resp = supabase.rpc("match_default_meetings", {"query_embedding": vector_embedding, "match_count": k}).execute()
-    
+            resp = supabase.rpc(
+                "match_default_meetings", {"query_embedding": vector_embedding, "match_count": k}
+            ).execute()
+
     else:
         if allowed_sources:
             resp = supabase.rpc(
@@ -103,6 +102,8 @@ def get_top_k_neighbors_by_embedding(
                 {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
             ).execute()
         else:
-            resp = supabase.rpc("match_combined_embeddings", {"query_embedding": vector_embedding, "match_count": k}).execute()
-    
+            resp = supabase.rpc(
+                "match_combined_embeddings", {"query_embedding": vector_embedding, "match_count": k}
+            ).execute()
+
     return resp.data
