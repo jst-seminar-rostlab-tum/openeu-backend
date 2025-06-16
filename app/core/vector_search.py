@@ -71,9 +71,8 @@ def get_top_k_neighbors_by_embedding(
         "table": "column",
         "bt_plenarprotokolle": "text"
     }
-    sources = [
-        "document_embeddings", "meeting_embeddings"
-    ]
+    if sources is None:
+        sources = ["document_embeddings", "meeting_embeddings"]
     vector_embedding: list of floats representing the embedding
     """
     if allowed_sources:
