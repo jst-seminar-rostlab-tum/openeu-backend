@@ -10,13 +10,13 @@ from app.core.supabase_client import supabase
 
 
 class EmbeddingGenerator:
-    try:
-        response = supabase.table("v_meetings").select("source_table").execute().data
-        known_meeting_sources = [r["source_table"] for r in response]
-    except Exception as e:
-        logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
-        raise e
-
+    def __init__(self):
+        try:
+            response = supabase.table("v_meetings").select("source_table").execute().data
+            self.known_meeting_sources = [r["source_table"] for r in response]
+        except Exception as e:
+            logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
+            raise e
     settings = Settings()
     logging.basicConfig(level=logging.INFO)
 
