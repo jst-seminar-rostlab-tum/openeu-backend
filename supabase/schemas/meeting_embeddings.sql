@@ -33,7 +33,6 @@ returns table(
 language plpgsql
 as $$
 declare
-  max_dist float := sqrt(1536);  -- approx. 39.1918
 begin
   return query
     select
