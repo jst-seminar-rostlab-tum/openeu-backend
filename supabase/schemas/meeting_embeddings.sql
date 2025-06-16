@@ -1,5 +1,3 @@
-create extension vector;
-
 create table meeting_embeddings (
   id            text             primary key default gen_random_uuid()::text,
   source_table  text             not null,
@@ -8,9 +6,9 @@ create table meeting_embeddings (
   content_text  text             not null,
   embedding     vector(1536)      not null,   
   created_at    timestamptz      default now(),
-  CONSTRAINT no_duplicates UNIQUE (source_table, source_id)
+  CONSTRAINT no_duplicates_meeting UNIQUE (source_table, source_id)
 );
-create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with (lists = 100);
+create index on meeting_embeddings using ivfflat(embedding vector_l2_ops) with (lists = 100);
 
 --TODO: Analyze should be run on the table every 10000 updates or so to keep ivfflat efficient!
 
@@ -108,18 +106,19 @@ as $$
       source_id,
       content_text,
       embedding
-    from document_embeddings
+    from documents_embeddings
   )
   select
     ae.source_table,
     ae.source_id,
     ae.content_text,
     -- convert cosine distance to a [0–1] similarity score
-    (1 - (ae.embedding <#> query_embedding)) as similarity
+    ((1 - (ae.embedding <#> query_embedding))/2) as similarity
   from all_embeddings ae
   order by ae.embedding <#> query_embedding
   limit match_count;
 $$;
+
 
 CREATE OR REPLACE FUNCTION public.match_combined_filtered_embeddings(
   src_tables      TEXT[],            -- list of source_table values to include
@@ -148,13 +147,13 @@ AS $$
       source_id,
       content_text,
       embedding
-    FROM document_embeddings
+    FROM documents_embeddings
   )
   SELECT
     ae.source_table,
     ae.source_id,
     ae.content_text,
-    (1 - (ae.embedding <#> query_embedding)) AS similarity
+    ((1 - (ae.embedding <#> query_embedding))/2) AS similarity
   FROM all_embeddings ae
   WHERE ae.source_table = ANY(src_tables)
   ORDER BY ae.embedding <#> query_embedding
