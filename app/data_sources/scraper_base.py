@@ -3,12 +3,15 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
-from zoneinfo import ZoneInfo
 
 from postgrest import APIResponse
+from zoneinfo import ZoneInfo
 
+from app.core.extract_topics import TopicExtractor
 from app.core.supabase_client import supabase
+from app.models.meeting import Meeting
 from scripts.embedding_generator import EmbeddingGenerator
+from app.core.mail.notify_job_failure import notify_job_failure
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,9 @@ class ScraperBase(ABC):
                 else:
                     logger.warning(f"Scrape attempt {attempt + 1} failed, retrying...")
                     if result.error:
+                        job_name = f"{self.__class__.__name__}"
+
+                        notify_job_failure(job_name, result.error)
                         logger.error(f"Error: {result.error.__class__} - {result.error}")
             except Exception as e:
                 logger.exception(f"Exception during scrape attempt {attempt + 1}: {e}")
@@ -90,6 +96,22 @@ class ScraperBase(ABC):
             if embedd_entries:
                 self.embedd_entries(response)
             self.lines_added += len(response.data) if response.data else 0
+
+            try:
+                meeting_data = response.data[0]
+                mapped = {
+                    "source_id": meeting_data["id"],
+                    "source_table": self.table_name,
+                    "meeting_start_datetime": meeting_data["datetime"],
+                    "title": meeting_data["title"],
+                    "meeting_id": meeting_data["id"],
+                }
+                meeting = Meeting(**mapped)
+                extractor = TopicExtractor()
+                extractor.assign_meeting_to_topic(meeting)
+            except Exception as e:
+                logger.info(f"Could not assign topic for meeting: {e}")
+
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")

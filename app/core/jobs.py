@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from app.core.extract_topics import TopicExtractor
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
@@ -67,8 +68,10 @@ def send_daily_newsletter():
 
     logger.info(f"Sending daily newsletter to {len(ids)} users")
 
-    for id in ids:
-        Newsletter.send_newsletter_to_user(id)
+    for user_id in ids:
+        subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
+        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
+            Newsletter.send_newsletter_to_user(user_id)
 
 
 def scrape_mec_prep_bodies_meetings():
@@ -127,9 +130,13 @@ def clean_up_embeddings():
     embedding_cleanup()
 
 
+def extract_topics_from_meetings():
+    extractor = TopicExtractor()
+    extractor.extract_topics_from_meetings(n_clusters=15, top_n_keywords=20)
+
+
 def setup_scheduled_jobs():
     scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
-    scheduler.register("scrape_eu_laws_by_topic", scrape_eu_laws_by_topic, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
         "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
     )
@@ -157,4 +164,5 @@ def setup_scheduled_jobs():
 
     scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
     scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
+    scheduler.register("extract_topics_from_meetings", extract_topics_from_meetings, WEEKLY_INTERVAL_MINUTES)
     scheduler.register("scrape_tweets", scrape_tweets, DAILY_INTERVAL_MINUTES)

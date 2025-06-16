@@ -55,9 +55,12 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     for element in context:
         context_text += f"{element.get('content_text')}\n"
 
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="minutes")
+
     assistant_system_prompt = f"""
-    You are a helpful assistant working for Project Europe. Your task is to answer questions on OpenEU, a platform 
-    for screening EU legal processes. You will get a question and a prior conversation if there is any and your task 
+    You are a helpful assistant working for Project Europe. Current time: {timestamp}.
+    Your task is to answer questions on OpenEU, a platform for screening EU legal processes.
+    You will get a question and a prior conversation if there is any and your task 
     is to use your knowledge and the knowledge of OpenEU to answer the question. Do not answer any questions outside 
     the scope of OpenEU.\n\n
     *** BEGIN PREVIOUS CONVERSATION ***
