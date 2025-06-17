@@ -140,7 +140,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
             location = address.strip()
             # Create embedding input
-            embedding_input = f"{title} {location} {tags}"
+            embedding_input = f"{title} {location} {start_date} {end_date} {tags}"
 
             return IPEXEvent(
                 identifier=event_id,
