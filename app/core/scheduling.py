@@ -1,8 +1,10 @@
 import logging
 import multiprocessing
 import threading
-from datetime import datetime, time, timedelta
-from typing import Callable, Optional
+from datetime import datetime
+from typing import Callable
+
+import schedule
 
 from app.core.mail.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
@@ -16,31 +18,18 @@ class ScheduledJob:
         self,
         name: str,
         func: Callable,
-        interval: Optional[timedelta] = None,
-        grace_seconds: int = 30,
         run_in_process: bool = False,
-        time_of_day: Optional[time] = None,
     ):
         """
         Initializes a ScheduledJob instance.
         :param name: Unique name for the job.
         :param func: The function to run for this job.
-        :param interval: Time interval between runs (mutually exclusive with time_of_day).
-        :param grace_seconds: Grace period in seconds after the scheduled time during which the job can still run.
         :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
-        :param time_of_day: UTC time of day to run the job (mutually exclusive with interval).
         """
-        if not (interval or time_of_day):
-            raise ValueError("Must specify either interval or time_of_day")
-        if interval and time_of_day:
-            raise ValueError("Cannot specify both interval and time_of_day")
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
-        self.interval = interval
-        self.grace = timedelta(seconds=grace_seconds)
         self.run_in_process = run_in_process
-        self.time_of_day = time_of_day
         self.last_run_at: datetime | None = None
         self.success: bool = False
         self.result: ScraperResult | None = None
@@ -60,20 +49,6 @@ class ScheduledJob:
                 self.logger.info(f"Loaded last run for '{name}': {self.last_run_at}")
         except Exception as e:
             self.logger.error(f"Failed to load last run for job '{name}': {e}")
-
-    def should_run(self, now: datetime) -> bool:
-        if self.time_of_day:
-            scheduled_time = datetime.combine(now.date(), self.time_of_day)
-            after = scheduled_time - self.grace
-            before = scheduled_time + self.grace
-            return after <= now <= before
-        elif self.interval:
-            if self.last_run_at is None:
-                return True
-            elapsed = now - self.last_run_at
-            return elapsed + self.grace >= self.interval
-        else:
-            return False
 
     def mark_just_ran(self):
         now = datetime.now()
@@ -108,7 +83,7 @@ class ScheduledJob:
         finally:
             self.mark_just_ran()
 
-    def run_async(self):
+    def execute(self):
         if self.run_in_process:
             multiprocessing.Process(target=self._run, daemon=True).start()
         else:
@@ -121,38 +96,24 @@ class JobScheduler:
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(
-        self,
-        name: str,
-        func: Callable,
-        interval_minutes: Optional[int] = None,
-        run_in_process: bool = False,
-        time_of_day: Optional[time] = None,
-    ):
-        if interval_minutes and time_of_day:
-            raise ValueError(f"Cannot specify both interval_minutes and time_of_day for job '{name}'")
-        if interval_minutes and interval_minutes % 10 != 0:
-            raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
+    def register(self, name: str, func: Callable, job_schedule: schedule.Job, run_in_process: bool = False):
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
 
         self.job_names.add(name)
-        interval = timedelta(minutes=interval_minutes) if interval_minutes else None
-        self.jobs[name] = ScheduledJob(
-            name, func, interval=interval, run_in_process=run_in_process, time_of_day=time_of_day
-        )
-        self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
+        job = ScheduledJob(name, func, run_in_process)
+        self.jobs[name] = job
+
+        job_schedule.do(job.execute)
+        logging.info(f"Registered job '{name}' with schedule: {job_schedule}")
 
     def tick(self):
-        now = datetime.now()
-        for job in self.jobs.values():
-            if job.should_run(now):
-                job.run_async()
+        schedule.run_pending()
 
     def run_job(self, name: str):
         if name not in self.jobs:
             raise ValueError(f"Job '{name}' is not registered.")
-        self.jobs[name].run_async()
+        self.jobs[name].execute()
 
 
 scheduler = JobScheduler()
