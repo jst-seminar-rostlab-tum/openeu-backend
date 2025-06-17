@@ -17,20 +17,21 @@ class EmbeddingGenerator:
         except Exception as e:
             logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
             raise e
-    settings = Settings()
-    logging.basicConfig(level=logging.INFO)
 
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=MAX_TOKENS,
-        chunk_overlap=100,
-    )
+        self.settings = Settings()
+        logging.basicConfig(level=logging.INFO)
 
-    META_DELIM = "::META::"
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=MAX_TOKENS,
+            chunk_overlap=100,
+        )
 
-    conflict_map = {
-        "documents_embeddings": "source_table, source_id, content_text",
-        "meeting_embeddings": "source_table, source_id",
-    }
+        self.META_DELIM = "::META::"
+
+        self.conflict_map = {
+            "documents_embeddings": "source_table, source_id, content_text",
+            "meeting_embeddings": "source_table, source_id",
+        }
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         resp = openai.embeddings.create(model=EMBED_MODEL, input=texts)
@@ -56,21 +57,19 @@ class EmbeddingGenerator:
             destination_table: Optional override for where to store embeddings.
         """
 
-        if EmbeddingGenerator.META_DELIM in content_text:
-            base_meta, content_text = content_text.split(EmbeddingGenerator.META_DELIM, 1)
+        if self.META_DELIM in content_text:
+            base_meta, content_text = content_text.split(self.META_DELIM, 1)
         else:
             base_meta = ""
 
         if not destination_table:
             destination_table = (
-                "meeting_embeddings"
-                if source_table in EmbeddingGenerator.known_meeting_sources
-                else "documents_embeddings"
+                "meeting_embeddings" if source_table in self.known_meeting_sources else "documents_embeddings"
             )
 
-        conflicts = EmbeddingGenerator.conflict_map.get(destination_table, "")
+        conflicts = self.conflict_map.get(destination_table, "")
 
-        chunks = EmbeddingGenerator.text_splitter.split_text(content_text)
+        chunks = self.text_splitter.split_text(content_text)
         upsert_rows: List[Dict] = []
 
         for chunk in chunks:
