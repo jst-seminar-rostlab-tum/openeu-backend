@@ -430,6 +430,32 @@ VALUES
     'EU-Africa Parliamentary Summit 2025-07-01 2025-07-02 Brussels, Belgium international cooperation, development, trade'
 );
 
+--------------------------------
+--Seed for users in auth.users--
+--------------------------------
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  invited_at, confirmation_token, confirmation_sent_at, recovery_token,
+  recovery_sent_at, email_change_token_new, email_change, email_change_sent_at,
+  last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
+  created_at, updated_at, phone, phone_confirmed_at, phone_change,
+  phone_change_token, phone_change_sent_at,
+  email_change_token_current, email_change_confirm_status, banned_until,
+  reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at, is_anonymous
+) VALUES
+(
+  '00000000-0000-0000-0000-000000000000', 'f82dc603-3148-4ba3-af07-89a34ef3162a', 'authenticated', 'authenticated',
+  'janvanderlinde@gmx.de', '$2a$10$0Qv9zWyP8jfvyQ11HSnzAuvs.sgWNF.AvIEOJs1.X.851Kw0Lp1sa', '2025-06-05 17:29:35.159918+00',
+  NULL, '', NULL, '',
+  NULL, '', '', NULL,
+  '2025-06-05 17:29:35.163414+00',
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{"sub": "f82dc603-3148-4ba3-af07-89a34ef3162a", "email": "janvanderlinde@gmx.de", "email_verified": true, "phone_verified": false}'::jsonb,
+  NULL, '2025-06-05 17:29:35.133839+00', '2025-06-05 17:29:35.170839+00', NULL,
+  NULL, '', '', NULL, '', 0, NULL,
+  '', NULL, false, NULL, false
+);
+
 
 INSERT INTO profiles (
   id,
