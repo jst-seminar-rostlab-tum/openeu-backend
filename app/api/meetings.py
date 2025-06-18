@@ -44,9 +44,7 @@ def get_meetings(
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
     # ---------- 1)  LOG INCOMING REQUEST ----------
-    caller_ip = request.headers.get(
-        "X-Forwarded-For", request.client.host
-    )  # behind proxy? take first addr in list if needed
+    caller_ip = request.headers.get("X-Forwarded-For", request.client.host)
 
     logger.info(
         "GET /meetings | caller=%s | limit=%s | start=%s | end=%s | "
