@@ -23,7 +23,7 @@ async def create_profile(profile: ProfileCreate):
     then upsert the record into Supabase.
     """
     # Build input text for embedding
-    combined = f"{profile.company_name}. {profile.company_description}." f" Topics: {', '.join(profile.topic_list)}"
+    combined = f"{profile.company_name}. {profile.company_description}." + f" Topics: {', '.join(profile.topic_list)}" + f" Countries: {', '.join(profile.countries)}"
 
     # Generate embedding
     try:
