@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.core.supabase_client import supabase
@@ -34,6 +34,7 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 
 @router.get("/meetings", response_model=list[Meeting])
 def get_meetings(
+    request: Request,  # new param: provides caller info
     limit: int = Query(500, gt=1),
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
@@ -43,8 +44,14 @@ def get_meetings(
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
     # ---------- 1)  LOG INCOMING REQUEST ----------
+    caller_ip = request.headers.get(
+        "X-Forwarded-For", request.client.host
+    )  # behind proxy? take first addr in list if needed
+
     logger.info(
-        "GET /meetings called | limit=%s | start=%s | end=%s | " "query=%s | topics=%s | country=%s | source_tables=%s",
+        "GET /meetings | caller=%s | limit=%s | start=%s | end=%s | "
+        "query=%s | topics=%s | country=%s | source_tables=%s",
+        caller_ip,
         limit,
         start,
         end,
