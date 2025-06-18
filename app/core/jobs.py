@@ -54,8 +54,10 @@ def scrape_mep_meetings(stop_event: multiprocessing.synchronize.Event):
 
 def scrape_mec_sum_minist_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    next_day = today + timedelta(days=1)
-    scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=next_day, stop_event=stop_event)
+    end_date = today + timedelta(
+        days=3
+    )  # also scrape meetings for the next 3 days to capture meetings spanning multiple days
+    scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
@@ -84,8 +86,10 @@ def send_daily_newsletter(stop_event: multiprocessing.synchronize.Event):
 
 def scrape_mec_prep_bodies_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    next_day = today + timedelta(days=1)
-    scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=next_day, stop_event=stop_event)
+    end_date = today + timedelta(
+        days=3
+    )  # also scrape meetings for the next 3 days to capture meetings spanning multiple days
+    scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
