@@ -1,8 +1,10 @@
 import logging
 import multiprocessing
+import multiprocessing.synchronize
 import threading
 from datetime import datetime, timedelta
 from typing import Callable
+import typing
 
 from app.core.mail.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
@@ -15,8 +17,9 @@ class ScheduledJob:
     def __init__(
         self,
         name: str,
-        func: Callable[[threading.Event], any],
+        func: Callable[[multiprocessing.synchronize.Event], typing.Any],
         interval: timedelta,
+        timeout_minutes: int,
         grace_seconds: int = 30,
         run_in_process: bool = False,
     ):
@@ -24,6 +27,8 @@ class ScheduledJob:
         Initializes a ScheduledJob instance.
         :param name: Unique name for the job.
         :param func: The function to run for this job. Will receive the stop_event as parameter.
+            stop_event is required to ensure developers handle stopping the job gracefully.
+        :param timeout_minutes: Timeout in minutes for the job to complete.
         :param interval: Time interval between runs.
         :param grace_seconds: Grace period in seconds after the interval during which the job can still run.
         :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
@@ -32,13 +37,14 @@ class ScheduledJob:
         self.name = name
         self.func = func
         self.interval = interval
+        self.timeout = timedelta(minutes=timeout_minutes)
         self.grace = timedelta(seconds=grace_seconds)
         self.run_in_process = run_in_process
         self.last_run_at: datetime | None = None
         self.success: bool = False
         self.result: ScraperResult | None = None
         self.error: Exception | None = None
-        self.stop_event: threading.Event = threading.Event()
+        self.stop_event: multiprocessing.synchronize.Event = multiprocessing.Event()
 
         try:
             result = (
@@ -85,7 +91,7 @@ class ScheduledJob:
         self.result = None
         try:
             self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
-            self.result = self.func()
+            self.result = self.func(self.stop_event)
             self.success = True
         except Exception as e:
             self.logger.error(f"Error in job '{self.name}': {e}")
@@ -95,15 +101,23 @@ class ScheduledJob:
             self.mark_just_ran()
 
     def run_async(self):
-        TIMEOUT_SECONDS = 10 * 60  # 10 Minuten
+        """
+        Runs the job asynchronously, either in a separate thread or process.
+        If the job does not complete within the specified timeout, it will log an error and notify of the failure.
+        Since threads cannot be killed safely, they are gracefully stopped using the
+        stop_event which must be checked periodically by the job itself.
+        """
+        timeout_seconds = self.timeout.total_seconds()
+        timeout_error = f"Timeout: Job '{self.name}' timed out after {(timeout_seconds / 60):.2f} minutes."
+
         if self.run_in_process:
             proc = multiprocessing.Process(target=self._run, daemon=True)
             proc.start()
 
             def monitor_process():
-                proc.join(timeout=TIMEOUT_SECONDS)
+                proc.join(timeout=timeout_seconds)
                 if proc.is_alive():
-                    self.logger.error(f"Job '{self.name}' timed out after 10 minutes. Terminating process.")
+                    self.logger.error(timeout_error)
                     notify_job_failure(self.name, "Timeout reached")
                     proc.terminate()
 
@@ -114,14 +128,12 @@ class ScheduledJob:
             thread.start()
 
             def monitor_thread():
-                thread.join(timeout=TIMEOUT_SECONDS)
+                thread.join(timeout=timeout_seconds)
                 if thread.is_alive():
-                    self.logger.error(f"Job '{self.name}' timed out after 10 minutes.")
+                    self.logger.error(timeout_error + " Waiting gracefully for the thread to stop.")
+                    self.stop_event.set()  # signal the thread to stop if it supports it
                     notify_job_failure(self.name, "Timeout reached")
-                    self.stop_event.set()
-                    # Hinweis: Threads lassen sich in Python nicht sicher abbrechen.
-                    # wir sollten scrapy scrapers deswegen lieber mit CloseSpider Exception beenden.
-                    # crawl4ai
+                    thread.join()  # finally wait for the thread to cleanup and finish
 
             threading.Thread(target=monitor_thread, daemon=True).start()
 
@@ -133,15 +145,29 @@ class JobScheduler:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def register(
-        self, name: str, func: Callable[[threading.Event], any], interval_minutes: int, run_in_process: bool = False
+        self,
+        name: str,
+        func: Callable[[multiprocessing.synchronize.Event], typing.Any],
+        interval_minutes: int,
+        run_in_process: bool = False,
+        timeout_minutes: int = 15,
     ):
         if interval_minutes % 10 != 0:
             raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
         self.job_names.add(name)
-        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes), run_in_process=run_in_process)
-        self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
+        self.jobs[name] = ScheduledJob(
+            name,
+            func,
+            timedelta(minutes=interval_minutes),
+            run_in_process=run_in_process,
+            timeout_minutes=timeout_minutes,
+        )
+        self.logger.info(
+            f"Registered job '{name}' to run every {interval_minutes} minutes "
+            f" with a timeout of {timeout_minutes} minutes."
+        )
 
     def tick(self):
         now = datetime.now()

@@ -1,5 +1,5 @@
 import re
-import threading
+import multiprocessing
 from datetime import date, datetime
 from typing import Any, Optional
 from urllib.parse import quote
@@ -73,7 +73,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         "TELNETCONSOLE_ENABLED": False,
     }
 
-    def __init__(self, stop_event: threading.Event, *args, **kwargs):
+    def __init__(self, stop_event: multiprocessing.synchronize.Event, *args, **kwargs):
         scrapy.Spider.__init__(self, *args, **kwargs)
         ScraperBase.__init__(self, table_name=LAWS_TABLE, stop_event=stop_event)
 
@@ -114,6 +114,9 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
     def parse_search(self, response):
         topic_code = response.meta["topic_code"]
         topic_label = TOPICS[topic_code]
+
+        if self.stop_event.is_set():
+            raise scrapy.exceptions.CloseSpider("Stop event is set, stopping the spider.")
 
         for card in response.css("div.result-card"):
             proc_id = card.css("div.reference::text").get().strip()

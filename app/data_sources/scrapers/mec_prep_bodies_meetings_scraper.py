@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 from datetime import date, datetime
+import multiprocessing
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -50,13 +51,14 @@ class MECPrepBodiesMeeting(BaseModel):
 class MECPrepBodiesMeetingsScraper(ScraperBase):
     def __init__(
         self,
+        stop_event: multiprocessing.synchronize.Event,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
-        super().__init__(MEC_PREP_BODIES_MEETING_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(MEC_PREP_BODIES_MEETING_TABLE_NAME, stop_event, max_retries, retry_delay)
         self.events: list[MECPrepBodiesMeeting] = []
         self.start_date = start_date
         self.end_date = end_date
@@ -119,6 +121,8 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         if not crawler_result.success:
             logger.error(f"Failed to scrape page {page}: {crawler_result.error}")
             return (found_meetings, 0, ScraperResult(False, crawler_result.error, None))
+        if "Checking your browser" in crawler_result.html:
+            logger.error(f"Bot protection detected for page {page}. Therefore, we cannot scrape something now.")
         internal_links = crawler_result.links.get("internal", [])
         links_to_meetings = [x for x in internal_links if x["href"].startswith(MEETINGS_DETAIL_URL_PREFIX)]
 
@@ -128,43 +132,51 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         meeting_url_pattern = re.compile(r"meetings/mpo/\d{4}/\d{1,2}/.*\((\d+)\)", re.IGNORECASE)
 
         for link in links_to_meetings:
-            meeting_url = link["href"]
-            match = meeting_url_pattern.search(meeting_url)
-            if match:
-                meeting_id = str(match.group(1))
+            try:
+                meeting_url = link["href"]
+                match = meeting_url_pattern.search(meeting_url)
+                if match:
+                    meeting_id = str(match.group(1))
 
-                # scrape meeting details
-                crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
-                if not crawler_result.success:
-                    logger.error(f"Failed to scrape meeting details for {meeting_url}: {crawler_result.error}")
-                    return (found_meetings, largest_page, ScraperResult(False, crawler_result.error, None))
+                    # scrape meeting details
+                    crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
+                    if not crawler_result.success:
+                        logger.error(f"Failed to scrape meeting details for {meeting_url}: {crawler_result.error}")
+                        return (found_meetings, largest_page, ScraperResult(False, crawler_result.error, None))
 
-                selector = Selector(text=crawler_result.html)
-                practical_info_labels = [
-                    text.strip() for text in selector.css("div.gsc-meeting-info__box strong::text").getall()
-                ]
+                    if "Checking your browser" in crawler_result.html:
+                        logger.error(f"Bot protection detected for {meeting_url}. Skipping this meeting.")
+                        continue
 
-                building_label, timestamp_label, room_label = practical_info_labels[1:4]
-                timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
-                title = link["text"].strip()
+                    selector = Selector(text=crawler_result.html)
+                    practical_info_labels = [
+                        text.strip() for text in selector.css("div.gsc-meeting-info__box strong::text").getall()
+                    ]
 
-                meeting = MECPrepBodiesMeeting(
-                    id=meeting_id,
-                    url=link["href"],
-                    title=title,
-                    meeting_timestamp=timestamp.isoformat(),
-                    meeting_location=room_label + " (" + building_label + " building)",
-                    embedding_input=f"{title}, {timestamp.isoformat()}, {room_label} in {building_label} building",
-                )
+                    building_label, timestamp_label, room_label = practical_info_labels[1:4]
+                    timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
+                    title = link["text"].strip()
 
-                if last_entry and meeting == last_entry:
-                    continue
+                    meeting = MECPrepBodiesMeeting(
+                        id=meeting_id,
+                        url=link["href"],
+                        title=title,
+                        meeting_timestamp=timestamp.isoformat(),
+                        meeting_location=room_label + " (" + building_label + " building)",
+                        embedding_input=f"{title}, {timestamp.isoformat()}, {room_label} in {building_label} building",
+                    )
 
-                found_meetings.append(meeting)
-                scraper_error_result = self.store_entry(meeting.model_dump())
-                if scraper_error_result:
-                    return (found_meetings, largest_page, scraper_error_result)
-                self.last_entry = meeting
+                    if last_entry and meeting == last_entry:
+                        continue
+
+                    found_meetings.append(meeting)
+                    scraper_error_result = self.store_entry(meeting.model_dump())
+                    if scraper_error_result:
+                        return (found_meetings, largest_page, scraper_error_result)
+                    self.last_entry = meeting
+            except Exception as e:
+                logger.error(f"Error processing meeting link {link['href']}: {e}")
+                continue
 
         return (found_meetings, largest_page, None)
 
@@ -182,6 +194,13 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
 
         async with AsyncWebCrawler() as crawler:
             while current_page <= largest_known_page:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        success=False,
+                        error=Exception("Scrape stopped by external stop event"),
+                        last_entry=self.last_entry,
+                    )
+
                 (meetings_on_page, largest_known_page, scraper_error_result) = await self._scrape_meetings_by_page(
                     start_date=start_date, end_date=end_date, page=current_page, crawler=crawler, last_entry=last_entry
                 )
@@ -214,6 +233,8 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
 
 if __name__ == "__main__":
     print("Scraping and storing mect preparatory bodies meetings...")
-    scraper = MECPrepBodiesMeetingsScraper(start_date=date(2025, 5, 17), end_date=date(2025, 5, 18))
+    scraper = MECPrepBodiesMeetingsScraper(
+        start_date=date(2025, 5, 17), end_date=date(2025, 5, 18), stop_event=multiprocessing.Event()
+    )
     result: ScraperResult = scraper.scrape()
     print(result)

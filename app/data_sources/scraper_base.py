@@ -1,5 +1,5 @@
 import logging
-import threading
+import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -33,7 +33,22 @@ class ScraperResult:
 
 
 class ScraperBase(ABC):
-    def __init__(self, table_name: str, stop_event: threading.Event, max_retries: int = 1, retry_delay: float = 2.0):
+    def __init__(
+        self,
+        table_name: str,
+        stop_event: multiprocessing.synchronize.Event,
+        max_retries: int = 1,
+        retry_delay: float = 2.0,
+    ):
+        """
+        Base class for all scrapers that provides common functionality for scraping and storing data.
+        :param table_name: The name of the table to store scraped data.
+        :param stop_event: Used by the scheduler to stop the scraper gracefully on timeout.
+            Should be checked regularly during scraping, e.g., before each page scrape.
+            Except: if the scraper is not long-running or not running in a thread but in a process.
+        :param max_retries: Maximum number of retries for scraping.
+        :param retry_delay: Delay in seconds between retries.
+        """
         self.table_name = table_name
         self.stop_event = stop_event
         self.max_retries = max_retries
