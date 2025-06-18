@@ -26,17 +26,6 @@ _SOURCE_TABLES = Query(
 )  # URL param stays singular: ?source_table=…
 
 
-# --- ensure our handler survives Uvicorn's log config ------------------------
-if not logger.handlers:  # prevents adding duplicates on reload
-    _handler = logging.StreamHandler()
-    _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-    _handler.setLevel(logging.INFO)
-    logger.addHandler(_handler)
-
-logger.setLevel(logging.INFO)
-logger.propagate = False  # <— critical: keep uvicorn’s root config out
-
-
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
@@ -81,7 +70,6 @@ def get_meetings(
                 allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=limit,
             )
-
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
                 logger.info("Response formed – empty list (no neighbours found)")
@@ -121,7 +109,6 @@ def get_meetings(
                 "Response formed – %d result(s) from semantic query",
                 len(results[:limit]),
             )
-
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
         # --- DEFAULT QUERY CASE ---
@@ -151,7 +138,6 @@ def get_meetings(
             raise ValueError("Expected list of records from Supabase")
         # ---------- 2c)  LOG NON-EMPTY / EMPTY RESPONSE (default path) ----------
         logger.info("Response formed – %d result(s) from default query", len(data))
-
         return JSONResponse(status_code=200, content={"data": data})
 
     except Exception as e:
