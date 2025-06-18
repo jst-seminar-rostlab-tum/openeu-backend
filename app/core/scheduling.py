@@ -10,14 +10,20 @@ from app.data_sources.scraper_base import ScraperResult
 
 TABLE_NAME = "scheduled_job_runs"
 
+
 class ScheduledJob:
     def __init__(
-        self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, run_in_process: bool = False
+        self,
+        name: str,
+        func: Callable[[threading.Event], any],
+        interval: timedelta,
+        grace_seconds: int = 30,
+        run_in_process: bool = False,
     ):
         """
         Initializes a ScheduledJob instance.
         :param name: Unique name for the job.
-        :param func: The function to run for this job.
+        :param func: The function to run for this job. Will receive the stop_event as parameter.
         :param interval: Time interval between runs.
         :param grace_seconds: Grace period in seconds after the interval during which the job can still run.
         :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
@@ -32,6 +38,7 @@ class ScheduledJob:
         self.success: bool = False
         self.result: ScraperResult | None = None
         self.error: Exception | None = None
+        self.stop_event: threading.Event = threading.Event()
 
         try:
             result = (
@@ -88,10 +95,35 @@ class ScheduledJob:
             self.mark_just_ran()
 
     def run_async(self):
+        TIMEOUT_SECONDS = 10 * 60  # 10 Minuten
         if self.run_in_process:
-            multiprocessing.Process(target=self._run, daemon=True).start()
+            proc = multiprocessing.Process(target=self._run, daemon=True)
+            proc.start()
+
+            def monitor_process():
+                proc.join(timeout=TIMEOUT_SECONDS)
+                if proc.is_alive():
+                    self.logger.error(f"Job '{self.name}' timed out after 10 minutes. Terminating process.")
+                    notify_job_failure(self.name, "Timeout reached")
+                    proc.terminate()
+
+            threading.Thread(target=monitor_process, daemon=True).start()
+
         else:
-            threading.Thread(target=self._run, daemon=True).start()
+            thread = threading.Thread(target=self._run, daemon=True)
+            thread.start()
+
+            def monitor_thread():
+                thread.join(timeout=TIMEOUT_SECONDS)
+                if thread.is_alive():
+                    self.logger.error(f"Job '{self.name}' timed out after 10 minutes.")
+                    notify_job_failure(self.name, "Timeout reached")
+                    self.stop_event.set()
+                    # Hinweis: Threads lassen sich in Python nicht sicher abbrechen.
+                    # wir sollten scrapy scrapers deswegen lieber mit CloseSpider Exception beenden.
+                    # crawl4ai
+
+            threading.Thread(target=monitor_thread, daemon=True).start()
 
 
 class JobScheduler:
@@ -100,7 +132,9 @@ class JobScheduler:
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(self, name: str, func: Callable, interval_minutes: int, run_in_process: bool = False):
+    def register(
+        self, name: str, func: Callable[[threading.Event], any], interval_minutes: int, run_in_process: bool = False
+    ):
         if interval_minutes % 10 != 0:
             raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
         if name in self.job_names:

@@ -1,4 +1,5 @@
 import re
+import threading
 from datetime import date, datetime
 from typing import Any, Optional
 from urllib.parse import quote
@@ -70,9 +71,9 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         "LOG_LEVEL": "INFO",
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, stop_event: threading.Event, *args, **kwargs):
         scrapy.Spider.__init__(self, *args, **kwargs)
-        ScraperBase.__init__(self, table_name=LAWS_TABLE)
+        ScraperBase.__init__(self, table_name=LAWS_TABLE, stop_event=stop_event)
 
     def scrape_once(self, last_entry: Any, **args: Any) -> ScraperResult:
         """

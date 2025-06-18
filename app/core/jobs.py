@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime
 
 from app.core.mail.newsletter import Newsletter
@@ -28,40 +29,40 @@ WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
 logger = logging.getLogger(__name__)
 
 
-def scrape_eu_laws_by_topic():
-    lawtracker = LawTrackerSpider()
+def scrape_eu_laws_by_topic(stop_event: threading.Event):
+    lawtracker = LawTrackerSpider(stop_event=stop_event)
     return lawtracker.scrape()
 
 
-def scrape_ipex_calendar():
+def scrape_ipex_calendar(stop_event: threading.Event):
     today = datetime.now().date()
     return run_ipex_calendar_scraper(start_date=today, end_date=today)
 
 
-def scrape_meeting_calendar_for_current_day():
+def scrape_meeting_calendar_for_current_day(stop_event: threading.Event):
     now = datetime.now()
     ep_meeting_scraper = EPMeetingCalendarScraper(now, now)
     return ep_meeting_scraper.scrape()
 
 
-def scrape_mep_meetings():
+def scrape_mep_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = MEPMeetingsScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
-def scrape_mec_sum_minist_meetings():
+def scrape_mec_sum_minist_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
-def scrape_belgian_parliament_meetings():
+def scrape_belgian_parliament_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     return run_belgian_parliament_scraper(start_date=today, end_date=today)
 
 
-def send_daily_newsletter():
+def send_daily_newsletter(stop_event: threading.Event):
     users = supabase.auth.admin.list_users()
     ids = [user.id for user in users]
 
@@ -71,59 +72,59 @@ def send_daily_newsletter():
         Newsletter.send_newsletter_to_user(id)
 
 
-def scrape_mec_prep_bodies_meetings():
+def scrape_mec_prep_bodies_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
-def scrape_weekly_agenda():
+def scrape_weekly_agenda(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = WeeklyAgendaScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
-def scrape_austrian_parliament_meetings():
+def scrape_austrian_parliament_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     return run_scraper(start_date=today, end_date=today)
 
 
-def scrape_polish_presidency_meetings():
+def scrape_polish_presidency_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=today)
     return scraper.scrape()
 
 
-def scrape_spanish_commission_meetings():
+def scrape_spanish_commission_meetings(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = SpanishCommissionScraper(date=today)
     return scraper.scrape()
 
 
-def scrape_bundestag_plenary_protocols():
+def scrape_bundestag_plenary_protocols(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = BundestagPlenarprotokolleScraper()
     scraper.scrape(start_date=today, end_date=today)
 
 
-def scrape_bundestag_drucksachen():
+def scrape_bundestag_drucksachen(stop_event: threading.Event):
     today = datetime.now().date()
     scraper = BundestagDrucksachenScraper()
     scraper.scrape(start_date=today, end_date=today)
 
 
-def scrape_tweets():
+def scrape_tweets(stop_event: threading.Event):
     usernames = ["EU_Commission", "EUCouncil", "epc_eu", "Euractiv"]
     scraper = TweetScraper(usernames=usernames)
     return scraper.scrape()
 
 
-def scrape_legislative_observatory():
+def scrape_legislative_observatory(stop_event: threading.Event):
     scraper = LegislativeObservatoryScraper()
     return scraper.scrape()
 
 
-def clean_up_embeddings():
+def clean_up_embeddings(stop_event: threading.Event):
     embedding_cleanup()
 
 
