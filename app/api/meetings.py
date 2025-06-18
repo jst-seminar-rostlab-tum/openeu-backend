@@ -9,7 +9,10 @@ from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -21,6 +24,17 @@ _TOPICS = Query(None, description="List of topic names (repeat or comma-separate
 _SOURCE_TABLES = Query(
     None, alias="source_table", description="Filter by source table(s) (repeat or comma-separated)"
 )  # URL param stays singular: ?source_table=…
+
+
+# --- ensure our handler survives Uvicorn's log config ------------------------
+if not logger.handlers:  # prevents adding duplicates on reload
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    _handler.setLevel(logging.INFO)
+    logger.addHandler(_handler)
+
+logger.setLevel(logging.INFO)
+logger.propagate = False  # <— critical: keep uvicorn’s root config out
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -39,6 +53,17 @@ def get_meetings(
     country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
+    # ---------- 1)  LOG INCOMING REQUEST ----------
+    logger.info(
+        "GET /meetings called | limit=%s | start=%s | end=%s | " "query=%s | topics=%s | country=%s | source_tables=%s",
+        limit,
+        start,
+        end,
+        query,
+        topics,
+        country,
+        source_tables,
+    )
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
@@ -58,6 +83,8 @@ def get_meetings(
             )
 
             if not neighbors:
+                # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
+                logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
 
             map_table_and_id_to_similarity = {
@@ -89,6 +116,12 @@ def get_meetings(
 
                     results.append(record)
 
+            # ---------- 2b)  LOG NON-EMPTY / EMPTY RESPONSE (semantic path) ----------
+            logger.info(
+                "Response formed – %d result(s) from semantic query",
+                len(results[:limit]),
+            )
+
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
         # --- DEFAULT QUERY CASE ---
@@ -116,6 +149,8 @@ def get_meetings(
 
         if not isinstance(data, list):
             raise ValueError("Expected list of records from Supabase")
+        # ---------- 2c)  LOG NON-EMPTY / EMPTY RESPONSE (default path) ----------
+        logger.info("Response formed – %d result(s) from default query", len(data))
 
         return JSONResponse(status_code=200, content={"data": data})
 
