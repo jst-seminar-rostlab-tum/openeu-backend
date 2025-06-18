@@ -15,8 +15,8 @@ def get_top_k_neighbors(
     Fetch the top-k nearest neighbors for a text query or a given embedding.
 
     Parameters:
-    - query: natural language string to be embedded and matched (mutually exclusive with embedding).
     - embedding: pre-computed embedding vector (mutually exclusive with query).
+    - query: natural language string to be embedded and matched (mutually exclusive with embedding).
     - allowed_sources: mapping of table names to column names to filter the search.
     - k: number of neighbors to retrieve.
     - sources: a list indicating which embedding RPC to use:
@@ -33,10 +33,7 @@ def get_top_k_neighbors(
     # Generate embedding if only query is provided
     if embedding is None:
         assert query is not None
-        embedding = openai.embeddings.create(
-            input=query,       
-            model=EMBED_MODEL
-        ).data[0].embedding
+        embedding = openai.embeddings.create(input=query, model=EMBED_MODEL).data[0].embedding
 
     tables = list(allowed_sources or {})
     cols = list((allowed_sources or {}).values())
@@ -67,13 +64,19 @@ def get_top_k_neighbors_by_embedding(
     vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources=Optional[list]
 ) -> list[dict]:
     """
-    allowed_sources = {
-        "table": "column",
-        "bt_plenarprotokolle": "text"
-    }
-    if sources is None:
-        sources = ["document_embeddings", "meeting_embeddings"]
-    vector_embedding: list of floats representing the embedding
+    Fetch the top-k nearest neighbors for a text query or a given embedding.
+
+    Parameters:
+    - embedding: pre-computed embedding vector
+    - allowed_sources: mapping of table names to column names to filter the search.
+    - k: number of neighbors to retrieve.
+    - sources: a list indicating which embedding RPC to use:
+        * ["document_embeddings"]
+        * ["meeting_embeddings"]
+        * None or other: combined embeddings
+
+    Returns:
+        A list of dicts representing matching records.
     """
     if allowed_sources:
         tables = list(allowed_sources.keys())
