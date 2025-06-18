@@ -12,8 +12,8 @@ from app.core.supabase_client import supabase
 class EmbeddingGenerator:
     def __init__(self):
         try:
-            response = supabase.table("v_meetings").select("source_table").execute().data
-            self.known_meeting_sources = list({r["source_table"] for r in response})
+            response = supabase.rpc("get_meeting_tables").execute().data
+            self.known_meeting_sources =  [row["source_table"] for row in response]
             
         except Exception as e:
             logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
