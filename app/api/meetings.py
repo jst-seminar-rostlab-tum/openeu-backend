@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -18,6 +17,7 @@ router = APIRouter()
 
 _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
+_TOPICS = Query(None, description="List of topic names (repeat or comma-separated)")
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -28,11 +28,12 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 
 @router.get("/meetings", response_model=list[Meeting])
 def get_meetings(
-    limit: int = Query(100, gt=1),
+    limit: int = Query(500, gt=1),
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
+    topics: Optional[list[str]] = _TOPICS,
+    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
 ):
     try:
         start = to_utc_aware(start)
@@ -42,49 +43,41 @@ def get_meetings(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={},
-                k=limit * 3,
+                allowed_sources={},  # empty dict -> allows every source
+                k=limit,
             )
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
+            map_table_and_id_to_similarity = {
+                f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
+            }
+            source_tables = [n["source_table"] for n in neighbors]
+            source_ids = [n["source_id"] for n in neighbors]
+
+            if topics and len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+
+            params = {
+                "source_tables": source_tables,
+                "source_ids": source_ids,
+                "max_results": limit,
+                "start_date": start.isoformat() if start is not None else None,
+                "end_date": end.isoformat() if end is not None else None,
+                "country": country,
+                "topics": topics if topics else None,
+            }
+            match = supabase.rpc("get_meetings_by_filter", params=params).execute()
+
             results = []
-            for neighbor in neighbors:
-                match = (
-                    supabase.table("v_meetings")
-                    .select("*")
-                    .eq("source_table", neighbor["source_table"])
-                    .eq("source_id", neighbor["source_id"])
-                    .limit(1)
-                    .execute()
-                )
+            if match.data:
+                for record in match.data:
+                    record["similarity"] = map_table_and_id_to_similarity[
+                        f"{record['source_table']}_{record['source_id']}"
+                    ]
 
-                if match.data:
-                    record = match.data[0]
-                    meeting_time_str = record.get("meeting_start_datetime")
-                    if not meeting_time_str:
-                        continue
-
-                    meeting_time = to_utc_aware(parser.isoparse(meeting_time_str))
-                    if not meeting_time:
-                        continue
-
-                    should_include = True
-                    if start and meeting_time < start:
-                        should_include = False
-                    if end and meeting_time > end:
-                        should_include = False
-
-                    location = record.get("location")
-                    if country and (not location or location.lower() != country.lower()):
-                        should_include = False
-
-                    if "similarity" in neighbor:
-                        record["similarity"] = neighbor["similarity"]
-
-                    if should_include:
-                        results.append(record)
+                    results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
@@ -98,6 +91,12 @@ def get_meetings(
 
         if country:
             db_query = db_query.ilike("location", country)
+
+        # --- TOPIC FILTERING ---
+        if topics:
+            if len(topics) == 1 and "," in topics[0]:
+                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+            db_query = db_query.in_("topic", topics)
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data

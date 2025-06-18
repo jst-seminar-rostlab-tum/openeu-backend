@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 import scrapy
 from pydantic import BaseModel
+from scrapy.crawler import CrawlerProcess
 from scrapy_playwright.page import PageMethod
 
 from app.core.supabase_client import supabase
@@ -58,7 +59,7 @@ class LawItemModel(BaseModel):
 
 class LawTrackerSpider(scrapy.Spider, ScraperBase):
     name = "topic_lawtracker"
-    custom_settings = {
+    custom_settings: dict[Any, Any] = {
         # Playwright settings
         "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
         "DOWNLOAD_HANDLERS": {
@@ -66,9 +67,10 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
             "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
         },
         "PLAYWRIGHT_BROWSER_TYPE": "chromium",
-        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 60_000,
+        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 600_000,
         "CONCURRENT_REQUESTS": 4,
         "LOG_LEVEL": "INFO",
+        "TELNETCONSOLE_ENABLED": False,
     }
 
     def __init__(self, stop_event: threading.Event, *args, **kwargs):
@@ -80,13 +82,12 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         Scrape the law tracker by topic codes.
         This method is called by the ScraperBase to perform the scraping.
         """
-        self.logger.info("Starting LawTrackerSpider scrape...")
+        self.logger.info("Starting LawTrackerSpider scrape…")  # ← ➋ kept
 
-        for req in self.start_requests():
-            if self.crawler and self.crawler.engine:
-                self.crawler.engine.crawl(req)
-            else:
-                self.logger.error("Crawler engine is not initialized.")
+        # ➌ Run this spider *properly* inside its own Scrapy process.
+        process = CrawlerProcess(settings=self.custom_settings)
+        process.crawl(self.__class__)  # hand over the *class*, Scrapy instantiates it
+        process.start()  # blocks until the crawl is finished
 
         self.logger.info("LawTrackerSpider scrape completed.")
         return ScraperResult(success=True, last_entry=last_entry)
@@ -102,7 +103,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
                     "playwright": True,
                     "playwright_page_methods": [
                         # wait for the result cards to load
-                        PageMethod("wait_for_selector", "div.result-card div.title-color"),
+                        PageMethod("wait_for_selector", "div.result-card div.title-color", timeout=90_000),
                     ],
                     "topic_code": code,
                 },
