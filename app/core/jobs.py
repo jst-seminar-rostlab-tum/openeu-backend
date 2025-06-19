@@ -171,7 +171,10 @@ def setup_scheduled_jobs():
         run_in_process=True,
     )
     scheduler.register(
-        "scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, schedule.every().day.at("03:50")
+        "scrape_spanish_commission_meetings",
+        scrape_spanish_commission_meetings,
+        schedule.every().day.at("03:50"),
+        run_in_process=True,
     )
     scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, schedule.every().day.at("04:00"))
     scheduler.register(
