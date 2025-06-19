@@ -1,8 +1,10 @@
 import logging
 import multiprocessing
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Callable
+
+import schedule
 
 from app.core.mail.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
@@ -13,21 +15,20 @@ TABLE_NAME = "scheduled_job_runs"
 
 class ScheduledJob:
     def __init__(
-        self, name: str, func: Callable, interval: timedelta, grace_seconds: int = 30, run_in_process: bool = False
+        self,
+        name: str,
+        func: Callable,
+        run_in_process: bool = False,
     ):
         """
         Initializes a ScheduledJob instance.
         :param name: Unique name for the job.
         :param func: The function to run for this job.
-        :param interval: Time interval between runs.
-        :param grace_seconds: Grace period in seconds after the interval during which the job can still run.
         :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
-        self.interval = interval
-        self.grace = timedelta(seconds=grace_seconds)
         self.run_in_process = run_in_process
         self.last_run_at: datetime | None = None
         self.success: bool = False
@@ -48,12 +49,6 @@ class ScheduledJob:
                 self.logger.info(f"Loaded last run for '{name}': {self.last_run_at}")
         except Exception as e:
             self.logger.error(f"Failed to load last run for job '{name}': {e}")
-
-    def should_run(self, now: datetime) -> bool:
-        if self.last_run_at is None:
-            return True
-        elapsed = now - self.last_run_at
-        return elapsed + self.grace >= self.interval
 
     def mark_just_ran(self):
         now = datetime.now()
@@ -88,7 +83,7 @@ class ScheduledJob:
         finally:
             self.mark_just_ran()
 
-    def run_async(self):
+    def execute(self):
         if self.run_in_process:
             multiprocessing.Process(target=self._run, daemon=True).start()
         else:
@@ -101,25 +96,24 @@ class JobScheduler:
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(self, name: str, func: Callable, interval_minutes: int, run_in_process: bool = False):
-        if interval_minutes % 10 != 0:
-            raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
+    def register(self, name: str, func: Callable, job_schedule: schedule.Job, run_in_process: bool = False):
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
+
         self.job_names.add(name)
-        self.jobs[name] = ScheduledJob(name, func, timedelta(minutes=interval_minutes), run_in_process=run_in_process)
-        self.logger.info(f"Registered job '{name}' to run every {interval_minutes} minutes.")
+        job = ScheduledJob(name, func, run_in_process)
+        self.jobs[name] = job
+
+        job_schedule.do(job.execute)
+        logging.info(f"Registered job '{name}' with schedule: {job_schedule}")
 
     def tick(self):
-        now = datetime.now()
-        for job in self.jobs.values():
-            if job.should_run(now):
-                job.run_async()
+        schedule.run_pending()
 
     def run_job(self, name: str):
         if name not in self.jobs:
             raise ValueError(f"Job '{name}' is not registered.")
-        self.jobs[name].run_async()
+        self.jobs[name].execute()
 
 
 scheduler = JobScheduler()

@@ -239,3 +239,18 @@ WHERE (start_date IS NULL OR vm.meeting_start_datetime >= start_date)
   AND (topics IS NULL OR vm.topic = ANY(topics))
     LIMIT max_results;
 $$;
+
+
+-- ------------------------------------------------------------
+-- Function: public.get_meeting_tables()
+-- Description: returns all distinct source_table names in v_meetings
+-- Usage (RPC): SELECT * FROM get_meeting_tables();
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_meeting_tables()
+  RETURNS TABLE(source_table text)
+  LANGUAGE sql
+AS $$
+  SELECT DISTINCT source_table
+  FROM public.v_meetings
+  ORDER BY source_table;
+$$;
