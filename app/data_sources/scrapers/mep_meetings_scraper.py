@@ -299,7 +299,6 @@ class MEPMeetingsScraper(ScraperBase):
             for existing in existing_entries:
                 existing_title = existing["title"]
                 if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
-                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
                     return existing["id"]  # Duplicate found
 
             # No duplicates found

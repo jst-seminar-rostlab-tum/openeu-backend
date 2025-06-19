@@ -9,7 +9,6 @@ from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
 from app.core.supabase_client import supabase
 
 settings = Settings()
-logging.basicConfig(level=logging.INFO)
 
 
 def chunk_text(text: str, max_tokens: int = MAX_TOKENS) -> List[str]:

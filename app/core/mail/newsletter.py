@@ -33,7 +33,6 @@ def get_user_email(user_id: str) -> Optional[str]:
 
     if user_mail:
         return user_mail
-
     else:
         logger.info(f"User not found or has no email: user_id={user_id}")
         return None
@@ -136,7 +135,6 @@ class Newsletter:
         )
         try:
             Newsletter.email_client.send_email(mail)
-            logger.info(f"Newsletter sent successfully to user_id={user_id}")
         except Exception as e:
             logger.error(f"Failed to send newsletter for user_id={user_id}: {e}")
 

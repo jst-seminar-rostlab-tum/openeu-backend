@@ -163,8 +163,6 @@ class IPEXCalendarAPIScraper(ScraperBase):
         page_number = 1
         total_events_processed = 0
 
-        logger.info("Starting IPEX calendar scraping via API...")
-
         if "start_date" not in args:
             logger.error("Missing parameter 'start_date'")
             return ScraperResult(False, error=Exception('Missing parameter "start_date"'))
@@ -208,7 +206,6 @@ class IPEXCalendarAPIScraper(ScraperBase):
                         events_on_page += 1
 
                 total_events_processed += events_on_page
-                logger.info(f"Page {page_number}: Processed {events_on_page} events (Total: {total_events_processed})")
 
                 # Move to next page
                 page_number += 1
@@ -222,8 +219,6 @@ class IPEXCalendarAPIScraper(ScraperBase):
             except Exception as e:
                 logger.error(f"Unexpected error on page {page_number}: {e}")
                 return ScraperResult(False, error=e, last_entry=self.last_entry)
-
-        logger.info(f"Scraping completed. Total events: {len(self.events)}")
 
         # Store events in database
         return ScraperResult(True)

@@ -12,12 +12,6 @@ from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +23,7 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
+
     title: str
     title_de: str
     meeting_type: str
@@ -74,18 +69,15 @@ class AustrianParliamentScraper(ScraperBase):
             if self.start_date:
                 start_date_str = f"{self.start_date.isoformat()}T00:00:00.000Z"
                 body["DATERANGE"][0] = start_date_str
-                logger.info(f"Using start date: {start_date_str}")
 
             if self.end_date:
                 end_date_str = f"{self.end_date.isoformat()}T23:59:59.999Z"
                 body["DATERANGE"][1] = end_date_str
-                logger.info(f"Using end date: {end_date_str}")
 
         return {"params": params, "body": body}
 
     def _parse_meetings(self, response_text: str) -> list[AustrianParliamentMeeting]:
         """Parse the API response into AustrianParliamentMeeting objects."""
-        logger.info("Parsing response from Austrian Parliament API")
         meetings: list[AustrianParliamentMeeting] = []
 
         try:
@@ -96,10 +88,7 @@ class AustrianParliamentScraper(ScraperBase):
 
             meetings_data = response_json.get("rows", [])
             if not meetings_data:
-                logger.info("No meetings found in the response")
                 return []
-
-            logger.info(f"Found {len(meetings_data)} meetings in the response")
 
             for i, meeting_data in enumerate(meetings_data):
                 if any(
@@ -164,7 +153,7 @@ class AustrianParliamentScraper(ScraperBase):
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
         """
-        Clean up and translate the meeting title. 
+        Clean up and translate the meeting title.
         If translation fails, use the German title for both fields.
         """
         if not title:
@@ -185,12 +174,15 @@ class AustrianParliamentScraper(ScraperBase):
         Check if a meeting already exists in the DB for the same title, type, date, and location.
         """
         try:
-            result = supabase.table(MEETINGS_TABLE_NAME).select("id") \
-                .eq("title", meeting.title) \
-                .eq("meeting_type", meeting.meeting_type) \
-                .eq("meeting_date", meeting.meeting_date) \
-                .eq("meeting_location", meeting.meeting_location) \
+            result = (
+                supabase.table(MEETINGS_TABLE_NAME)
+                .select("id")
+                .eq("title", meeting.title)
+                .eq("meeting_type", meeting.meeting_type)
+                .eq("meeting_date", meeting.meeting_date)
+                .eq("meeting_location", meeting.meeting_location)
                 .execute()
+            )
             return bool(result.data)
         except Exception as e:
             logger.error(f"Error checking for duplicates: {e}")
@@ -198,7 +190,6 @@ class AustrianParliamentScraper(ScraperBase):
 
     def scrape_once(self, last_entry: Any, **args) -> ScraperResult:
         """Run a single scraping attempt."""
-        logger.info("Starting Austrian Parliament scraping...")
 
         # Build request payload
         payload = self._build_request_payload()
@@ -221,7 +212,6 @@ class AustrianParliamentScraper(ScraperBase):
                 logger.warning(f"Failed to store meeting: {e}")
                 continue
 
-        logger.info(f"Successfully processed {len(meetings)} meetings")
         return ScraperResult(True)
 
 

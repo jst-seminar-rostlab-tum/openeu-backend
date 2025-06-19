@@ -66,8 +66,6 @@ def send_daily_newsletter():
     users = supabase.auth.admin.list_users()
     ids = [user.id for user in users]
 
-    logger.info(f"Sending daily newsletter to {len(ids)} users")
-
     for user_id in ids:
         subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
         if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:

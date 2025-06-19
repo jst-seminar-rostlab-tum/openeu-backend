@@ -186,7 +186,6 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         Returns:
             tuple: A tuple containing a list of found meetings and the largest page number.
         """
-        logger.info(f"Scraping page {page} for meetings between {start_date} and {end_date}")
         found_meetings = []
         params = {
             "DateFrom": start_date.strftime("%Y/%m/%d"),

@@ -7,8 +7,8 @@ from app.core.extract_topics import TOPICS_TABLE
 from app.core.supabase_client import supabase
 from app.models.topic import Topic
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -18,5 +18,5 @@ def get_topics():
         response = supabase.table(TOPICS_TABLE).select("*").execute()
         return JSONResponse(status_code=200, content={"data": response.data})
     except Exception as e:
-        logger.error("INTERNAL ERROR: %s", e)
+        logger.error("Error getting topics: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

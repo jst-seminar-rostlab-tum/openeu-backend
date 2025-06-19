@@ -50,7 +50,6 @@ def delete_embedding(row_id: str) -> None:
     """
     try:
         supabase.table(EMBEDDING_TABLE_NAME).delete().eq("id", row_id).execute()
-        logger.info(f"Deleted embedding with id={row_id}")
     except Exception as e:
         logger.error(f"Error deleting embedding with id={row_id}: {e}")
 
@@ -74,7 +73,6 @@ def embedding_cleanup() -> None:
             row_id = entry.id
 
             if not record_exists(source_table, source_id):
-                logger.info(f"Deleting embedding for missing record {source_table}/{source_id}")
                 delete_embedding(row_id)
 
         total_processed += len(batch)
