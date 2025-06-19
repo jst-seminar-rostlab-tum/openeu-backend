@@ -3,8 +3,6 @@ from datetime import datetime
 
 import schedule
 
-import schedule
-
 from app.core.extract_topics import TopicExtractor
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
