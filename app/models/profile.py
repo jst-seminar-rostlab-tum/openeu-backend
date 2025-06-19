@@ -8,7 +8,7 @@ class ProfileCreate(BaseModel):
     company_name: str
     company_description: str
     topic_list: list[str]
-    subscribed_newsletter: bool
+    newsletter_frequency: str
 
 
 class ProfileDB(ProfileCreate):
