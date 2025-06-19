@@ -1,12 +1,13 @@
 import logging
 from collections import defaultdict
+from typing import Optional
 
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
-from app.core.vector_search import get_top_k_neighbors_by_embedding
+from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
 
@@ -25,7 +26,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
+def fetch_relevant_meetings(user_id: str, k: int, allowed_topic_ids: Optional[list[str]] = None,
+) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
@@ -38,13 +40,10 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
 
     # 2) call `get_top_k_neighbors_by_embedding`
     try:
-        response = supabase.rpc("get_meeting_tables").execute().data
-        allowed_sources = {row["source_table"]: "embedding_input" for row in response if row.get("source_table")}
-
-
-        neighbors = get_top_k_neighbors_by_embedding(
+        neighbors = get_top_k_neighbors(
             vector_embedding=profile_embedding,
-            allowed_sources=allowed_sources,
+            sources=["meeting_embeddings"],
+            allowed_topic_ids=allowed_topic_ids,
             k=k,
         )
 

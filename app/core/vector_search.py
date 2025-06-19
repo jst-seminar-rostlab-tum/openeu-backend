@@ -8,6 +8,7 @@ def get_top_k_neighbors(
     query: Optional[str] = None,
     embedding: Optional[list[float]] = None,
     allowed_sources: Optional[dict[str, str]] = None,
+    allowed_topic_ids: Optional[list[str]] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -55,6 +56,9 @@ def get_top_k_neighbors(
 
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
+        
+    if rpc_name == "match_filtered_meetings":
+        rpc_args["allowed_topic_ids"] = allowed_topic_ids or []
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     return resp.data

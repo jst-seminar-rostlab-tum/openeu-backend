@@ -19,10 +19,11 @@ create index on meeting_embeddings using ivfflat(embedding vector_l2_ops) with (
 -- match_count: 5
 
 create or replace function public.match_filtered_meetings(
-  src_tables      text[],
-  content_columns text[],
-  query_embedding vector,
-  match_count     int
+  src_tables       text[],
+  content_columns  text[],
+  query_embedding  vector,
+  match_count      int,
+  allowed_topic_ids text[] DEFAULT NULL
 )
 returns table(
   source_table  text,
@@ -39,11 +40,18 @@ begin
       e.source_table,
       e.source_id,
       e.content_text,
-      ((1 - (e.embedding <#> query_embedding))/2) as similarity
+      ((1 - (e.embedding <#> query_embedding)) / 2) as similarity
     from meeting_embeddings e
+    left join meeting_topic_assignments mta
+      on e.source_table = mta.source_table
+     and e.source_id    = mta.source_id
     where
-      e.source_table = any(src_tables)
+      e.source_table    = any(src_tables)
       and e.content_column = any(content_columns)
+      and (
+        allowed_topic_ids is null
+        or mta.topic_id = any(allowed_topic_ids)
+      )
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
