@@ -155,7 +155,12 @@ def setup_scheduled_jobs():
         DAILY_INTERVAL_MINUTES,
         run_in_process=True,
     )
-    scheduler.register("scrape_spanish_commission_meetings", scrape_spanish_commission_meetings, DAILY_INTERVAL_MINUTES)
+    scheduler.register(
+        "scrape_spanish_commission_meetings",
+        scrape_spanish_commission_meetings,
+        DAILY_INTERVAL_MINUTES,
+        run_in_process=True,
+    )
     scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
     scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
     scheduler.register(
