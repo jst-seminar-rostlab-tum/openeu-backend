@@ -9,5 +9,6 @@ CREATE TABLE tweets (
     quote_count INTEGER DEFAULT 0,
     quoted_tweet JSONB NULL,
     retweeted_tweet JSONB NULL,
+    embedding_input TEXT NULL,
     scraped_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
