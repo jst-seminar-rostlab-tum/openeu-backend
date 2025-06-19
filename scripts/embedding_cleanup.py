@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 from typing import List
 
 from pydantic import BaseModel
@@ -55,7 +56,7 @@ def delete_embedding(row_id: str) -> None:
         logger.error(f"Error deleting embedding with id={row_id}: {e}")
 
 
-def embedding_cleanup() -> None:
+def embedding_cleanup(stop_event: multiprocessing.synchronize.Event) -> None:
     """
     Fetches all embeddings in batches and deletes any whose source
     record no longer exists.
@@ -64,6 +65,10 @@ def embedding_cleanup() -> None:
     total_processed = 0
 
     while True:
+        if stop_event.is_set():
+            logger.error("Embedding cleanup stopped by stop event.")
+            break
+
         batch = fetch_embeddings_batch(offset)
         if not batch:
             break
@@ -84,4 +89,4 @@ def embedding_cleanup() -> None:
 
 
 if __name__ == "__main__":
-    embedding_cleanup()
+    embedding_cleanup(stop_event=multiprocessing.Event())

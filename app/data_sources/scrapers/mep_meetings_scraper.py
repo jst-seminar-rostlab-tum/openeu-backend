@@ -1,5 +1,6 @@
 import logging
 import math
+import multiprocessing
 import re
 from collections.abc import AsyncGenerator, Generator
 from datetime import date
@@ -83,13 +84,18 @@ class MEPMeetingsSpider(scrapy.Spider):
     custom_settings = {"LOG_LEVEL": "ERROR"}
 
     def __init__(
-        self, start_date: date, end_date: date, result_callback: Optional[Callable[[list[MEPMeeting]], None]] = None
+        self,
+        start_date: date,
+        end_date: date,
+        stop_event: multiprocessing.synchronize.Event,
+        result_callback: Optional[Callable[[list[MEPMeeting]], None]] = None,
     ):
         super().__init__()
         self.start_date: date = start_date
         self.end_date: date = end_date
         self.result_callback: Optional[Callable[[list[MEPMeeting]], None]] = result_callback
         self.meetings: list[MEPMeeting] = []
+        self.stop_event = stop_event
 
     async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         """
@@ -103,6 +109,9 @@ class MEPMeetingsSpider(scrapy.Spider):
         :param page: The page number to scrape.
         :return: A Scrapy Request object.
         """
+        if self.stop_event.is_set():
+            raise scrapy.exceptions.CloseSpider("Stop event is set, stopping the spider.")
+
         params = {
             "fromDate": self.start_date.strftime("%d/%m/%Y"),
             "toDate": self.end_date.strftime("%d/%m/%Y"),
@@ -125,6 +134,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         :param response: The response object from the search results page.
         :return: Generator yielding Request objects for pagination.
         """
+
         total_pages = self.parse_total_pages_num(response)
 
         for meeting_sel in response.css(".erpl_document"):
@@ -242,8 +252,8 @@ class MEPMeetingsScraper(ScraperBase):
 
     logger = logging.getLogger("MEPMeetingsScraper")
 
-    def __init__(self, start_date: date, end_date: date):
-        super().__init__(table_name=MEP_MEETINGS_TABLE_NAME)
+    def __init__(self, start_date: date, end_date: date, stop_event: multiprocessing.synchronize.Event):
+        super().__init__(table_name=MEP_MEETINGS_TABLE_NAME, stop_event=stop_event)
         self.start_date = start_date
         self.end_date = end_date
         self.entries: list[MEPMeeting] = []
@@ -262,6 +272,7 @@ class MEPMeetingsScraper(ScraperBase):
                 start_date=self.start_date,
                 end_date=self.end_date,
                 result_callback=self._collect_entry,
+                stop_event=self.stop_event,
             )
             process.start()
             return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
@@ -379,7 +390,9 @@ if __name__ == "__main__":
 
     print("Scraping meetings...")
 
-    scraper = MEPMeetingsScraper(start_date=datetime.date(2025, 3, 15), end_date=datetime.date(2025, 3, 16))
+    scraper = MEPMeetingsScraper(
+        start_date=datetime.date(2025, 3, 15), end_date=datetime.date(2025, 3, 16), stop_event=multiprocessing.Event()
+    )
     result = scraper.scrape()
     meetings = scraper.entries
     if result.success:

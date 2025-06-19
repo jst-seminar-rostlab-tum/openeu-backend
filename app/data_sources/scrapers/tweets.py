@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from datetime import timezone as tz
+import multiprocessing
 
 import requests
 
@@ -20,8 +21,8 @@ class TweetScraper(ScraperBase):
     A class to scrape tweets from a specific Twitter user since a specified date.
     """
 
-    def __init__(self, usernames: list[str]):
-        super().__init__(TWEETS_TABLE_NAME)
+    def __init__(self, usernames: list[str], stop_event: multiprocessing.synchronize.Event):
+        super().__init__(TWEETS_TABLE_NAME, stop_event)
         settings = Settings()
         self.base_url = "https://api.twitterapi.io"
         self.headers = {"X-API-Key": settings.get_twitter_api_key()}
@@ -92,6 +93,10 @@ class TweetScraper(ScraperBase):
         since = datetime.now(tz.utc) - timedelta(days=SCRAPE_LOOKBACK_DAYS)
 
         for username in self.usernames:
+            if self.stop_event.is_set():
+                usernames_left = len(self.usernames) - self.usernames.index(username)
+                raise Exception(f"Scrape stopped by external stop event; usernames left: {usernames_left}")
+
             tweets = self._get_user_tweets_since(username, since)
             for tweet in tweets:
                 error_result = self.store_entry(tweet.model_dump(mode="json"), embedd_entries=True)

@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+import multiprocessing
 from typing import Any, Optional
 from urllib.parse import quote
 
@@ -36,11 +37,12 @@ class EPMeetingCalendarScraper(ScraperBase):
         self,
         start_date: date,
         end_date: date,
+        stop_event: multiprocessing.synchronize.Event,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
-        super().__init__(EVENTS_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(EVENTS_TABLE_NAME, stop_event, max_retries, retry_delay)
         self.start_date = start_date
         self.end_date = end_date
         self.events: list[dict[str, Any]] = []
@@ -58,6 +60,11 @@ class EPMeetingCalendarScraper(ScraperBase):
             page_number = 0
             logger.info(f" Scraping meetings for date {current_date.strftime('%d-%m-%Y')}")
             while True:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        False, error=Exception("Stop event is set, stopping the spider."), last_entry=self.last_entry
+                    )
+
                 full_url = BASE_URL_TEMPLATE.format(date=date_str, page=page_number)
                 page_soup = self._fetch_page_process_page(full_url)
                 if page_soup is None:
@@ -171,7 +178,7 @@ def run_scraper(start_date: date, end_date: date):
         start_date: Start date for filtering events
         end_date: End date for filtering events
     """
-    scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date)
+    scraper = EPMeetingCalendarScraper(start_date=start_date, end_date=end_date, stop_event=multiprocessing.Event())
     scraper.delete_entries_in_range()
     scraper.scrape()
 

@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import date
+import multiprocessing
 from typing import Any, Optional
 
 import requests
@@ -40,13 +41,14 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
     def __init__(
         self,
+        stop_event: multiprocessing.synchronize.Event,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
-        super().__init__(EVENTS_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(EVENTS_TABLE_NAME, stop_event, max_retries, retry_delay)
         self.events: list[dict[str, Any]] = []
         self.start_date = start_date
         self.end_date = end_date
@@ -177,6 +179,11 @@ class IPEXCalendarAPIScraper(ScraperBase):
         end_date = args.get("end_date")
         while True:
             try:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        False, error=Exception("Stop event is set, stopping the spider."), last_entry=self.last_entry
+                    )
+
                 # Build request payload
                 payload = self._build_request_payload(page_number, start_date, end_date)
 
@@ -229,7 +236,9 @@ class IPEXCalendarAPIScraper(ScraperBase):
         return ScraperResult(True)
 
 
-def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
+def run_scraper(
+    stop_event: multiprocessing.synchronize.Event, start_date: Optional[date] = None, end_date: Optional[date] = None
+):
     """
     Run the IPEX calendar API scraper with optional date range filtering.
 
@@ -237,7 +246,7 @@ def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = No
         start_date: Optional start date for filtering events
         end_date: Optional end date for filtering events
     """
-    scraper = IPEXCalendarAPIScraper()
+    scraper = IPEXCalendarAPIScraper(stop_event=stop_event)
     scraper.scrape(start_date=start_date, end_date=end_date)
 
 
@@ -245,7 +254,7 @@ if __name__ == "__main__":
     # Example usage with date range
     start = date(2025, 5, 1)
     end = date(2025, 5, 31)
-    run_scraper(start_date=start, end_date=end)
+    run_scraper(start_date=start, end_date=end, stop_event=multiprocessing.Event())
 
     # Or run without date range to get all events
     # run_scraper()

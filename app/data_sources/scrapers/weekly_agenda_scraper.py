@@ -3,6 +3,7 @@ import logging
 import re
 from collections.abc import AsyncGenerator
 from datetime import date, timedelta
+import multiprocessing
 from typing import Callable, Optional
 
 import scrapy
@@ -46,9 +47,14 @@ class WeeklyAgendaSpider(scrapy.Spider):
     custom_settings = {"LOG_LEVEL": "INFO"}
 
     def __init__(
-        self, start_date: date, end_date: date, result_callback: Optional[Callable[[list[AgendaEntry]], None]] = None
+        self,
+        stop_event: multiprocessing.synchronize.Event,
+        start_date: date,
+        end_date: date,
+        result_callback: Optional[Callable[[list[AgendaEntry]], None]] = None,
     ):
         super().__init__()
+        self.stop_event = stop_event
         self.start_date = start_date
         self.end_date = end_date
         self.result_callback = result_callback
@@ -60,6 +66,9 @@ class WeeklyAgendaSpider(scrapy.Spider):
         """
         week_start = self.start_date
         while week_start <= self.end_date:
+            if self.stop_event.is_set():
+                raise scrapy.exceptions.CloseSpider("Stop event is set, stopping the spider.")
+
             iso_year, iso_week, _ = week_start.isocalendar()
             url = f"https://www.europarl.europa.eu/news/en/agenda/weekly-agenda/{iso_year}-{iso_week:02d}"
             yield scrapy.Request(url=url, callback=self.parse_week, meta={"week_start": week_start})
@@ -451,8 +460,8 @@ class WeeklyAgendaScraper(ScraperBase):
 
     logger = logging.getLogger("WeeklyAgendaScraper")
 
-    def __init__(self, start_date: date, end_date: date):
-        super().__init__(table_name="weekly_agenda")
+    def __init__(self, stop_event: multiprocessing.synchronize.Event, start_date: date, end_date: date):
+        super().__init__(table_name="weekly_agenda", stop_event=stop_event)
         self.start_date = start_date
         self.end_date = end_date
         self.entries: list[AgendaEntry] = []
@@ -551,7 +560,7 @@ if __name__ == "__main__":
     #   entries = scrape_agenda(start_date=start, end_date=end)
     #   print(f"Total entries scraped: {len(entries)}")
 
-    scraper = WeeklyAgendaScraper(start_date=start, end_date=end)
+    scraper = WeeklyAgendaScraper(start_date=start, end_date=end, stop_event=multiprocessing.Event())
     result = scraper.scrape_once(last_entry=None)
     if result.success:
         print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")

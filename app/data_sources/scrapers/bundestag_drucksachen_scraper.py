@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+import multiprocessing
 from typing import Any, Optional
 
 import requests
@@ -14,11 +15,12 @@ from scripts.embedding_generator import embed_row
 class BundestagDrucksachenScraper(ScraperBase):
     def __init__(
         self,
+        stop_event: multiprocessing.synchronize.Event,
         table_name: str = "bt_documents",
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
-        super().__init__(table_name, max_retries, retry_delay)
+        super().__init__(table_name, stop_event, max_retries, retry_delay)
         self.translator = DeepLTranslator(translator)
         self.API_BASE = "https://search.dip.bundestag.de/api/v1"
         self.API_KEY = os.getenv("BUNDESTAG_KEY")
@@ -36,6 +38,13 @@ class BundestagDrucksachenScraper(ScraperBase):
             size = 50
 
             while True:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        success=False,
+                        error=Exception(f"Scrape stopped by external stop event; on page {page}"),
+                        last_entry=self.last_entry,
+                    )
+
                 params: dict[str, Any] = {
                     "page": page,
                     "size": size,
