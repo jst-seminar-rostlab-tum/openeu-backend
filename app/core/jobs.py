@@ -61,16 +61,22 @@ def scrape_belgian_parliament_meetings():
     return run_belgian_parliament_scraper(start_date=today, end_date=today)
 
 
+def _send_newsletter(frequency: str):
+    daily_newsletter_subscribers = supabase.table("profiles").select("id").eq("newsletter_frequency", "daily").execute()
+    user_ids = [user["id"] for user in daily_newsletter_subscribers.data] if daily_newsletter_subscribers.data else []
+
+    logger.info(f"Sending {frequency} newsletter to {len(user_ids)} users")
+
+    for user_id in user_ids:
+        Newsletter.send_newsletter_to_user(user_id)
+
+
 def send_daily_newsletter():
-    users = supabase.auth.admin.list_users()
-    ids = [user.id for user in users]
+    return _send_newsletter("daily")
 
-    logger.info(f"Sending daily newsletter to {len(ids)} users")
 
-    for user_id in ids:
-        subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
-        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
-            Newsletter.send_newsletter_to_user(user_id)
+def send_weekly_newsletter():
+    return _send_newsletter("weekly")
 
 
 def scrape_mec_prep_bodies_meetings():
@@ -184,7 +190,8 @@ def setup_scheduled_jobs():
         run_in_process=True,
     )
 
-    scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("04:30"))
+    scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("08:00"))
+    scheduler.register("send_weekly_newsletter", send_weekly_newsletter, schedule.every().monday.at("08:00"))
     scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
     scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
     scheduler.register(
