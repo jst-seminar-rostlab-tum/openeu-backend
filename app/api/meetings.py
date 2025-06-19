@@ -46,7 +46,7 @@ def get_meetings(
     # ---------- 1)  LOG INCOMING REQUEST ----------
     caller_ip = request.headers.get(
         "X-Forwarded-For",
-        request.client.host if request else "unknown",
+        request.client.host if request.client else "unknown",
     )
 
     logger.info(
