@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+import schedule
+
 from app.core.extract_topics import TopicExtractor
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
@@ -22,9 +24,6 @@ from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissi
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
-
-DAILY_INTERVAL_MINUTES = 24 * 60
-WEEKLY_INTERVAL_MINUTES = 7 * DAILY_INTERVAL_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -136,38 +135,59 @@ def extract_topics_from_meetings():
 
 
 def setup_scheduled_jobs():
-    scheduler.register("fetch_and_store_current_meps", fetch_and_store_current_meps, WEEKLY_INTERVAL_MINUTES)
     scheduler.register(
-        "scrape_meeting_calendar_for_current_day", scrape_meeting_calendar_for_current_day, DAILY_INTERVAL_MINUTES
+        "fetch_and_store_current_meps", fetch_and_store_current_meps, schedule.every().monday.at("02:00")
     )
-    scheduler.register("scrape_mep_meetings", scrape_mep_meetings, DAILY_INTERVAL_MINUTES, run_in_process=True)
-    scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, DAILY_INTERVAL_MINUTES)
-    scheduler.register("scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, DAILY_INTERVAL_MINUTES)
-    scheduler.register("scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, DAILY_INTERVAL_MINUTES)
-    scheduler.register("scrape_weekly_agenda", scrape_weekly_agenda, WEEKLY_INTERVAL_MINUTES, run_in_process=True)
-    scheduler.register("scrape_belgian_parliament_meetings", scrape_belgian_parliament_meetings, DAILY_INTERVAL_MINUTES)
     scheduler.register(
-        "scrape_austrian_parliament_meetings", scrape_austrian_parliament_meetings, DAILY_INTERVAL_MINUTES
+        "scrape_meeting_calendar_for_current_day",
+        scrape_meeting_calendar_for_current_day,
+        schedule.every().day.at("02:10"),
+    )
+    scheduler.register(
+        "scrape_mep_meetings", scrape_mep_meetings, schedule.every().day.at("02:20"), run_in_process=True
+    )
+    scheduler.register("scrape_ipex_calendar", scrape_ipex_calendar, schedule.every().day.at("02:30"))
+    scheduler.register(
+        "scrape_mec_sum_minist_meetings", scrape_mec_sum_minist_meetings, schedule.every().day.at("02:40")
+    )
+    scheduler.register(
+        "scrape_mec_prep_bodies_meetings", scrape_mec_prep_bodies_meetings, schedule.every().day.at("02:50")
+    )
+    scheduler.register(
+        "scrape_weekly_agenda", scrape_weekly_agenda, schedule.every().monday.at("03:00"), run_in_process=True
+    )
+    scheduler.register(
+        "scrape_belgian_parliament_meetings", scrape_belgian_parliament_meetings, schedule.every().day.at("03:10")
+    )
+    scheduler.register(
+        "scrape_austrian_parliament_meetings",
+        scrape_austrian_parliament_meetings,
+        schedule.every().day.at("03:20"),
     )
     scheduler.register(
         "scrape_polish_presidency_meetings",
         scrape_polish_presidency_meetings,
-        DAILY_INTERVAL_MINUTES,
+        schedule.every().day.at("03:40"),
         run_in_process=True,
     )
     scheduler.register(
         "scrape_spanish_commission_meetings",
         scrape_spanish_commission_meetings,
-        DAILY_INTERVAL_MINUTES,
+        schedule.every().day.at("03:50"),
         run_in_process=True,
     )
-    scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, DAILY_INTERVAL_MINUTES)
-    scheduler.register("scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, DAILY_INTERVAL_MINUTES)
+    scheduler.register("scrape_bundestag_drucksachen", scrape_bundestag_drucksachen, schedule.every().day.at("04:00"))
     scheduler.register(
-        "scrape_legislative_observatory", scrape_legislative_observatory, DAILY_INTERVAL_MINUTES, run_in_process=True
+        "scrape_bundestag_plenary_protocols", scrape_bundestag_plenary_protocols, schedule.every().day.at("04:10")
+    )
+    scheduler.register(
+        "scrape_legislative_observatory",
+        scrape_legislative_observatory,
+        schedule.every().day.at("04:20"),
+        run_in_process=True,
     )
 
-    scheduler.register("send_daily_newsletter", send_daily_newsletter, DAILY_INTERVAL_MINUTES)
-    scheduler.register("clean_up_embeddings", clean_up_embeddings, DAILY_INTERVAL_MINUTES)
-    scheduler.register("extract_topics_from_meetings", extract_topics_from_meetings, WEEKLY_INTERVAL_MINUTES)
-    scheduler.register("scrape_tweets", scrape_tweets, DAILY_INTERVAL_MINUTES)
+    scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("04:30"))
+    scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
+    scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
+    scheduler.register("extract_topics_from_meetings", extract_topics_from_meetings, schedule.every().day.at("05:00"))
