@@ -3,6 +3,7 @@ from datetime import datetime
 
 import schedule
 
+from app.core.extract_topics import TopicExtractor
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
