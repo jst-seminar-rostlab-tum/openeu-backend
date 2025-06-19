@@ -39,6 +39,7 @@ class EmailService:
     configuration = brevo_python.Configuration()
     configuration.api_key["api-key"] = settings.get_brevo_api_key()
     client = brevo_python.TransactionalEmailsApi(brevo_python.ApiClient(configuration))
+    prevent_email_sending = not settings.is_production()
 
     @staticmethod
     def _anonymize_email(email: str) -> str:
@@ -71,6 +72,9 @@ class EmailService:
                 headers=email.headers or None,
             )
 
-            EmailService.client.send_transac_email(email_data)
-            anonymized_recipient = EmailService._anonymize_email(recipient)
-            EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")
+            if EmailService.prevent_email_sending:
+                EmailService.logger.info(f"[DEV] Would send email to: {recipient}")
+            else:
+                EmailService.client.send_transac_email(email_data)
+                anonymized_recipient = EmailService._anonymize_email(recipient)
+                EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")

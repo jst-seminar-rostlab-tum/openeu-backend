@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     company_name TEXT NOT NULL,
     company_description TEXT NOT NULL,
     topic_list TEXT[] NOT NULL,
-    subscribed_newsletter BOOLEAN NOT NULL DEFAULT FALSE,
+    newsletter_frequency TEXT NOT NULL DEFAULT 'none',
     embedding VECTOR(1536) NOT NULL
 );
 
@@ -19,4 +19,3 @@ AS $$
 $$
 LANGUAGE SQL
 SECURITY DEFINER;
-
