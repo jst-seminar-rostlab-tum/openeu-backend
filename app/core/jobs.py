@@ -62,7 +62,9 @@ def scrape_belgian_parliament_meetings():
 
 
 def _send_newsletter(frequency: str):
-    daily_newsletter_subscribers = supabase.table("profiles").select("id").eq("newsletter_frequency", "daily").execute()
+    daily_newsletter_subscribers = (
+        supabase.table("profiles").select("id").eq("newsletter_frequency", frequency).execute()
+    )
     user_ids = [user["id"] for user in daily_newsletter_subscribers.data] if daily_newsletter_subscribers.data else []
 
     logger.info(f"Sending {frequency} newsletter to {len(user_ids)} users")
