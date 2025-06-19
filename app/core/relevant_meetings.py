@@ -35,9 +35,9 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
 
     # 2) call `get_top_k_neighbors_by_embedding`
     try:
-        response = supabase.table("v_meetings").select("source_table").execute()
+        response = supabase.rpc("get_meeting_tables").execute().data
+        allowed_sources = {row["source_table"]: "embedding_input" for row in response if row.get("source_table")}
 
-        allowed_sources = {row["source_table"]: "embedding_input" for row in response.data if row.get("source_table")}
 
         neighbors = get_top_k_neighbors_by_embedding(
             vector_embedding=profile_embedding,

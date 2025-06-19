@@ -48,7 +48,9 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     for message in messages:
         messages_text += f"{message['author']}: {message['content']}\n"
 
-    context = get_top_k_neighbors(f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", {}, 20)
+    context = get_top_k_neighbors(
+        query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
+    )
     context_text = ""
     for element in context:
         context_text += f"{element.get('content_text')}\n"
