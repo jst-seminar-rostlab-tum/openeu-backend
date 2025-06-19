@@ -187,6 +187,7 @@ def setup_scheduled_jobs():
         run_in_process=True,
     )
 
+    # comment
     scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("04:30"))
     scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
     scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
