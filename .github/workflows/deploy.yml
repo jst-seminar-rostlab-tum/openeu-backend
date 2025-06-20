@@ -1,14 +1,35 @@
-name: Deploy
+name: Build and Deploy to Render
+
 on:
   push:
     branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    env:
-      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-    steps:
-      - uses: actions/checkout@v4
+  pull_request:
+    branches: [main]
 
-      - name: Deploy Backend to Render
-        run: curl "$RENDER_DEPLOY_HOOK_URL"
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      IMAGE_TAG: ghcr.io/${{ github.repository }}:latest
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t $IMAGE_TAG .
+
+      - name: Push Docker image
+        run: docker push $IMAGE_TAG
+
+      - name: Trigger Render Deploy Hook
+        if: github.ref == 'refs/heads/main'
+        run: curl -X POST $RENDER_DEPLOY_HOOK_URL
