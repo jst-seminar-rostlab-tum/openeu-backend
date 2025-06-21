@@ -1,0 +1,30 @@
+name: Publish Docker Base Image (One-Time Manual)
+
+on:
+  workflow_dispatch:  # 👈 allows you to trigger it manually from GitHub UI
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # 👈 needed to push to GHCR
+
+    env:
+      IMAGE_NAME: ghcr.io/jst-seminar-rostlab-tum/openeu-backend:base
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        run: |
+          docker build --platform=linux/amd64 \
+            -f Dockerfile.base \
+            -t $IMAGE_NAME:latest .
+
+      - name: Push to GHCR
+        run: docker push $IMAGE_NAME:latest
