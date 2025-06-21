@@ -1,5 +1,5 @@
 # === Stage 1: Builder ===
-FROM --platform=linux/amd64 python:3.13-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /code
 
@@ -43,7 +43,7 @@ RUN rm -rf /usr/lib/node_modules /usr/bin/npm
 
 
 # === Stage 2: Runtime ===
-FROM --platform=linux/amd64 python:3.13-slim
+FROM python:3.13-slim
 
 WORKDIR /code
 

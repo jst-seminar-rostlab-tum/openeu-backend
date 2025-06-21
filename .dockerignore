@@ -3,7 +3,6 @@ __pycache__/
 .git/
 .vscode/
 *.md
-*.toml
 tests/
 notebooks/
 .env
