@@ -1,5 +1,4 @@
-FROM ghcr.io/trungnguyen1409/openeu-backend-base-image@sha256:e7eaf2a0db55b5723b470e25ec5d3ab76c17947802d51fbb71baa088def605e1
-
+FROM trungnguyen1409/openeu-base@sha256:36037cbb9ee30302e7152cf814b62c2aa217affe41d93091975e1627d174189f
 WORKDIR /code
 ENV POETRY_VIRTUALENVS_CREATE=false
 
