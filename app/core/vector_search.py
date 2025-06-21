@@ -38,23 +38,26 @@ def get_top_k_neighbors(
     tables = list(allowed_sources or {})
     cols = list((allowed_sources or {}).values())
 
-    # Determine which RPC to call based on sources
-    if sources == ["document_embeddings"]:
-        rpc_name = "match_filtered" if tables else "match_default"
-
-    elif sources == ["meeting_embeddings"]:
-        rpc_name = "match_filtered_meetings" if tables else "match_default_meetings"
-
-    else:
-        rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
-
     rpc_args: dict[str, Union[list, int]] = {
         "query_embedding": embedding,
         "match_count": k,
     }
 
-    if tables:
-        rpc_args.update({"src_tables": tables, "content_columns": cols})
+    # Determine which RPC to call based on sources
+    if sources == ["document_embeddings"]:
+        rpc_name = "match_filtered" if tables else "match_default"
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
+
+    elif sources == ["meeting_embeddings"]:
+        rpc_name = "match_filtered_meetings" if tables else "match_default_meetings"
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
+
+    else:
+        rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
+        if tables:
+            rpc_args.update({"src_tables": tables})
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     return resp.data

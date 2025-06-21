@@ -77,6 +77,7 @@ def get_meetings(
                 query=query,
                 allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=limit,
+                sources=["meeting_embeddings"],
             )
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
