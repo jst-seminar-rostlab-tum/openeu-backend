@@ -19,10 +19,6 @@ def get_suggestions(
     try:
         result = supabase.rpc("search_meetings_suggestions", {"search_text": query}).execute()
 
-        if result.error:
-            logger.error("Supabase RPC error: %s", result.error.message)
-            raise HTTPException(status_code=500, detail=result.error.message)
-
         return {"data": result.data[:limit]}
 
     except Exception as e:
