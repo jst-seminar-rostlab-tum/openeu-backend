@@ -107,6 +107,7 @@ AS $$
       source_table,
       source_id,
       content_text,
+      content_column,
       embedding
     FROM meeting_embeddings
     UNION ALL
@@ -114,6 +115,7 @@ AS $$
       source_table,
       source_id,
       content_text,
+      content_column,
       embedding
     FROM documents_embeddings
   )

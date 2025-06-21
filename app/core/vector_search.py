@@ -25,6 +25,7 @@ def get_top_k_neighbors(
         * ["document_embeddings"]
         * ["meeting_embeddings"]
         * None or other: combined embeddings
+    -allowed_topics/allowed countries only viable for meetings
 
     Returns:
         A list of dicts representing matching records.
@@ -45,10 +46,10 @@ def get_top_k_neighbors(
         rpc_name = "match_filtered" if tables else "match_default"
 
     elif sources == ["meeting_embeddings"]:
-        rpc_name = "match_filtered_meetings" if (tables or allowed_countries or allowed_topic_ids) else "match_default_meetings"
+        rpc_name = "match_filtered_meetings"
 
     else:
-        rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
+        rpc_name = "match_combined_filtered_embeddings"
 
     rpc_args: dict[str, Union[list, int]] = {
         "query_embedding": embedding,
@@ -58,7 +59,7 @@ def get_top_k_neighbors(
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
         
-    if rpc_name in ("match_filtered_meetings", "match_combined_filtered_embeddings"):
+    if rpc_name in ("match_filtered_meetings"):
         if allowed_topic_ids is not None:
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
         if allowed_countries is not None:
