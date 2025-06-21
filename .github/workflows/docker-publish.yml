@@ -11,7 +11,7 @@ jobs:
       packages: write  # 👈 needed to push to GHCR
 
     env:
-      IMAGE_NAME: ghcr.io/jst-seminar-rostlab-tum/openeu-base-image:base
+      IMAGE_NAME: ghcr.io/jst-seminar-rostlab-tum/openeu-base-image
 
     steps:
       - name: Checkout repo
