@@ -1,5 +1,4 @@
-FROM trungnguyen1409/openeu-base@sha256:36037cbb9ee30302e7152cf814b62c2aa217affe41d93091975e1627d174189f
-
+FROM ghcr.io/jst-seminar-rostlab-tum/openeu-backend@sha256:e1d6167c78ce8b3bd6cd5f264351cb346632b555b275d1969b5cac2c7aef0d62
 WORKDIR /code
 
 ENV POETRY_VIRTUALENVS_CREATE=false
