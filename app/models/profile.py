@@ -9,6 +9,7 @@ class ProfileCreate(BaseModel):
     company_description: str
     topic_list: list[str]
     subscribed_newsletter: bool
+    countries: list[str]
 
 
 class ProfileDB(ProfileCreate):

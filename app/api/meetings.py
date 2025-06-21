@@ -33,7 +33,7 @@ def get_meetings(
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    country: Optional[list[str]] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
 ):
     try:
         start = to_utc_aware(start)
@@ -43,7 +43,9 @@ def get_meetings(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={},  # empty dict -> allows every source
+                allowed_topic_ids = topics,
+                allowed_countries= country,
+                sources = ["meeting_embeddings"],
                 k=limit,
             )
 
@@ -65,7 +67,6 @@ def get_meetings(
                 "max_results": limit,
                 "start_date": start.isoformat() if start is not None else None,
                 "end_date": end.isoformat() if end is not None else None,
-                "country": country,
                 "topics": topics if topics else None,
             }
             match = supabase.rpc("get_meetings_by_filter", params=params).execute()
@@ -89,8 +90,8 @@ def get_meetings(
         if end:
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
-        if country:
-            db_query = db_query.ilike("location", country)
+        #if country:
+        #    db_query = db_query.ilike("location", country)
 
         # --- TOPIC FILTERING ---
         if topics:

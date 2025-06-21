@@ -9,6 +9,18 @@ CREATE TABLE IF NOT EXISTS profiles (
     embedding VECTOR(1536) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS profiles_to_topics (
+    profile_id UUID,
+    topic_id TEXT,
+    FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES public.meeting_topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS profiles_to_countries (
+    profile_id UUID,
+    country TEXT,
+    FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+);
 
 CREATE OR REPLACE FUNCTION get_user_by_id(uid UUID)
   RETURNS TEXT
