@@ -2,6 +2,8 @@ FROM trungnguyen1409/openeu-base:latest
 
 WORKDIR /code
 
+ENV POETRY_VIRTUALENVS_CREATE=false
+
 # Only copy what's needed for fast rebuild
 COPY . .
 
@@ -13,5 +15,6 @@ RUN mkdir -p /.script && \
     chmod +x /.script/start.sh
 
 EXPOSE 3000
+
 
 ENTRYPOINT ["/.script/start.sh"]
