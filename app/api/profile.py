@@ -42,10 +42,36 @@ async def create_profile(profile: ProfileCreate):
 
     payload["id"] = str(payload["id"])
     payload["embedding"] = embedding
-
+    
+    countries = payload.pop("countries")
+    topic_list = payload["topic_list"]
+    
     try:
         supabase.table("profiles").upsert(payload).execute()
         logger.info("Successfully upserted profile %s", payload["id"])
+        
+        if topic_list:
+            topic_rows = [
+                {"profile_id": payload["id"], "topic_id": topic}
+                for topic in topic_list
+            ]
+            supabase.table("profiles_to_topics")\
+                    .insert(topic_rows)\
+                    .execute()
+
+        if countries:
+            country_rows = [
+                {"profile_id": payload["id"], "country": country}
+                for country in countries
+            ]
+            supabase.table("profiles_to_countries")\
+                    .insert(country_rows)\
+                    .execute()
+
+        logger.info(
+            "Linked %d topics and %d countries for profile %s",
+            len(topic_list), len(countries), payload["id"]
+        )
     except Exception as e:
         logger.error("Supabase upsert failed for profile %s: %s", payload["id"], e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e

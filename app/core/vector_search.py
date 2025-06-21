@@ -9,6 +9,7 @@ def get_top_k_neighbors(
     embedding: Optional[list[float]] = None,
     allowed_sources: Optional[dict[str, str]] = None,
     allowed_topic_ids: Optional[list[str]] = None,
+    allowed_countries: Optional[list[str]] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -44,7 +45,7 @@ def get_top_k_neighbors(
         rpc_name = "match_filtered" if tables else "match_default"
 
     elif sources == ["meeting_embeddings"]:
-        rpc_name = "match_filtered_meetings" if tables else "match_default_meetings"
+        rpc_name = "match_filtered_meetings" if (tables or allowed_countries or allowed_topic_ids) else "match_default_meetings"
 
     else:
         rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
@@ -57,8 +58,11 @@ def get_top_k_neighbors(
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
         
-    if rpc_name == "match_filtered_meetings":
-        rpc_args["allowed_topic_ids"] = allowed_topic_ids or []
+    if rpc_name in ("match_filtered_meetings", "match_combined_filtered_embeddings"):
+        if allowed_topic_ids is not None:
+            rpc_args["allowed_topic_ids"] = allowed_topic_ids
+        if allowed_countries is not None:
+            rpc_args["allowed_countries"] = allowed_countries
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     return resp.data
@@ -118,3 +122,6 @@ def get_top_k_neighbors_by_embedding(
             ).execute()
 
     return resp.data
+
+
+

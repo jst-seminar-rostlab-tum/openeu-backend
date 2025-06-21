@@ -26,13 +26,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def fetch_relevant_meetings(user_id: str, k: int, allowed_topic_ids: Optional[list[str]] = None,
+def fetch_relevant_meetings(user_id: str, k: int, allowed_topic_ids: Optional[list[str]] = None
 ) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
         resp = supabase.table("profiles").select("embedding").eq("id", user_id).single().execute()
         profile_embedding = resp.data["embedding"]
+        resp = supabase.table("profiles_to_countries").select("country").eq("profile_id", user_id).execute()
+        allowed_countries = [d['country'] for d in resp.data] or None
+        resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()
+        allowed_topic_ids = [d['topic_id'] for d in resp.data] or None
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
@@ -41,9 +45,10 @@ def fetch_relevant_meetings(user_id: str, k: int, allowed_topic_ids: Optional[li
     # 2) call `get_top_k_neighbors_by_embedding`
     try:
         neighbors = get_top_k_neighbors(
-            vector_embedding=profile_embedding,
+            embedding=profile_embedding,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
+            allowed_countries=allowed_countries,
             k=k,
         )
 
@@ -95,3 +100,8 @@ def fetch_relevant_meetings(user_id: str, k: int, allowed_topic_ids: Optional[li
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
+
+
+
+
+print(fetch_relevant_meetings("f82dc603-3148-4ba3-af07-89a34ef3162a", k=10))

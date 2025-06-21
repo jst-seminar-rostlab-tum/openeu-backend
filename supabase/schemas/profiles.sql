@@ -10,8 +10,16 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 CREATE TABLE IF NOT EXISTS profiles_to_topics (
-    profile_id UUID profiles(id) ON DELETE CASCADE,
-    topic_id TEXT meeting_topics(id) ON DELETE CASCADE
+    profile_id UUID,
+    topic_id TEXT,
+    FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES public.meeting_topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS profiles_to_countries (
+    profile_id UUID,
+    country TEXT,
+    FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE
 );
 
 CREATE OR REPLACE FUNCTION get_user_by_id(uid UUID)

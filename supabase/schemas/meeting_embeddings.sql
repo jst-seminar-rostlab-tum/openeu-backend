@@ -18,12 +18,15 @@ create index on meeting_embeddings using ivfflat(embedding vector_l2_ops) with (
 -- query_embedding: the vector
 -- match_count: 5
 
+-- replace the existing function:
+-- Static SQL with EXISTS to correctly handle optional filters and avoid NULL issues
 create or replace function public.match_filtered_meetings(
-  src_tables       text[],
-  content_columns  text[],
-  query_embedding  vector,
-  match_count      int,
-  allowed_topic_ids text[] DEFAULT NULL
+  query_embedding    vector,
+  match_count        int,
+  src_tables         text[]   DEFAULT NULL,
+  content_columns    text[]   DEFAULT NULL,
+  allowed_topic_ids  text[]   DEFAULT NULL,
+  allowed_countries  text[]   DEFAULT NULL
 )
 returns table(
   source_table  text,
@@ -33,7 +36,6 @@ returns table(
 )
 language plpgsql
 as $$
-declare
 begin
   return query
     select
@@ -42,92 +44,52 @@ begin
       e.content_text,
       ((1 - (e.embedding <#> query_embedding)) / 2) as similarity
     from meeting_embeddings e
-    left join meeting_topic_assignments mta
-      on e.source_table = mta.source_table
-     and e.source_id    = mta.source_id
+    
     where
-      e.source_table    = any(src_tables)
-      and e.content_column = any(content_columns)
+      -- optional table filter
+      (src_tables is null
+       or e.source_table = any(src_tables)
+      )
+      -- optional column filter
+      and (content_columns is null
+           or e.content_column = any(content_columns)
+          )
+      -- optional topic filter using EXISTS
       and (
         allowed_topic_ids is null
-        or mta.topic_id = any(allowed_topic_ids)
+        or exists (
+          select 1 from meeting_topic_assignments mta
+           where mta.source_table = e.source_table
+             and mta.source_id    = e.source_id
+             and mta.topic_id = any(allowed_topic_ids)
+        )
       )
+      
+      -- optional country filter using EXISTS (only for profiles)
+      AND (
+        allowed_countries IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(allowed_countries) AS ac(country_name)
+          WHERE LOWER(ac.country_name) = LOWER((
+            SELECT vm.location
+            FROM public.v_meetings vm
+            WHERE vm.source_table = e.source_table
+              AND vm.source_id    = e.source_id
+          ))
+        )
+      )
+
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
 $$;
 
-
-create or replace function public.match_default_meetings(
-  query_embedding vector,
-  match_count     int
-)
-returns table(
-  source_table  text,
-  source_id     text,
-  content_text  text,
-  similarity    float
-)
-language plpgsql
-as $$
-declare
-begin
-  return query
-    select
-      e.source_table,
-      e.source_id,
-      e.content_text,
-      ((1 - (e.embedding <#> query_embedding))/2) as similarity
-    from meeting_embeddings e
-    order by e.embedding <#> query_embedding
-    limit match_count;
-end;
-$$;
-
-
--- combined K‑NN over both tables
-create or replace function public.match_combined_embeddings(
-  query_embedding vector(1536),
-  match_count     int
-)
-returns table(
-  source_table  text,
-  source_id     text,
-  content_text  text,
-  similarity    float
-)
-language sql
-stable
-as $$
-  with all_embeddings as (
-    select
-      source_table,
-      source_id,
-      content_text,
-      embedding
-    from meeting_embeddings
-    union all
-    select
-      source_table,
-      source_id,
-      content_text,
-      embedding
-    from documents_embeddings
-  )
-  select
-    ae.source_table,
-    ae.source_id,
-    ae.content_text,
-    -- convert cosine distance to a [0–1] similarity score
-    ((1 - (ae.embedding <#> query_embedding))/2) as similarity
-  from all_embeddings ae
-  order by ae.embedding <#> query_embedding
-  limit match_count;
-$$;
 
 
 CREATE OR REPLACE FUNCTION public.match_combined_filtered_embeddings(
-  src_tables      TEXT[],            -- list of source_table values to include
+  src_tables      TEXT[],
+  content_columns TEXT[],            -- list of source_table values to include
   query_embedding VECTOR(1536),      -- your query vector
   match_count     INT                -- number of neighbors to return
 )
@@ -161,7 +123,7 @@ AS $$
     ae.content_text,
     ((1 - (ae.embedding <#> query_embedding))/2) AS similarity
   FROM all_embeddings ae
-  WHERE ae.source_table = ANY(src_tables)
+  WHERE ae.source_table = ANY(src_tables) and ae.content_column = ANY(content_columns)
   ORDER BY ae.embedding <#> query_embedding
   LIMIT match_count;
 $$;
