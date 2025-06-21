@@ -1,4 +1,5 @@
 import logging
+import re
 
 import numpy as np
 from keybert import KeyBERT
@@ -18,7 +19,6 @@ EXCLUDED_WORDS = {
     "digital",
     "subcommittee",
     "eu",
-    "european",
     "party",
     "ordinary",
     "democrats",
@@ -41,7 +41,7 @@ EXCLUDED_WORDS = {
 TOPICS_TABLE = "meeting_topics"
 ASSIGNMENTS_TABLE = "meeting_topic_assignments"
 OTHER_TOPIC = "Other"
-SIMILARITY_THRESHOLD = 0.4
+SIMILARITY_THRESHOLD = 0.1
 BATCH_SIZE = 500
 
 
@@ -61,21 +61,26 @@ def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meet
     return [Meeting(**item) for item in resp.data]
 
 
-def fetch_and_prepare_meetings() -> tuple[list[str], list[Meeting]]:
+def fetch_and_prepare_meetings() -> tuple[list[tuple[str, str]], list[Meeting]]:
     """
-    Fetches up to 500 meetings and prepares their text for topic extraction.
+    Fetches all meetings in batches and prepares their text for topic extraction.
     Returns a tuple of (list of texts, list of Meeting objects).
     """
-    batch: list[Meeting] = fetch_meetings_batch(0, batch_size=BATCH_SIZE)
-    all_texts: list[str] = []
+    offset = 0
+    all_texts: list[tuple[str, str]] = []
     all_meetings: list[Meeting] = []
-    for m in batch:
-        text = m.title
-        if m.description:
-            text = f"{text}. {m.description}"
-        text = text.strip()
-        all_texts.append(text)
-        all_meetings.append(m)
+    while True:
+        batch: list[Meeting] = fetch_meetings_batch(offset)
+        if not batch:
+            break
+        for m in batch:
+            text = m.title
+            if m.description:
+                text = f"{text}. {m.description}"
+            text = text.strip()
+            all_texts.append((text, m.source_table))
+            all_meetings.append(m)
+        offset += BATCH_SIZE
     return all_texts, all_meetings
 
 
@@ -104,16 +109,32 @@ class TopicExtractor:
         self.model = TopicExtractor._sentence_model
         self.kw_model = TopicExtractor._keybert_model
 
-    def extract_keywords_from_texts(self, all_texts: list[str], top_n_keywords: int) -> list[str]:
+    def extract_keywords_from_texts(self, all_texts: list[tuple[str, str]], top_n_keywords: int) -> list[str]:
         """
-        Extracts keywords from a list of texts using KeyBERT, excluding generic words.
+        Extracts keywords from a list of texts using KeyBERT, excluding generic words,
+        keywords containing non-English characters, or those starting with 'Euro'.
         """
+
+        def is_english_word(word: str) -> bool:
+            # Only allow a-z, A-Z, 0-9, space, and hyphen
+            return bool(re.fullmatch(r"[A-Za-z \-]+", word))
+
         all_keywords: list[str] = []
         for text in all_texts:
-            keywords = self.kw_model.extract_keywords(
-                text, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
-            )
-            all_keywords.extend([kw for kw, _ in keywords if kw.lower() not in EXCLUDED_WORDS])
+            content = text[0]
+            source_table = text[1]
+            if source_table not in [
+                "polish_presidency_meeting",
+                "spanish_commission_meetings",
+                "belgian_parliament_meetings",
+            ]:
+                keywords = self.kw_model.extract_keywords(
+                    content, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
+                )
+                for kw, _ in keywords:
+                    kw_lower = kw.lower()
+                    if kw_lower not in EXCLUDED_WORDS and is_english_word(kw) and not kw_lower.startswith("euro"):
+                        all_keywords.append(kw)
         return all_keywords
 
     def cluster_keywords_and_store_topics(self, all_keywords: list[str], n_clusters: int) -> None:
