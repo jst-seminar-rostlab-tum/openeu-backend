@@ -9,6 +9,8 @@ from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
+from app.api.suggestions import router as api_suggestions
+
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
 
@@ -24,6 +26,7 @@ app.include_router(api_chat)
 app.include_router(api_topics)
 
 app.include_router(notifications_router)
+app.include_router(api_suggestions)
 
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
