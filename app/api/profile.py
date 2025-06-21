@@ -9,10 +9,6 @@ from app.models.profile import ProfileCreate
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-)
 logger = logging.getLogger(__name__)
 
 
@@ -27,10 +23,8 @@ async def create_profile(profile: ProfileCreate):
 
     # Generate embedding
     try:
-        logger.info("Requesting embedding from OpenAI for profile %s", profile.id)
         resp = openai.embeddings.create(input=[combined], model=EMBED_MODEL)
         embedding = resp.data[0].embedding
-        logger.info("Received embedding for profile %s", profile.id)
     except Exception as e:
         logger.error("Embedding generation failed for profile %s: %s", profile.id, e)
         raise HTTPException(
@@ -45,7 +39,6 @@ async def create_profile(profile: ProfileCreate):
 
     try:
         supabase.table("profiles").upsert(payload).execute()
-        logger.info("Successfully upserted profile %s", payload["id"])
     except Exception as e:
         logger.error("Supabase upsert failed for profile %s: %s", payload["id"], e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e

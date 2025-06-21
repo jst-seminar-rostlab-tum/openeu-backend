@@ -56,7 +56,6 @@ class EPMeetingCalendarScraper(ScraperBase):
         while current_date <= self.end_date:
             date_str = quote(current_date.strftime("%d/%m/%Y"))
             page_number = 0
-            logger.info(f" Scraping meetings for date {current_date.strftime('%d-%m-%Y')}")
             while True:
                 full_url = BASE_URL_TEMPLATE.format(date=date_str, page=page_number)
                 page_soup = self._fetch_page_process_page(full_url)
@@ -75,7 +74,6 @@ class EPMeetingCalendarScraper(ScraperBase):
         date_to = (self.end_date + timedelta(days=1)).isoformat()  # end of the last day
         try:
             (((supabase.table(self.table_name).delete().gte("datetime", date_from)).lte("datetime", date_to)).execute())
-            logger.info(f"Deleted entries from '{self.table_name}' between {date_from} and {date_to}")
         except Exception as e:
             logger.error(f"Failed to delete entries in Supabase: {e}")
 

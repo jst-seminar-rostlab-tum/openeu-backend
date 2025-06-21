@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from app.core.supabase_client import supabase
 from app.models.notifications import Notification
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -41,5 +40,5 @@ def get_notifications_for_user(
         return JSONResponse(status_code=200, content={"data": data})
 
     except Exception as e:
-        logger.error("INTERNAL ERROR: %s", e)
+        logger.error("Error getting notifications: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

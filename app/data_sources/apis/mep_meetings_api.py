@@ -32,7 +32,6 @@ def get_date_at_offset(offset):
 
 
 def fetch_event_ids(offset, limit):
-    logging.info(f"Fetching event IDs between offset {offset} and {offset + limit}")
     params = {"format": "application/ld+json", "offset": offset, "limit": limit}
     response = requests.get(api_url, params=params)
     if response.status_code != 200:
@@ -41,7 +40,6 @@ def fetch_event_ids(offset, limit):
 
 
 def fetch_event_date(event_id):
-    logging.info(f"Fetching date for event ID: {event_id}")
     params = {
         "format": "application/ld+json",
     }
@@ -53,7 +51,6 @@ def fetch_event_date(event_id):
 
 
 def binary_search(start_date, end_date, max_pages=125000):
-    logging.info(f"Binary search for events between {start_date} and {end_date}")
     # Find the first page with date >= start_date
     low, high = 0, max_pages
     start_offset = None
@@ -93,7 +90,6 @@ def binary_search(start_date, end_date, max_pages=125000):
 
 
 def fetch_events_between(start_offset, end_offset):
-    logging.info(f"Fetching events between offsets {start_offset} and {end_offset}")
     all_events = []
     limit = 100
     for offset in range(start_offset, end_offset + 1, limit):
@@ -112,7 +108,6 @@ if __name__ == "__main__":
 
     if start_offset is not None and end_offset is not None:
         events = fetch_events_between(start_offset, end_offset)
-        print(f"Fetched {len(events)} events between {start_date} and {end_date}")
         for event in events:
             print(event)
     else:

@@ -49,7 +49,6 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
 
                 docs = data.get("documents", [])
                 if not docs:
-                    logging.info("No more documents; finishing.")
                     break
 
                 for item in docs:

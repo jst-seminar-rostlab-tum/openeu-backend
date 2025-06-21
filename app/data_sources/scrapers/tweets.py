@@ -100,11 +100,9 @@ class TweetScraper(ScraperBase):
                 self.last_entry = tweet
 
     def scrape_once(self, last_entry, **args) -> ScraperResult:
-        logger.info(f"Starting tweet scraping for {len(self.usernames)} usernames...")
         try:
             self._scrape_all_usernames()
         except Exception as e:
             logger.error(f"Error during tweet scraping: {e}")
             return ScraperResult(False, error=e)
-        logger.info("Tweet scraping completed successfully.")
         return ScraperResult(True)

@@ -184,7 +184,6 @@ class SpanishCommissionScraper(ScraperBase):
     def _collect_entry(self, entries: list[CommissionAgendaEntry]):
         for entry in entries:
             if self.check_for_duplicate(entry):
-                self.logger.info(f"Skipped duplicate: {entry.title}")
                 continue
 
             store_result = self.store_entry(entry.model_dump())
@@ -205,7 +204,6 @@ class SpanishCommissionScraper(ScraperBase):
             for existing in existing_entries:
                 existing_title = existing["title"]
                 if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
-                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
                     return True  # Duplicate found
 
             # No duplicates found

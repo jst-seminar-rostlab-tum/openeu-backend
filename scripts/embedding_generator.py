@@ -8,7 +8,6 @@ from app.core.config import Settings
 from app.core.openai_client import BATCH_SZ, EMBED_MODEL, MAX_TOKENS, openai
 from app.core.supabase_client import supabase
 
-
 class EmbeddingGenerator:
     def __init__(self):
         try:
@@ -20,7 +19,6 @@ class EmbeddingGenerator:
             raise e
 
         self.settings = Settings()
-        logging.basicConfig(level=logging.INFO)
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=MAX_TOKENS,

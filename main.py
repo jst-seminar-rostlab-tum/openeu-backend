@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import logging
 
 from app.api import profile
 from app.api.chat import router as api_chat
@@ -11,6 +12,8 @@ from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
+
+logging.basicConfig(level=logging.WARNING)
 
 setup_scheduled_jobs()
 settings = Settings()
