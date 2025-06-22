@@ -41,12 +41,22 @@ def get_top_k_neighbors(
     tables = list(allowed_sources or {})
     cols = list((allowed_sources or {}).values())
 
+    rpc_args: dict[str, Union[list, int]] = {
+        "query_embedding": embedding,
+        "match_count": k,
+    }
+
     # Determine which RPC to call based on sources
     if sources == ["document_embeddings"]:
         rpc_name = "match_filtered" if tables else "match_default"
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
 
     elif sources == ["meeting_embeddings"]:
         rpc_name = "match_filtered_meetings"
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
+
 
     else:
         rpc_name = "match_combined_filtered_embeddings"
@@ -59,7 +69,7 @@ def get_top_k_neighbors(
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
         
-    if rpc_name in ("match_filtered_meetings"):
+    if rpc_name == "match_filtered_meetings":
         if allowed_topic_ids is not None:
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
         if allowed_countries is not None:

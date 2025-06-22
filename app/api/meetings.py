@@ -2,14 +2,17 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -18,6 +21,9 @@ router = APIRouter()
 _START = Query(None, description="Start datetime (ISO8601)")
 _END = Query(None, description="End datetime (ISO8601)")
 _TOPICS = Query(None, description="List of topic names (repeat or comma-separated)")
+_SOURCE_TABLES = Query(
+    None, alias="source_table", description="Filter by source table(s) (repeat or comma-separated)"
+)  # URL param stays singular: ?source_table=…
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -28,41 +34,69 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 
 @router.get("/meetings", response_model=list[Meeting])
 def get_meetings(
+    request: Request,  # new param: provides caller info
     limit: int = Query(500, gt=1),
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
     country: Optional[list[str]] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
+    # ---------- 1)  LOG INCOMING REQUEST ----------
+    caller_ip = request.headers.get(
+        "X-Forwarded-For",
+        request.client.host if request.client else "unknown",
+    )
+
+    logger.info(
+        "GET /meetings | caller=%s | limit=%s | start=%s | end=%s | "
+        "query=%s | topics=%s | country=%s | source_tables=%s",
+        caller_ip,
+        limit,
+        start,
+        end,
+        query,
+        topics,
+        country,
+        source_tables,
+    )
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
 
         # --- SEMANTIC QUERY CASE ---
+        # --- source table - normalise multi-value params ----------------------------------
+        if source_tables and len(source_tables) == 1 and "," in source_tables[0]:
+            source_tables = [t.strip() for t in source_tables[0].split(",") if t.strip()]
+
         if query:
+            # tell the vector search which tables are allowed -- value can be any string
+            allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
             neighbors = get_top_k_neighbors(
                 query=query,
                 allowed_topic_ids = topics,
                 allowed_countries= country,
-                sources = ["meeting_embeddings"],
+                allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=limit,
+                sources=["meeting_embeddings"],
             )
-
             if not neighbors:
+                # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
+                logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
 
             map_table_and_id_to_similarity = {
                 f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
             }
-            source_tables = [n["source_table"] for n in neighbors]
             source_ids = [n["source_id"] for n in neighbors]
+            neighbor_tables = [n["source_table"] for n in neighbors]  #
 
             if topics and len(topics) == 1 and "," in topics[0]:
                 topics = [t.strip() for t in topics[0].split(",") if t.strip()]
 
             params = {
-                "source_tables": source_tables,
+                "source_tables": neighbor_tables,
                 "source_ids": source_ids,
                 "max_results": limit,
                 "start_date": start.isoformat() if start is not None else None,
@@ -80,10 +114,18 @@ def get_meetings(
 
                     results.append(record)
 
+            # ---------- 2b)  LOG NON-EMPTY / EMPTY RESPONSE (semantic path) ----------
+            logger.info(
+                "Response formed – %d result(s) from semantic query",
+                len(results[:limit]),
+            )
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
         # --- DEFAULT QUERY CASE ---
         db_query = supabase.table("v_meetings").select("*")
+
+        if source_tables:
+            db_query = db_query.in_("source_table", source_tables)
 
         if start:
             db_query = db_query.gte("meeting_start_datetime", start.isoformat())
@@ -104,7 +146,8 @@ def get_meetings(
 
         if not isinstance(data, list):
             raise ValueError("Expected list of records from Supabase")
-
+        # ---------- 2c)  LOG NON-EMPTY / EMPTY RESPONSE (default path) ----------
+        logger.info("Response formed – %d result(s) from default query", len(data))
         return JSONResponse(status_code=200, content={"data": data})
 
     except Exception as e:
