@@ -125,7 +125,7 @@ AS $$
     ae.content_text,
     ((1 - (ae.embedding <#> query_embedding))/2) AS similarity
   FROM all_embeddings ae
-  WHERE (src_tables IS NULL or ae.source_table = ANY(src_tables)) and (src_tables IS NULL or ae.content_column = ANY(content_columns))
+  WHERE (src_tables IS NULL or ae.source_table = ANY(src_tables)) and (content_columns IS NULL or ae.content_column = ANY(content_columns))
   ORDER BY ae.embedding <#> query_embedding
   LIMIT match_count;
 $$;
