@@ -16,15 +16,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_profile(profile: ProfileCreate):
+async def create_embeddings(profile):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_list,
     then upsert the record into Supabase.
     """
     # Build input text for embedding
     combined = f"{profile.company_name}. {profile.company_description}." f" Topics: {', '.join(profile.topic_list)}"
-
     # Generate embedding
     try:
         logger.info("Requesting embedding from OpenAI for profile %s", profile.id)
@@ -36,6 +34,11 @@ async def create_profile(profile: ProfileCreate):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding generation failed"
         ) from e
+    return embedding
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_profile(profile: ProfileCreate):
+    embedding = await create_embeddings(profile)
 
     # Upsert into Supabase
     payload = profile.model_dump()
@@ -64,28 +67,15 @@ def get_user_profile(user_id: str) -> JSONResponse:
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.data[0])
     except Exception as e:
         logger.error("Supabase select failed for profile %s: %s", user_id, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
-
-
-
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Supabase select failed") from e
 
 @router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileDB)
-def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
+async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
-        # Generate embedding
-        try:
-            logger.info("Requesting embedding from OpenAI for profile %s", profile.id)
-            resp = openai.embeddings.create(input=[combined], model=EMBED_MODEL)
-            embedding = resp.data[0].embedding
-            logger.info("Received embedding for profile %s", profile.id)
-        except Exception as e:
-            logger.error("Embedding generation failed for profile %s: %s", profile.id, e)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding generation failed"
-            ) from e
-
         payload = profile.dict(exclude_unset=True)
-        payload["embedding"] = embedding
+        payload["id"] = user_id
+        payload["embedding"] = await create_embeddings(payload)
 
         result = (supabase.table("profiles")
                   .update(payload)
