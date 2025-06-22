@@ -85,13 +85,6 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
         if (profile.topic_list is not None
                 or profile.company_name is not None
                 or profile.company_description is not None):
-            result = (supabase.table("profiles")
-                      .select("*")
-                      .eq("id", user_id)
-                      .execute())
-            if len(result.data) == 0:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-
             embedding_payload = {
                 "embedding": await create_embeddings(SimpleNamespace(result.data[0]))
             }
