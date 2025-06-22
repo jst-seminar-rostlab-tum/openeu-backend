@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -32,8 +33,24 @@ class ScraperResult:
 
 
 class ScraperBase(ABC):
-    def __init__(self, table_name: str, max_retries: int = 1, retry_delay: float = 2.0):
+    def __init__(
+        self,
+        table_name: str,
+        stop_event: multiprocessing.synchronize.Event,
+        max_retries: int = 1,
+        retry_delay: float = 2.0,
+    ):
+        """
+        Base class for all scrapers that provides common functionality for scraping and storing data.
+        :param table_name: The name of the table to store scraped data.
+        :param stop_event: Used by the scheduler to stop the scraper gracefully on timeout.
+            Should be checked regularly during scraping, e.g., before each page scrape.
+            Except: if the scraper is not long-running or not running in a thread but in a process.
+        :param max_retries: Maximum number of retries for scraping.
+        :param retry_delay: Delay in seconds between retries.
+        """
         self.table_name = table_name
+        self.stop_event = stop_event
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.lines_added = 0
@@ -44,6 +61,12 @@ class ScraperBase(ABC):
         attempt = 0
 
         while attempt <= self.max_retries:
+            if self.stop_event.is_set():
+                logger.info("Scrape stopped by external stop event")
+                return ScraperResult(
+                    success=False, error=Exception("Scrape stopped by external stop event"), last_entry=self.last_entry
+                )
+
             try:
                 logger.info(f"Attempt {attempt + 1} for {self.__class__.__name__}")
                 result = self.scrape_once(self.last_entry, **args)
@@ -61,6 +84,7 @@ class ScraperBase(ABC):
                 result = ScraperResult(success=False, error=e, last_entry=self.last_entry)
 
             attempt += 1
+
             if attempt <= self.max_retries:
                 time.sleep(self.retry_delay)
 

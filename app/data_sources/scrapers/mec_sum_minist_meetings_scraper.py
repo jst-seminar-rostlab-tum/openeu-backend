@@ -3,6 +3,7 @@ import calendar
 import logging
 import re
 from datetime import date
+import multiprocessing
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -125,6 +126,7 @@ class _MeetingDateParser:
 class MECSumMinistMeetingsScraper(ScraperBase):
     def __init__(
         self,
+        stop_event: multiprocessing.synchronize.Event,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         max_retries: int = 3,
@@ -137,7 +139,7 @@ class MECSumMinistMeetingsScraper(ScraperBase):
             max_retries (int): Maximum number of retries for failed requests.
             retry_delay (float): Delay between retries in seconds.
         """
-        super().__init__(MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(MEC_SUMMIT_MINISTERIAL_MEETING_TABLE_NAME, stop_event, max_retries, retry_delay)
         self.events: list[MECSummitMinisterialMeeting] = []
         self.start_date = start_date
         self.end_date = end_date
@@ -197,6 +199,10 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         url = MEC_MEETINGS_BASE_URL + "?" + urlencode(params)
         config = CrawlerRunConfig()
         crawler_result = await crawler.arun(url=url, crawler_config=config)
+
+        if "Checking your browser" in crawler_result.html:
+            logger.error(f"Bot protection detected for page {page}. Therefore, we cannot scrape something now.")
+
         internal_links = crawler_result.links.get("internal", [])
         links_to_meetings = [x for x in internal_links if x["href"].startswith(MEETINGS_DETAIL_URL_PREFIX)]
 
@@ -258,6 +264,13 @@ class MECSumMinistMeetingsScraper(ScraperBase):
 
         async with AsyncWebCrawler() as crawler:
             while current_page <= largest_known_page:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        success=False,
+                        error=Exception("Scrape stopped by external stop event"),
+                        last_entry=self.last_entry,
+                    )
+
                 (meetings_on_page, largest_known_page, scraper_error_result) = await self._scrape_meetings_by_page(
                     start_date=start_date, end_date=end_date, page=current_page, crawler=crawler, last_entry=last_entry
                 )
@@ -291,6 +304,8 @@ class MECSumMinistMeetingsScraper(ScraperBase):
 
 if __name__ == "__main__":
     print("Scraping and storing mec summit and ministerial meetings...")
-    scraper = MECSumMinistMeetingsScraper(start_date=date(2025, 5, 17), end_date=date(2025, 6, 17))
+    scraper = MECSumMinistMeetingsScraper(
+        start_date=date(2025, 5, 17), end_date=date(2025, 6, 17), stop_event=multiprocessing.Event()
+    )
     result: ScraperResult = scraper.scrape()
     print(result)
