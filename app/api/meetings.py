@@ -91,6 +91,12 @@ def get_meetings(
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
                 logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
+            
+            # Create a lookup from neighbors for fast similarity access
+            similarity_lookup = {
+                (n["source_table"], n["source_id"]): n["similarity"] for n in neighbors
+            }
+
 
             db_query = supabase.table("v_meetings").select("*")
 
@@ -107,6 +113,10 @@ def get_meetings(
 
             result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
             data = result.data
+            
+            for item in data:
+                key = (item["source_table"], item["source_id"])
+                item["similarity"] = similarity_lookup.get(key)
 
             if not isinstance(data, list):
                 raise ValueError("Expected list of records from Supabase")
