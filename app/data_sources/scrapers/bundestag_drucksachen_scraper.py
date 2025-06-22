@@ -9,7 +9,6 @@ import requests
 from app.core.deepl_translator import translator
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
-from scripts.embedding_generator import embed_row
 
 
 class BundestagDrucksachenScraper(ScraperBase):
@@ -91,13 +90,7 @@ class BundestagDrucksachenScraper(ScraperBase):
                     if store_err:
                         return store_err
 
-                    embed_row(
-                        source_table=self.table_name,
-                        row_id=pid,
-                        content_column="title_english",
-                        content_text=(record["title_english"] + record["datum"]),
-                    )
-                    embed_row(
+                    self.embedding_generator.embed_row(
                         source_table=self.table_name,
                         row_id=pid,
                         content_column="text",

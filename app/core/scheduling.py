@@ -4,6 +4,8 @@ import multiprocessing.synchronize
 import threading
 from datetime import datetime, timedelta
 from typing import Callable
+
+import schedule
 import typing
 
 from app.core.mail.notify_job_failure import notify_job_failure
@@ -18,9 +20,8 @@ class ScheduledJob:
         self,
         name: str,
         func: Callable[[multiprocessing.synchronize.Event], typing.Any],
-        interval: timedelta,
+        job_schedule: schedule.Job,
         timeout_minutes: int,
-        grace_seconds: int = 30,
         run_in_process: bool = False,
     ):
         """
@@ -29,16 +30,13 @@ class ScheduledJob:
         :param func: The function to run for this job. Will receive the stop_event as parameter.
             stop_event is required to ensure developers handle stopping the job gracefully.
         :param timeout_minutes: Timeout in minutes for the job to complete.
-        :param interval: Time interval between runs.
-        :param grace_seconds: Grace period in seconds after the interval during which the job can still run.
         :param run_in_process: If True, runs the job in a separate process; otherwise, runs in a thread.
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.func = func
-        self.interval = interval
+        self.job_schedule = job_schedule
         self.timeout = timedelta(minutes=timeout_minutes)
-        self.grace = timedelta(seconds=grace_seconds)
         self.run_in_process = run_in_process
         self.last_run_at: datetime | None = None
         self.success: bool = False
@@ -60,12 +58,6 @@ class ScheduledJob:
                 self.logger.info(f"Loaded last run for '{name}': {self.last_run_at}")
         except Exception as e:
             self.logger.error(f"Failed to load last run for job '{name}': {e}")
-
-    def should_run(self, now: datetime) -> bool:
-        if self.last_run_at is None:
-            return True
-        elapsed = now - self.last_run_at
-        return elapsed + self.grace >= self.interval
 
     def mark_just_ran(self):
         now = datetime.now()
@@ -101,9 +93,9 @@ class ScheduledJob:
         finally:
             self.mark_just_ran()
 
-    def run_async(self):
+    def execute(self):
         """
-        Runs the job asynchronously, either in a separate thread or process.
+        Executes the job, either in a separate thread or process.
         If the job does not complete within the specified timeout, it will log an error and notify of the failure.
         Since threads cannot be killed safely, they are gracefully stopped using the
         stop_event which must be checked periodically by the job itself.
@@ -154,37 +146,27 @@ class JobScheduler:
         self,
         name: str,
         func: Callable[[multiprocessing.synchronize.Event], typing.Any],
-        interval_minutes: int,
+        job_schedule: schedule.Job,
         run_in_process: bool = False,
         timeout_minutes: int = 15,
     ):
-        if interval_minutes % 10 != 0:
-            raise ValueError(f"Interval for job '{name}' must be a multiple of 10 minutes.")
         if name in self.job_names:
             raise ValueError(f"Job '{name}' is already registered, name must be unique.")
+
         self.job_names.add(name)
-        self.jobs[name] = ScheduledJob(
-            name,
-            func,
-            timedelta(minutes=interval_minutes),
-            run_in_process=run_in_process,
-            timeout_minutes=timeout_minutes,
-        )
-        self.logger.info(
-            f"Registered job '{name}' to run every {interval_minutes} minutes "
-            f" with a timeout of {timeout_minutes} minutes."
-        )
+        job = ScheduledJob(name, func, job_schedule, timeout_minutes, run_in_process)
+        self.jobs[name] = job
+
+        job_schedule.do(job.execute)
+        logging.info(f"Registered job '{name}' with schedule: {job_schedule}; and timeout: {timeout_minutes} minutes")
 
     def tick(self):
-        now = datetime.now()
-        for job in self.jobs.values():
-            if job.should_run(now):
-                job.run_async()
+        schedule.run_pending()
 
     def run_job(self, name: str):
         if name not in self.jobs:
             raise ValueError(f"Job '{name}' is not registered.")
-        self.jobs[name].run_async()
+        self.jobs[name].execute()
 
 
 scheduler = JobScheduler()

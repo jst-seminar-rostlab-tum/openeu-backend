@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 from app.core.extract_topics import TopicExtractor
 from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
-from scripts.embedding_generator import embed_row
+from scripts.embedding_generator import EmbeddingGenerator
 from app.core.mail.notify_job_failure import notify_job_failure
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,7 @@ class ScraperBase(ABC):
         self.retry_delay = retry_delay
         self.lines_added = 0
         self._last_entry = None
+        self.embedding_generator = EmbeddingGenerator()
 
     def scrape(self, **args) -> ScraperResult:
         attempt = 0
@@ -102,7 +103,7 @@ class ScraperBase(ABC):
         ids_and_inputs = [(row.get("id"), row.get("embedding_input")) for row in response.data] if response.data else []
         for source_id, embedding_input in ids_and_inputs:
             if source_id and embedding_input:
-                embed_row(
+                self.embedding_generator.embed_row(
                     source_table=self.table_name,
                     row_id=source_id,
                     content_column="embedding_input",
