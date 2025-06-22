@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
+from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
@@ -34,6 +35,7 @@ def get_meetings(
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
     country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
 ):
     try:
         start = to_utc_aware(start)
@@ -80,6 +82,34 @@ def get_meetings(
                     results.append(record)
 
             return JSONResponse(status_code=200, content={"data": results[:limit]})
+
+        # --- USER RELEVANT MEETINGS CASE ---
+        if user_id:
+            relevant = fetch_relevant_meetings(user_id=user_id, k=limit)
+            meetings = relevant.meetings
+
+            # Apply additional filters in Python
+            def filter_meeting(m):
+                if start and getattr(m, "meeting_start_datetime", None) and m.meeting_start_datetime < start:
+                    return False
+                if end and getattr(m, "meeting_start_datetime", None) and m.meeting_start_datetime > end:
+                    return False
+                if country and getattr(m, "location", None) and country.lower() not in m.location.lower():
+                    return False
+                if topics:
+                    # If topics is a comma-separated string, split it
+                    tlist = topics
+                    if len(topics) == 1 and "," in topics[0]:
+                        tlist = [t.strip() for t in topics[0].split(",") if t.strip()]
+                    # Check if meeting.topic is in topics
+                    if not hasattr(m, "topic") or not m.topic or m.topic not in tlist:
+                        return False
+                return True
+
+            filtered = [m for m in meetings if filter_meeting(m)]
+            # Convert to dicts for JSONResponse
+            data = [m.model_dump() for m in filtered[:limit]]
+            return JSONResponse(status_code=200, content={"data": data})
 
         # --- DEFAULT QUERY CASE ---
         db_query = supabase.table("v_meetings").select("*")
