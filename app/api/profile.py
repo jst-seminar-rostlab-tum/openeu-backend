@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def create_embeddings(profile):
+async def create_embeddings(profile: ProfileCreate):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_list,
     then upsert the record into Supabase.
