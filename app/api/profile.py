@@ -72,7 +72,6 @@ def get_user_profile(user_id: str) -> JSONResponse:
 @router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileDB)
 def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
-        """
         # Generate embedding
         try:
             logger.info("Requesting embedding from OpenAI for profile %s", profile.id)
@@ -84,10 +83,9 @@ def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding generation failed"
             ) from e
-        """
 
         payload = profile.dict(exclude_unset=True)
-        #payload["embedding"] = embedding
+        payload["embedding"] = embedding
 
         result = (supabase.table("profiles")
                   .update(payload)
