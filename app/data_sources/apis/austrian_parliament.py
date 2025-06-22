@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from datetime import date, datetime
+import multiprocessing
 from typing import Any, Optional
 
 import requests
@@ -29,6 +30,7 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
+
     title: str
     title_de: str
     meeting_type: str
@@ -43,13 +45,14 @@ class AustrianParliamentScraper(ScraperBase):
 
     def __init__(
         self,
+        stop_event: multiprocessing.synchronize.Event,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
         """Initialize the scraper."""
-        super().__init__(MEETINGS_TABLE_NAME, max_retries, retry_delay)
+        super().__init__(MEETINGS_TABLE_NAME, stop_event, max_retries, retry_delay)
         self.start_date = start_date
         self.end_date = end_date
         self.session = requests.Session()
@@ -164,7 +167,7 @@ class AustrianParliamentScraper(ScraperBase):
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
         """
-        Clean up and translate the meeting title. 
+        Clean up and translate the meeting title.
         If translation fails, use the German title for both fields.
         """
         if not title:
@@ -185,12 +188,15 @@ class AustrianParliamentScraper(ScraperBase):
         Check if a meeting already exists in the DB for the same title, type, date, and location.
         """
         try:
-            result = supabase.table(MEETINGS_TABLE_NAME).select("id") \
-                .eq("title", meeting.title) \
-                .eq("meeting_type", meeting.meeting_type) \
-                .eq("meeting_date", meeting.meeting_date) \
-                .eq("meeting_location", meeting.meeting_location) \
+            result = (
+                supabase.table(MEETINGS_TABLE_NAME)
+                .select("id")
+                .eq("title", meeting.title)
+                .eq("meeting_type", meeting.meeting_type)
+                .eq("meeting_date", meeting.meeting_date)
+                .eq("meeting_location", meeting.meeting_location)
                 .execute()
+            )
             return bool(result.data)
         except Exception as e:
             logger.error(f"Error checking for duplicates: {e}")
@@ -225,7 +231,9 @@ class AustrianParliamentScraper(ScraperBase):
         return ScraperResult(True)
 
 
-def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = None):
+def run_scraper(
+    stop_event: multiprocessing.synchronize.Event, start_date: Optional[date] = None, end_date: Optional[date] = None
+) -> ScraperResult:
     """
     Run the Austrian Parliament scraper with optional date range filtering.
 
@@ -233,12 +241,12 @@ def run_scraper(start_date: Optional[date] = None, end_date: Optional[date] = No
         start_date: Optional start date for filtering meetings
         end_date: Optional end date for filtering meetings
     """
-    scraper = AustrianParliamentScraper(start_date=start_date, end_date=end_date)
-    scraper.scrape()
+    scraper = AustrianParliamentScraper(stop_event=stop_event, start_date=start_date, end_date=end_date)
+    return scraper.scrape()
 
 
 if __name__ == "__main__":
     # Example usage
     today = datetime.now().date()
-    run_scraper(start_date=today, end_date=today)
+    run_scraper(start_date=today, end_date=today, stop_event=multiprocessing.Event())
     # run_scraper()
