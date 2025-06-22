@@ -55,10 +55,16 @@ async def create_profile(profile: ProfileCreate):
         logger.info("Successfully upserted profile %s", payload["id"])
 
         if topic_list:
+            # Clear existing topic associations for the profile
+            supabase.table("profiles_to_topics").delete().match({"profile_id": payload["id"]}).execute()
+            # Insert new topic associations
             topic_rows = [{"profile_id": payload["id"], "topic_id": topic} for topic in topic_list]
             supabase.table("profiles_to_topics").insert(topic_rows).execute()
 
         if countries:
+            # Clear existing country associations for the profile
+            supabase.table("profiles_to_countries").delete().match({"profile_id": payload["id"]}).execute()
+            # Insert new country associations
             country_rows = [{"profile_id": payload["id"], "country": country} for country in countries]
             supabase.table("profiles_to_countries").insert(country_rows).execute()
 
