@@ -13,7 +13,7 @@ RUN poetry install --no-root
 
 COPY . .
 
-# Optional: remove dev artifacts (e.g. tests, examples)
+#remove dev artifacts (e.g. tests, examples)
 RUN rm -rf tests/ examples/ notebooks/
 
 EXPOSE 3000
