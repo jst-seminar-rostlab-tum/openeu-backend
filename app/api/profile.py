@@ -1,4 +1,5 @@
 import logging
+from types import SimpleNamespace
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -74,8 +75,6 @@ def get_user_profile(user_id: str) -> JSONResponse:
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
         payload = profile.dict(exclude_unset=True)
-        payload["id"] = user_id
-        payload["embedding"] = await create_embeddings(payload)
 
         result = (supabase.table("profiles")
                   .update(payload)
@@ -83,6 +82,24 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                   .execute())
         if len(result.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        if profile.topic_list is not None or profile.company_name is not None or profile.company_description is not None:
+            result = (supabase.table("profiles")
+                      .select("*")
+                      .eq("id", user_id)
+                      .execute())
+            if len(result.data) == 0:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
+            embedding_payload = {
+                "embedding": await create_embeddings(SimpleNamespace(result.data[0]))
+            }
+            result = (supabase.table("profiles")
+                      .update(embedding_payload)
+                      .eq("id", user_id)
+                      .execute())
+            if len(result.data) == 0:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.data[0])
     except Exception as e:
         logger.error("Supabase update failed for profile %s: %s", user_id, e)
