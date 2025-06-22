@@ -116,54 +116,66 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             "page": page,
         }
         url = MEC_MEETINGS_BASE_URL + "?" + urlencode(params)
-        config = CrawlerRunConfig()
-        crawler_result = await crawler.arun(url=url, crawler_config=config)
+        config = CrawlerRunConfig(
+            # verbose=True,
+            # log_console=True,
+            # magic=True, # seems to only make bot protection issues worse
+            # simulate_user=True, # seems to only make bot protection issues worse
+            # override_navigator=True, # seems to only make bot protection issues worse
+            # user_agent_mode="random", # seems to only make bot protection issues worse
+        )
+        crawler_result = await crawler.arun(url=url, config=config)
         if not crawler_result.success:
             logger.error(f"Failed to scrape page {page}: {crawler_result.error}")
             return (found_meetings, 0, ScraperResult(False, crawler_result.error, None))
         if "Checking your browser" in crawler_result.html:
             logger.error(f"Bot protection detected for page {page}. Therefore, we cannot scrape something now.")
         internal_links = crawler_result.links.get("internal", [])
-        links_to_meetings = [x for x in internal_links if x["href"].startswith(MEETINGS_DETAIL_URL_PREFIX)]
+        largest_page = self._get_largest_page_number(internal_links)
 
-        largest_page = self._get_largest_page_number(links_to_meetings)
+        selector = Selector(text=crawler_result.html)
+        meeting_results: list[tuple[datetime, str]] = []
+        date_groups = selector.css("div.gsc-excerpt-list__item")
+        for date_group in date_groups:
+            # extract the date from the date group, format is "17 May 2025"
+            date_text = date_group.css("div.gsc-excerpt-list__item-date.gsc-heading--md::text").get()
+            if not date_text:
+                continue
+            try:
+                date = datetime.strptime(date_text.strip(), "%d %B %Y")
+            except ValueError as e:
+                logger.error(f"Failed to parse date '{date_text}': {e}")
+                continue
+
+            # extract the meeting links from the date group
+            meeting_links = date_group.css("a.gsc-excerpt-item__link")
+            for link in meeting_links:
+                url = link.attrib.get("href")
+                url_already_exists = any(existing_url == url for (_, existing_url) in meeting_results)
+                # only save the first occurrence of a url (same url can occur multiple times
+                # if meeting spans multiple days)
+                if url_already_exists:
+                    continue
+                meeting_results.append((date, url))
 
         # matches meetings like /meetings/mpo/2025/5/coreper-1-permanent-representatives-committee-(349018)/
         meeting_url_pattern = re.compile(r"meetings/mpo/\d{4}/\d{1,2}/.*\((\d+)\)", re.IGNORECASE)
 
-        for link in links_to_meetings:
+        for date, url in meeting_results:
             try:
-                meeting_url = link["href"]
-                match = meeting_url_pattern.search(meeting_url)
+                match = meeting_url_pattern.search(url)
                 if match:
                     meeting_id = str(match.group(1))
 
-                    # scrape meeting details
-                    crawler_result = await crawler.arun(url=meeting_url, crawler_config=config)
-                    if not crawler_result.success:
-                        logger.error(f"Failed to scrape meeting details for {meeting_url}: {crawler_result.error}")
-                        return (found_meetings, largest_page, ScraperResult(False, crawler_result.error, None))
-
-                    if "Checking your browser" in crawler_result.html:
-                        logger.error(f"Bot protection detected for {meeting_url}. Skipping this meeting.")
-                        continue
-
-                    selector = Selector(text=crawler_result.html)
-                    practical_info_labels = [
-                        text.strip() for text in selector.css("div.gsc-meeting-info__box strong::text").getall()
-                    ]
-
-                    building_label, timestamp_label, room_label = practical_info_labels[1:4]
-                    timestamp = datetime.strptime(timestamp_label, "%A, %B %d, %Y %H:%M")
                     title = link["text"].strip()
 
                     meeting = MECPrepBodiesMeeting(
                         id=meeting_id,
                         url=link["href"],
                         title=title,
-                        meeting_timestamp=timestamp.isoformat(),
-                        meeting_location=room_label + " (" + building_label + " building)",
-                        embedding_input=f"{title}, {timestamp.isoformat()}, {room_label} in {building_label} building",
+                        meeting_timestamp=date.isoformat(),
+                        meeting_location="",  # room_label + " (" + building_label + " building)",
+                        embedding_input=f"{title}, {date.isoformat()}",  # , {room_label} in {building_label} building",
                     )
 
                     if last_entry and meeting == last_entry:
@@ -192,15 +204,18 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         if start_date > end_date:
             raise ValueError("start_date must be before end_date")
 
-        async with AsyncWebCrawler() as crawler:
-            while current_page <= largest_known_page:
-                if self.stop_event.is_set():
-                    return ScraperResult(
-                        success=False,
-                        error=Exception("Scrape stopped by external stop event"),
-                        last_entry=self.last_entry,
-                    )
+        while current_page <= largest_known_page:
+            if self.stop_event.is_set():
+                return ScraperResult(
+                    success=False,
+                    error=Exception("Scrape stopped by external stop event"),
+                    last_entry=self.last_entry,
+                )
 
+            # crawl the page with a new AsyncWebCrawler instance
+            # crawl4ai docs recommend reusing the same crawler instance for multiple pages,
+            # but this is the only found way to avoid running into bot protection issues
+            async with AsyncWebCrawler() as crawler:
                 (meetings_on_page, largest_known_page, scraper_error_result) = await self._scrape_meetings_by_page(
                     start_date=start_date, end_date=end_date, page=current_page, crawler=crawler, last_entry=last_entry
                 )
