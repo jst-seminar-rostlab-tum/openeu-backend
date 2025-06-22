@@ -1,13 +1,13 @@
 import logging
 from fastapi import APIRouter, HTTPException, Query, Request
-
+from app.models.suggestion import SuggestionResponse
 from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/suggestions")
+@router.get("/suggestions", response_model=SuggestionResponse)
 def get_suggestions(
     request: Request,
     query: str = Query(..., min_length=2, description="Fuzzy text to search meeting titles"),
