@@ -82,7 +82,9 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                   .execute())
         if len(result.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-        if profile.topic_list is not None or profile.company_name is not None or profile.company_description is not None:
+        if (profile.topic_list is not None
+                or profile.company_name is not None
+                or profile.company_description is not None):
             result = (supabase.table("profiles")
                       .select("*")
                       .eq("id", user_id)
