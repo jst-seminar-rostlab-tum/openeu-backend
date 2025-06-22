@@ -1,5 +1,5 @@
 create table if not exists public.legislative_files (
-    reference text primary key,
+    id text primary key,
     link text,
     title text,
     lastpubdate text,
