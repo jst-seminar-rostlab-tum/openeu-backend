@@ -119,13 +119,13 @@ def scrape_spanish_commission_meetings(stop_event: multiprocessing.synchronize.E
 def scrape_bundestag_plenary_protocols(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
     scraper = BundestagPlenarprotokolleScraper(stop_event=stop_event)
-    scraper.scrape(start_date=today, end_date=today)
+    return scraper.scrape(start_date=today, end_date=today)
 
 
 def scrape_bundestag_drucksachen(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
     scraper = BundestagDrucksachenScraper(stop_event=stop_event)
-    scraper.scrape(start_date=today, end_date=today)
+    return scraper.scrape(start_date=today, end_date=today)
 
 
 def scrape_tweets(stop_event: multiprocessing.synchronize.Event):

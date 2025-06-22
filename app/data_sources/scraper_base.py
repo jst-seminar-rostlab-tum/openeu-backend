@@ -60,6 +60,12 @@ class ScraperBase(ABC):
         attempt = 0
 
         while attempt <= self.max_retries:
+            if self.stop_event.is_set():
+                logger.info("Scrape stopped by external stop event")
+                return ScraperResult(
+                    success=False, error=Exception("Scrape stopped by external stop event"), last_entry=self.last_entry
+                )
+
             try:
                 logger.info(f"Attempt {attempt + 1} for {self.__class__.__name__}")
                 result = self.scrape_once(self.last_entry, **args)
@@ -77,12 +83,6 @@ class ScraperBase(ABC):
                 result = ScraperResult(success=False, error=e, last_entry=self.last_entry)
 
             attempt += 1
-
-            if self.stop_event.is_set():
-                logger.info("Scrape stopped by external stop event.")
-                return ScraperResult(
-                    success=False, error=Exception("Scrape stopped by external stop event"), last_entry=self.last_entry
-                )
 
             if attempt <= self.max_retries:
                 time.sleep(self.retry_delay)

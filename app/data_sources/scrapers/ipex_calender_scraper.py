@@ -238,7 +238,7 @@ class IPEXCalendarAPIScraper(ScraperBase):
 
 def run_scraper(
     stop_event: multiprocessing.synchronize.Event, start_date: Optional[date] = None, end_date: Optional[date] = None
-):
+) -> ScraperResult:
     """
     Run the IPEX calendar API scraper with optional date range filtering.
 
@@ -247,7 +247,7 @@ def run_scraper(
         end_date: Optional end date for filtering events
     """
     scraper = IPEXCalendarAPIScraper(stop_event=stop_event)
-    scraper.scrape(start_date=start_date, end_date=end_date)
+    return scraper.scrape(start_date=start_date, end_date=end_date)
 
 
 if __name__ == "__main__":

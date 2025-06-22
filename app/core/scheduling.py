@@ -91,6 +91,7 @@ class ScheduledJob:
         self.result = None
         try:
             self.logger.info(f"Running job '{self.name}' at {datetime.now()}")
+            # self.stop_event.set()  # uncomment to test timeout handling by stopping the job immediately
             self.result = self.func(self.stop_event)
             self.success = True
         except Exception as e:
@@ -120,6 +121,11 @@ class ScheduledJob:
                     self.logger.error(timeout_error)
                     notify_job_failure(self.name, "Timeout reached")
                     proc.terminate()
+                    # log job run in db manually, because when killing
+                    # the process self.mark_just_ran() in _run() won't be reached
+                    self.success = False
+                    self.error = Exception("Timeout reached")
+                    self.mark_just_ran()
 
             threading.Thread(target=monitor_process, daemon=True).start()
 
