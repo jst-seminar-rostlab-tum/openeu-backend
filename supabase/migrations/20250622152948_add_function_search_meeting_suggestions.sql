@@ -1,4 +1,5 @@
 -- search_meetings_suggestions.sql
+create extension if not exists pg_trgm;
 
 create or replace function search_meetings_suggestions(search_text text)
 returns table (
