@@ -19,13 +19,7 @@ def get_suggestions(
     try:
         result = supabase.rpc("search_meetings_suggestions", {"search_text": query}).execute()
 
-        unique_titles = {}
-        for meeting in result.data:
-            title = meeting.get("title")
-            if title and title not in unique_titles:
-                unique_titles[title] = meeting
-
-        return {"data": list(unique_titles.values())[:limit]}
+        return {"data": result.data[:limit]}
 
     except Exception as e:
         logger.error("INTERNAL ERROR: %s", e)
