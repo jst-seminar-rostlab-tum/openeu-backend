@@ -15,6 +15,7 @@ class LegislativeObservatory(BaseModel):
     lastpubdate: str | None = None
     committee: str | None = None
     rapporteur: str | None = None
+    embedding_input: str | None = None
 
 
 class LegislativeObservatorySpider(scrapy.Spider):
@@ -31,6 +32,20 @@ class LegislativeObservatorySpider(scrapy.Spider):
         entries = []
         items = response.xpath("//item")
         for entry in items:
+            embedding_input = " ".join(
+                filter(
+                    None,
+                    [
+                        entry.xpath("./reference/text()").get(),
+                        entry.xpath("./link/text()").get(),
+                        entry.xpath("./title/text()").get(),
+                        entry.xpath("./lastpubdate/text()").get(),
+                        entry.xpath("./committee/committee/text()").get(),
+                        entry.xpath("./rapporteur/rapporteur/text()").get(),
+                    ],
+                )
+            )
+
             obj = LegislativeObservatory(
                 reference=entry.xpath("./reference/text()").get(),
                 link=entry.xpath("./link/text()").get(),
@@ -38,6 +53,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                 lastpubdate=entry.xpath("./lastpubdate/text()").get(),
                 committee=entry.xpath("./committee/committee/text()").get(),
                 rapporteur=entry.xpath("./rapporteur/rapporteur/text()").get(),
+                embedding_input=embedding_input.strip() or None,
             )
             entries.append(obj)
 

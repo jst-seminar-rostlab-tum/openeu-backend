@@ -5,5 +5,6 @@ create table if not exists public.legislative_files (
     lastpubdate text,
     committee text,
     rapporteur text,
+    embedding_input text,                
     scraped_at timestamp with time zone NOT NULL DEFAULT now()
 );
