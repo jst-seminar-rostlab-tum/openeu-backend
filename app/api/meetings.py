@@ -24,6 +24,8 @@ _TOPICS = Query(None, description="List of topic names (repeat or comma-separate
 _SOURCE_TABLES = Query(
     None, alias="source_table", description="Filter by source table(s) (repeat or comma-separated)"
 )  # URL param stays singular: ?source_table=…
+DEFAULT_COUNTRY = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')")
+
 
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -40,7 +42,7 @@ def get_meetings(
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
-    country: Optional[list[str]] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    country: Optional[list[str]] = DEFAULT_COUNTRY,
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
     # ---------- 1)  LOG INCOMING REQUEST ----------

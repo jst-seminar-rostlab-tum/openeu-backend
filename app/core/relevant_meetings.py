@@ -101,6 +101,3 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
-
-
-print(fetch_relevant_meetings("f82dc603-3148-4ba3-af07-89a34ef3162a", k=10))
