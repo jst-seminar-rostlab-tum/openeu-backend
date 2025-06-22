@@ -1,7 +1,11 @@
 from typing import Optional, Union
+import logging
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", force=True)
+logger = logging.getLogger(__name__)
 
 
 def get_top_k_neighbors(
@@ -30,6 +34,7 @@ def get_top_k_neighbors(
     Returns:
         A list of dicts representing matching records.
     """
+
     if (query is None and embedding is None) or (query and embedding):
         raise ValueError("Provide exactly one of `query` or `embedding`.")
 
@@ -57,18 +62,14 @@ def get_top_k_neighbors(
         if tables:
             rpc_args.update({"src_tables": tables, "content_columns": cols})
 
-
     else:
         rpc_name = "match_combined_filtered_embeddings"
 
-    rpc_args: dict[str, Union[list, int]] = {
-        "query_embedding": embedding,
-        "match_count": k,
-    }
-
+    logging.info(f"tables: {tables}")
+    logging.info(f"tables: {allowed_sources}")
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
-        
+
     if rpc_name == "match_filtered_meetings":
         if allowed_topic_ids is not None:
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
@@ -76,6 +77,8 @@ def get_top_k_neighbors(
             rpc_args["allowed_countries"] = allowed_countries
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
+    logger.info(f"response: {resp}")
+
     return resp.data
 
 
@@ -133,6 +136,3 @@ def get_top_k_neighbors_by_embedding(
             ).execute()
 
     return resp.data
-
-
-

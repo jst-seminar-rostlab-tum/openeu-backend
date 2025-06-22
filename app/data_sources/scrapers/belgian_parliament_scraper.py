@@ -27,6 +27,7 @@ MEETINGS_URL = f"{BASE_URL}/nl/parlementair-werk/vergaderingen-en-verslagen"
 
 class BelgianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Belgian Parliament."""
+
     id: str
     title: str
     title_en: str
@@ -37,12 +38,13 @@ class BelgianParliamentMeeting(BaseModel):
     meeting_url: str
     embedding_input: str
 
+
 class BelgianParliamentScraper(ScraperBase):
     """Scraper for retrieving data from the Belgian Parliament website."""
 
     def __init__(self, start_date: Optional[date] = None, end_date: Optional[date] = None):
         """Initialize the scraper.
-        
+
         Args:
             start_date: Optional start date for filtering meetings
             end_date: Optional end date for filtering meetings
@@ -65,7 +67,7 @@ class BelgianParliamentScraper(ScraperBase):
         """
         try:
             # If we have a last_entry, start from the day after its date
-            if last_entry and hasattr(last_entry, 'meeting_date') and last_entry.meeting_date:
+            if last_entry and hasattr(last_entry, "meeting_date") and last_entry.meeting_date:
                 current_date = last_entry.meeting_date + timedelta(days=1)
                 if current_date > self.end_date:
                     return ScraperResult(success=True, last_entry=last_entry)
@@ -87,7 +89,7 @@ class BelgianParliamentScraper(ScraperBase):
                         # Construct URL for the specific day
                         day_url = f"{MEETINGS_URL}?period={current_date.isoformat()}&view=day"
                         logger.info(f"Scraping meetings for {current_date.isoformat()}")
-                        
+
                         self.current_date = current_date
 
                         # Navigate to the page
@@ -100,7 +102,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Wait for the content to load, but skip if no meetings
                         try:
-                            page.wait_for_selector('.meeting-card', timeout=10000)
+                            page.wait_for_selector(".meeting-card", timeout=10000)
                         except PlaywrightTimeoutError:
                             logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
                             current_date += timedelta(days=1)
@@ -108,13 +110,13 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Get the page content
                         content = page.content()
-                        
+
                         # Parse the HTML content
-                        soup = BeautifulSoup(content, 'html.parser')
-                        
+                        soup = BeautifulSoup(content, "html.parser")
+
                         # Find all meeting entries for this day
-                        meeting_entries = soup.find_all('article', class_='meeting-card')
-                        
+                        meeting_entries = soup.find_all("article", class_="meeting-card")
+
                         for entry in meeting_entries:
                             try:
                                 # Ensure entry is a Tag object
@@ -122,14 +124,14 @@ class BelgianParliamentScraper(ScraperBase):
                                     continue
                                 # Extract meeting information
                                 meeting = self._extract_meeting_info(entry, page)
-                                
+
                                 # Store the meeting in the database
                                 result = self.store_entry(meeting.model_dump())
                                 if result:
                                     return result
-                                
+
                                 self.last_entry = meeting
-                                
+
                             except Exception as e:
                                 logger.warning(f"Error processing meeting entry: {e}")
                                 continue
@@ -145,7 +147,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                 # Close browser
                 browser.close()
-                
+
                 return ScraperResult(success=True, last_entry=self.last_entry)
 
         except Exception as e:
@@ -163,7 +165,7 @@ class BelgianParliamentScraper(ScraperBase):
             BelgianParliamentMeeting object
         """
         # Extract title
-        title_element = entry.find('h4', class_='card__title')
+        title_element = entry.find("h4", class_="card__title")
         if not title_element:
             raise ValueError("Title element not found")
         title = title_element.text.strip()
@@ -176,72 +178,73 @@ class BelgianParliamentScraper(ScraperBase):
             title_en = title
 
         # Get the URL first as we possibly need it for the full description
-        link_list = entry.find('ul', class_='card__link-list')
+        link_list = entry.find("ul", class_="card__link-list")
         if not link_list or not isinstance(link_list, Tag):
             raise ValueError("Link list not found")
-        link_element = link_list.find('li')
+        link_element = link_list.find("li")
         if not link_element or not isinstance(link_element, Tag):
             raise ValueError("Link element not found")
-        anchor = link_element.find('a')
+        anchor = link_element.find("a")
         if not anchor or not isinstance(anchor, Tag):
             raise ValueError("Anchor element or href not found")
-        url_path = str(anchor['href'])
-        meeting_url = BASE_URL + url_path if url_path.startswith('/') else url_path
+        url_path = str(anchor["href"])
+        meeting_url = BASE_URL + url_path if url_path.startswith("/") else url_path
 
         # get id from url
-        meeting_id = str(url_path.split('/')[-1])
+        meeting_id = str(url_path.split("/")[-1])
 
         # First check if there's a description on the main page
-        description_div = entry.find('div', class_='card__description')
+        description_div = entry.find("div", class_="card__description")
         if description_div and isinstance(description_div, Tag):
             # Get h3 text if present
-            h3 = description_div.find('h3')
+            h3 = description_div.find("h3")
             h3_text = h3.get_text(strip=True) if h3 else ""
-            
+
             # Get paragraph text
-            p_element = description_div.find('p')
+            p_element = description_div.find("p")
             p_text = p_element.get_text(strip=True) if p_element else ""
-            
+
             # Combine h3 and p text with colon if h3 exists
             description = f"{h3_text}: {p_text}" if h3_text else p_text
-            
+
             # Only navigate to detail page if the description ends with "..." -> description is truncated
             if description.endswith("..."):
                 # Navigate to the detail page to get full description
                 page.goto(meeting_url)
-                page.wait_for_selector('.card__description', timeout=10000)
+                page.wait_for_selector(".card__description", timeout=10000)
                 detail_content = page.content()
-                detail_soup = BeautifulSoup(detail_content, 'html.parser')
-                
+                detail_soup = BeautifulSoup(detail_content, "html.parser")
+
                 # Extract full description
-                description_div = detail_soup.find('div', class_='card__description')
+                description_div = detail_soup.find("div", class_="card__description")
                 if description_div and isinstance(description_div, Tag):
                     # Get h3 text if present
-                    h3 = description_div.find('h3')
+                    h3 = description_div.find("h3")
                     h3_text = h3.get_text(strip=True) if h3 else ""
-                    
+
                     # Get paragraph text
-                    p_element = description_div.find('p')
+                    p_element = description_div.find("p")
                     p_text = p_element.get_text(strip=True) if p_element else ""
-                    
+
                     # Combine h3 and p text with colon if h3 exists
                     description = f"{h3_text}: {p_text}" if h3_text else p_text
         else:
             description = ""
-    
+
         description_en = ""
         if description:
             try:
                 translation_result = self.translator.translate(description)
                 description_en = translation_result.text
             except Exception as e:
-                logger.warning(f"Translation failed for description '{description}': {e}. \
-                               Using Belgian description as English description.")
+                logger.warning(
+                    f"Translation failed for description '{description}': {e}. \
+                               Using Belgian description as English description."
+                )
                 description_en = description
 
-
         # Extract date and location
-        date_element = entry.find('div', class_='card__date')
+        date_element = entry.find("div", class_="card__date")
         if not date_element:
             raise ValueError("Date element not found")
         date_location = date_element.text.strip()
@@ -262,7 +265,7 @@ class BelgianParliamentScraper(ScraperBase):
             meeting_date=meeting_date,
             location=location,
             meeting_url=meeting_url,
-            embedding_input=embedding_input
+            embedding_input=embedding_input,
         )
 
 

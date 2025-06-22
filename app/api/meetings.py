@@ -67,17 +67,21 @@ def get_meetings(
 
         # --- SEMANTIC QUERY CASE ---
         # --- source table - normalise multi-value params ----------------------------------
+        logging.info(f"tables: {source_tables}")
+
         if source_tables and len(source_tables) == 1 and "," in source_tables[0]:
             source_tables = [t.strip() for t in source_tables[0].split(",") if t.strip()]
 
         if query:
             # tell the vector search which tables are allowed -- value can be any string
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
+            logging.info(f"tables: {source_tables}")
+
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_topic_ids = topics,
-                allowed_countries= country,
-                allowed_sources=allowed_sources,  # empty dict -> allows every source
+                allowed_topic_ids=topics,
+                allowed_countries=country,
+                allowed_sources=allowed_sources,
                 k=limit,
                 sources=["meeting_embeddings"],
             )
@@ -86,40 +90,27 @@ def get_meetings(
                 logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
 
-            map_table_and_id_to_similarity = {
-                f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
-            }
-            source_ids = [n["source_id"] for n in neighbors]
-            neighbor_tables = [n["source_table"] for n in neighbors]  #
+            db_query = supabase.table("v_meetings").select("*")
 
-            if topics and len(topics) == 1 and "," in topics[0]:
-                topics = [t.strip() for t in topics[0].split(",") if t.strip()]
+            conditions = [f"and(source_table.eq.{n['source_table']},source_id.eq.{n['source_id']})" for n in neighbors]
 
-            params = {
-                "source_tables": neighbor_tables,
-                "source_ids": source_ids,
-                "max_results": limit,
-                "start_date": start.isoformat() if start is not None else None,
-                "end_date": end.isoformat() if end is not None else None,
-                "topics": topics if topics else None,
-            }
-            match = supabase.rpc("get_meetings_by_filter", params=params).execute()
+            db_query = supabase.table("v_meetings").select("*").or_(",".join(conditions))
 
-            results = []
-            if match.data:
-                for record in match.data:
-                    record["similarity"] = map_table_and_id_to_similarity[
-                        f"{record['source_table']}_{record['source_id']}"
-                    ]
+            logger.info(f"{conditions}")
 
-                    results.append(record)
+            if start:
+                db_query = db_query.gte("meeting_start_datetime", start.isoformat())
+            if end:
+                db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
-            # ---------- 2b)  LOG NON-EMPTY / EMPTY RESPONSE (semantic path) ----------
-            logger.info(
-                "Response formed – %d result(s) from semantic query",
-                len(results[:limit]),
-            )
-            return JSONResponse(status_code=200, content={"data": results[:limit]})
+            result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
+            data = result.data
+
+            if not isinstance(data, list):
+                raise ValueError("Expected list of records from Supabase")
+            # ---------- 2b)  LOG NON-EMPTY / EMPTY RESPONSE (default path) ----------
+            logger.info("Response formed – %d result(s) from default query", len(data))
+            return JSONResponse(status_code=200, content={"data": data})
 
         # --- DEFAULT QUERY CASE ---
         db_query = supabase.table("v_meetings").select("*")
@@ -131,15 +122,14 @@ def get_meetings(
             db_query = db_query.gte("meeting_start_datetime", start.isoformat())
         if end:
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
-
-        #if country:
-        #    db_query = db_query.ilike("location", country)
+        if country:
+            db_query = db_query.in_("location", country)
 
         # --- TOPIC FILTERING ---
         if topics:
             if len(topics) == 1 and "," in topics[0]:
                 topics = [t.strip() for t in topics[0].split(",") if t.strip()]
-            db_query = db_query.in_("topic", topics)
+            db_query = db_query.in_("topic_id", topics)
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data

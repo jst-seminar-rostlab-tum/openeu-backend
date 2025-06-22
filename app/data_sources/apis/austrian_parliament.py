@@ -29,6 +29,7 @@ MEETINGS_TABLE_NAME = "austrian_parliament_meetings"
 
 class AustrianParliamentMeeting(BaseModel):
     """Model representing a meeting from the Austrian Parliament API."""
+
     title: str
     title_de: str
     meeting_type: str
@@ -164,7 +165,7 @@ class AustrianParliamentScraper(ScraperBase):
 
     def _clean_and_translate_title(self, title: str) -> tuple[str, str]:
         """
-        Clean up and translate the meeting title. 
+        Clean up and translate the meeting title.
         If translation fails, use the German title for both fields.
         """
         if not title:
@@ -185,12 +186,15 @@ class AustrianParliamentScraper(ScraperBase):
         Check if a meeting already exists in the DB for the same title, type, date, and location.
         """
         try:
-            result = supabase.table(MEETINGS_TABLE_NAME).select("id") \
-                .eq("title", meeting.title) \
-                .eq("meeting_type", meeting.meeting_type) \
-                .eq("meeting_date", meeting.meeting_date) \
-                .eq("meeting_location", meeting.meeting_location) \
+            result = (
+                supabase.table(MEETINGS_TABLE_NAME)
+                .select("id")
+                .eq("title", meeting.title)
+                .eq("meeting_type", meeting.meeting_type)
+                .eq("meeting_date", meeting.meeting_date)
+                .eq("meeting_location", meeting.meeting_location)
                 .execute()
+            )
             return bool(result.data)
         except Exception as e:
             logger.error(f"Error checking for duplicates: {e}")

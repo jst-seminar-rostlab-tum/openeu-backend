@@ -88,10 +88,10 @@ $$;
 
 
 CREATE OR REPLACE FUNCTION public.match_combined_filtered_embeddings(
-  src_tables      TEXT[],
-  content_columns TEXT[],            -- list of source_table values to include
   query_embedding VECTOR(1536),      -- your query vector
   match_count     INT                -- number of neighbors to return
+  src_tables      TEXT[] DEFAULT NULL,
+  content_columns TEXT[] DEFAULT NULL, 
 )
 RETURNS TABLE (
   source_table  TEXT,
@@ -125,7 +125,7 @@ AS $$
     ae.content_text,
     ((1 - (ae.embedding <#> query_embedding))/2) AS similarity
   FROM all_embeddings ae
-  WHERE ae.source_table = ANY(src_tables) and ae.content_column = ANY(content_columns)
+  WHERE (src_tables IS NULL or ae.source_table = ANY(src_tables)) and (src_tables IS NULL or ae.content_column = ANY(content_columns))
   ORDER BY ae.embedding <#> query_embedding
   LIMIT match_count;
 $$;

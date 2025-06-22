@@ -79,7 +79,6 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                     if store_err:
                         return store_err
 
-                    
                     self.embedding_generator.embed_row(
                         source_table=self.table_name,
                         row_id=pid,

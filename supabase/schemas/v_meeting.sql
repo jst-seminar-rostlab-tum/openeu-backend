@@ -205,7 +205,8 @@ base_with_location AS (
 base_with_topic AS (
     SELECT
         bwl.*,
-        mt.topic AS topic
+        mt.topic AS topic,
+        mt.id AS topic_id
     FROM base_with_location bwl
     LEFT JOIN public.meeting_topic_assignments mta
         ON mta.source_id = bwl.source_id
