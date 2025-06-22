@@ -1,4 +1,4 @@
-FROM trungnguyen1409/openeu-base@sha256:36037cbb9ee30302e7152cf814b62c2aa217affe41d93091975e1627d174189f
+FROM trungnguyen1409/openeu-base@sha256:36aa60feb36858512eff2a614a6364b690e5a3d250035c3648353619d3b6435b
 
 WORKDIR /code
 
