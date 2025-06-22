@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_relevant_meetings(
-    user_id: str, k: int, allowed_topic_ids: Optional[list[str]] = None
+    user_id: str, k: int
 ) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
