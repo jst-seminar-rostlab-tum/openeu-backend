@@ -10,6 +10,12 @@ class ProfileCreate(BaseModel):
     topic_list: list[str]
     subscribed_newsletter: bool
 
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    surname: str | None = None
+    company_name: str | None = None
+    company_description: str | None = None
+    topic_list: list[str] | None = None
 
 class ProfileDB(ProfileCreate):
     embedding: list[float]
