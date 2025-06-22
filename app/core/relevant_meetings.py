@@ -1,6 +1,5 @@
 import logging
 from collections import defaultdict
-from typing import Optional
 
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
