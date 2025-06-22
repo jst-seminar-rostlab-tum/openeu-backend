@@ -24,7 +24,7 @@ as $$
     source_id,
     source_table
   from v_meetings
-  where similarity(title, search_text) > 0.05
+  where similarity(title, search_text) > 0.1
   order by similarity_score desc
   limit 5
 $$;
