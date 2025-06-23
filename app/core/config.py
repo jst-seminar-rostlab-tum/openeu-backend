@@ -118,3 +118,10 @@ class Settings:
         if value is None:
             value = ""
         return value
+
+    def is_production(self) -> bool:
+        """
+        Check if the application is running in a production environment.
+        :return: True if in production, False otherwise.
+        """
+        return os.getenv("ENVIRONMENT") != "development"
