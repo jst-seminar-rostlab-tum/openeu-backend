@@ -1,7 +1,9 @@
 import logging
 from collections import defaultdict
+from typing import Optional
 
 from openai import OpenAI
+from postgrest import SyncSelectRequestBuilder
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
@@ -25,7 +27,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
+def fetch_relevant_meetings(
+    user_id: str,
+    k: int,
+    query_to_compare: Optional[SyncSelectRequestBuilder] = None,
+) -> RelevantMeetingsResponse:
+    """
+    Fetches relevant meetings for a user, optionally using additional filter params.
+    """
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
@@ -41,12 +50,20 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
         response = supabase.rpc("get_meeting_tables").execute().data
         allowed_sources = {row["source_table"]: "embedding_input" for row in response if row.get("source_table")}
 
-
         neighbors = get_top_k_neighbors_by_embedding(
             vector_embedding=profile_embedding,
             allowed_sources=allowed_sources,
             k=k,
+            sources=["meeting_embeddings"],
         )
+
+        if query_to_compare:
+            match = query_to_compare.order("meeting_start_datetime", desc=True).execute()
+
+            if match.data:
+                allowed_keys = {(r["source_table"], r["source_id"]) for r in match.data}
+
+                neighbors = [n for n in neighbors if (n["source_table"], n["source_id"]) in allowed_keys]
 
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
