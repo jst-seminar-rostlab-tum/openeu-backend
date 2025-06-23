@@ -74,6 +74,16 @@ def get_meetings(
 
         if query:
             # tell the vector search which tables are allowed -- value can be any string
+            if user_id:
+                resp = (
+                    supabase.table("profiles")
+                    .select("company_name,company_description,topic_list")
+                    .eq("id", user_id)
+                    .single()
+                    .execute()
+                )
+                if resp.data:
+                    query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
             neighbors = get_top_k_neighbors(
                 query=query,
