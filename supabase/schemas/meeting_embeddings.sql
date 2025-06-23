@@ -89,9 +89,9 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.match_combined_filtered_embeddings(
   query_embedding VECTOR(1536),      -- your query vector
-  match_count     INT                -- number of neighbors to return
+  match_count     INT,                -- number of neighbors to return
   src_tables      TEXT[] DEFAULT NULL,
-  content_columns TEXT[] DEFAULT NULL, 
+  content_columns TEXT[] DEFAULT NULL
 )
 RETURNS TABLE (
   source_table  TEXT,
