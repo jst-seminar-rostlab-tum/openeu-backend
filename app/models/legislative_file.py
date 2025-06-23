@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class LegislativeFile(BaseModel):
-    reference: str
+    id: str
     source_table: str
     source_id: str
     link: Optional[str] = None

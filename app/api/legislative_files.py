@@ -21,7 +21,7 @@ def get_legislative_files(
         if query:
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources={"legislative_files": "title"},
+                allowed_sources={"legislative_files": "embedding_input"},
                 k=limit,
                 sources=["document_embeddings"],  # triggers match_filtered
             )
@@ -33,12 +33,12 @@ def get_legislative_files(
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
 
-            response = supabase.table("legislative_files").select("*").in_("reference", ids).execute()
+            response = supabase.table("legislative_files").select("*").in_("id", ids).execute()
             records = response.data or []
 
             # Add similarity info
             for r in records:
-                r["similarity"] = similarity_map.get(r["reference"])
+                r["similarity"] = similarity_map.get(r["id"])
 
         else:
             response = supabase.table("legislative_files").select("*").limit(limit).execute()
@@ -46,7 +46,7 @@ def get_legislative_files(
 
         # Apply year filtering
         if year:
-            records = [r for r in records if r.get("reference", "").startswith(str(year))]
+            records = [r for r in records if r.get("id", "").startswith(str(year))]
 
         # Apply committee filtering
         if committee:
