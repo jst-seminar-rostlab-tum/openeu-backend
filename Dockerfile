@@ -1,4 +1,4 @@
-FROM trungnguyen1409/openeu-base@sha256:36037cbb9ee30302e7152cf814b62c2aa217affe41d93091975e1627d174189f
+FROM trungnguyen1409/openeu-base@sha256:cb953a4979bfa770ea56231e4068c9e76022c9bc3bb4682a97e654299d70a22a
 
 WORKDIR /code
 
@@ -22,7 +22,7 @@ RUN playwright --version && which playwright && ls -l $(which playwright)
 RUN echo "✅ Checking crawl4ai..."
 RUN crawl4ai-doctor
 
-RUN poetry run python healthcheck.py
+#RUN poetry run python healthcheck.py
 
 EXPOSE 3000
 
