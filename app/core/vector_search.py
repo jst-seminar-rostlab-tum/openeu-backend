@@ -61,7 +61,6 @@ def get_top_k_neighbors(
     else:
         rpc_name = "match_combined_filtered_embeddings"
 
-
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
 
