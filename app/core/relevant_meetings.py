@@ -1,7 +1,6 @@
 import logging
-from collections import defaultdict
 from typing import Optional
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
