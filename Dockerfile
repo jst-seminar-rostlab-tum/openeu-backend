@@ -18,6 +18,7 @@ RUN rm -rf tests/ examples/ notebooks/
 
 EXPOSE 3000
 
+
 CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--log-config", "log_conf.yaml", "--reload"]
 
 # Add the migration command as a separate step
