@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 from typing import Callable
 
 import scrapy
@@ -62,8 +63,8 @@ class LegislativeObservatorySpider(scrapy.Spider):
 
 
 class LegislativeObservatoryScraper(ScraperBase):
-    def __init__(self):
-        super().__init__(table_name="legislative_files")
+    def __init__(self, stop_event: multiprocessing.synchronize.Event):
+        super().__init__(table_name="legislative_files", stop_event=stop_event)
         self.entries: list[LegislativeObservatory] = []
         self.logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     )
     """
     print("Scraping Legislative Observatories...")
-    scraper = LegislativeObservatoryScraper()
+    scraper = LegislativeObservatoryScraper(stop_event=multiprocessing.Event())
     result = scraper.scrape_once(last_entry=None)
 
     if result.success:
