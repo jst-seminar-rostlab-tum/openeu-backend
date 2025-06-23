@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1
 
 COPY pyproject.toml poetry.lock* ./
 
-RUN poetry install --no-root --no-dev --only main
+RUN poetry install --no-root
 
 
 COPY . .
