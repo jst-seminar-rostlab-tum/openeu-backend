@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from typing import Optional
+from datetime import datetime, time, timedelta
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
@@ -70,30 +71,35 @@ def fetch_relevant_meetings(
         return RelevantMeetingsResponse(meetings=[])
 
     # 3) fetch metadata for each neighbor
-    ids_by_source = defaultdict(list)
-    for n in neighbors:
-        ids_by_source[n["source_table"]].append(n["source_id"])
+    # Prepare lists for the filter function
+    source_tables = [n["source_table"] for n in neighbors]
+    source_ids = [n["source_id"] for n in neighbors]
+
+    # Get today's date range
+    today = datetime.now().date()
+    start_date = datetime.combine(today, time.min)
+    end_date = datetime.combine(today, time.max)
+
+    try:
+        rows = (
+            supabase.rpc(
+                "get_meetings_by_filter",
+                {
+                    "source_tables": source_tables,
+                    "source_ids": source_ids,
+                    "max_results": k,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                }
+            ).execute().data
+        )
+    except Exception:
+        logger.exception("Unexpected error fetching meetings with filter")
+        return RelevantMeetingsResponse(meetings=[])
 
     fetched = {}
-    for source_table, id_list in ids_by_source.items():
-        try:
-            rows = (
-                supabase.table("v_meetings")
-                .select("*")
-                .eq("source_table", source_table)
-                .in_("source_id", id_list)
-                .execute()
-                .data
-            )
-        except Exception:
-            logger.exception("Unexpected error fetching %s", source_table)
-            continue
-
-        if not rows:
-            logger.info(f"No rows found for {source_table} with ids {id_list} ind v_meetings")
-
-        for row in rows:
-            fetched[(source_table, row["source_id"])] = row
+    for row in rows:
+        fetched[(row["source_table"], row["source_id"])] = row
 
     # 4) assemble ordered list, injecting similarity
     for n in neighbors:
@@ -111,3 +117,8 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
+
+
+if __name__ == "__main__":
+    response = fetch_relevant_meetings(user_id="cef64e34-131e-461d-9c22-a7ed1fe0903a", k=10)
+    print(response)
