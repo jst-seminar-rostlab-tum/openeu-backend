@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from typing import Optional
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
@@ -27,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_relevant_meetings(
-    user_id: str, k: int, query_to_compare: SyncSelectRequestBuilder = None
+    user_id: str,
+    k: int,
+    query_to_compare: Optional[SyncSelectRequestBuilder] = None,
 ) -> RelevantMeetingsResponse:
     """
     Fetches relevant meetings for a user, optionally using additional filter params.
