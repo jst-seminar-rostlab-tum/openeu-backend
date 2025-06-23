@@ -3,6 +3,7 @@ import re
 from collections.abc import AsyncGenerator
 from datetime import date
 from datetime import datetime as dt
+import multiprocessing
 from typing import Callable, Optional
 from urllib.parse import urlencode
 
@@ -155,8 +156,8 @@ class PolishPresidencyMeetingsScraper(ScraperBase):
 
     logger = logging.getLogger("PolishPresidencyMeetingsScraper")
 
-    def __init__(self, start_date: date, end_date: date):
-        super().__init__(table_name=POLISH_PRESIDENCY_MEETINGS_TABLE_NAME)
+    def __init__(self, stop_event: multiprocessing.synchronize.Event, start_date: date, end_date: date):
+        super().__init__(table_name=POLISH_PRESIDENCY_MEETINGS_TABLE_NAME, stop_event=stop_event)
         self.start_date = start_date
         self.end_date = end_date
         self.entries: list[PolishPresidencyMeeting] = []
@@ -209,7 +210,9 @@ if __name__ == "__main__":
 
     print("Scraping Polish EU Presidency meetings...")
 
-    scraper = PolishPresidencyMeetingsScraper(start_date=datetime.date(2025, 6, 3), end_date=datetime.date(2025, 6, 3))
+    scraper = PolishPresidencyMeetingsScraper(
+        start_date=datetime.date(2025, 6, 3), end_date=datetime.date(2025, 6, 3), stop_event=multiprocessing.Event()
+    )
     result = scraper.scrape()
     meetings = scraper.entries
     if result.success:

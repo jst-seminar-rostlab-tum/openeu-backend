@@ -4,6 +4,7 @@
 import datetime
 import logging
 from collections.abc import AsyncGenerator
+import multiprocessing
 from typing import Callable, Optional
 
 import scrapy
@@ -162,8 +163,8 @@ class SpanishCommissionSpider(scrapy.Spider):
 
 
 class SpanishCommissionScraper(ScraperBase):
-    def __init__(self, date: datetime.date):
-        super().__init__("spanish_commission_meetings")
+    def __init__(self, stop_event: multiprocessing.synchronize.Event, date: datetime.date):
+        super().__init__("spanish_commission_meetings", stop_event=stop_event)
         self.date = date
         self.entries: list[CommissionAgendaEntry] = []
         self.logger = logging.getLogger(__name__)
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     print(f"Total entries scraped: {len(entries)}")
     """
 
-    scraper = SpanishCommissionScraper(date)
+    scraper = SpanishCommissionScraper(multiprocessing.Event(), date)
     result = scraper.scrape_once(last_entry=None)
     if result.success:
         print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
