@@ -18,7 +18,7 @@ class ProfileUpdate(BaseModel):
     company_name: str | None = None
     company_description: str | None = None
     topic_list: list[str] | None = None
-    subscribed_newsletter: bool | None = None
+    newsletter_frequency: Literal["daily", "weekly", "none"] | None = None
 
 class ProfileDB(ProfileCreate):
     embedding: list[float]
