@@ -233,8 +233,8 @@ FROM v_meetings vm
          JOIN unnest(source_tables, source_ids) AS src(source_table, source_id)
               ON vm.source_table = src.source_table
                   AND vm.source_id = src.source_id
-WHERE (start_date IS NULL OR vm.meeting_start_datetime <= end_date)
-  AND (end_date IS NULL OR COALESCE(vm.meeting_end_datetime, vm.meeting_start_datetime) >= start_date)
+WHERE (start_date IS NULL OR vm.meeting_start_datetime::date <= end_date::date)
+  AND (end_date IS NULL OR COALESCE(vm.meeting_end_datetime, vm.meeting_start_datetime)::date >= start_date::date)
   AND (country IS NULL OR LOWER(vm.location) = LOWER(country))
   AND (topics IS NULL OR vm.topic = ANY(topics))
     LIMIT max_results;

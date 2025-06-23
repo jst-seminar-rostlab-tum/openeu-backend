@@ -117,8 +117,3 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
-
-
-if __name__ == "__main__":
-    response = fetch_relevant_meetings(user_id="cef64e34-131e-461d-9c22-a7ed1fe0903a", k=10)
-    print(response)
