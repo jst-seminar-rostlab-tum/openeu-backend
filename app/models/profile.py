@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import UUID4, BaseModel
 
 
@@ -8,7 +10,7 @@ class ProfileCreate(BaseModel):
     company_name: str
     company_description: str
     topic_list: list[str]
-    subscribed_newsletter: bool
+    newsletter_frequency: Literal["daily", "weekly", "none"]
 
 class ProfileUpdate(BaseModel):
     name: str | None = None

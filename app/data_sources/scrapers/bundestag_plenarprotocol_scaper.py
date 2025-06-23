@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+import multiprocessing
 from typing import Any
 
 import requests
@@ -11,9 +12,11 @@ from app.data_sources.translator.translator import DeepLTranslator
 
 
 class BundestagPlenarprotokolleScraper(ScraperBase):
-    def __init__(self, max_retries: int = 3, retry_delay: float = 2.0):
+    def __init__(self, stop_event: multiprocessing.synchronize.Event, max_retries: int = 3, retry_delay: float = 2.0):
         # target table is "bt_plenarprotokolle"
-        super().__init__(table_name="bt_plenarprotokolle", max_retries=max_retries, retry_delay=retry_delay)
+        super().__init__(
+            table_name="bt_plenarprotokolle", stop_event=stop_event, max_retries=max_retries, retry_delay=retry_delay
+        )
         self.translator = DeepLTranslator(translator)
         self.API_BASE = "https://search.dip.bundestag.de/api/v1"
         self.API_KEY = os.getenv("BUNDESTAG_KEY")
@@ -33,6 +36,13 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
             cursor = None
 
             while True:
+                if self.stop_event.is_set():
+                    return ScraperResult(
+                        success=False,
+                        error=Exception(f"Scrape stopped by external stop event; on page {page}"),
+                        last_entry=self.last_entry,
+                    )
+
                 # 1) Fetch metadata page
                 params: dict[str, Any] = {
                     "page": page,
@@ -79,7 +89,6 @@ class BundestagPlenarprotokolleScraper(ScraperBase):
                     if store_err:
                         return store_err
 
-                    
                     self.embedding_generator.embed_row(
                         source_table=self.table_name,
                         row_id=pid,
