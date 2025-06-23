@@ -54,6 +54,7 @@ def fetch_relevant_meetings(
             vector_embedding=profile_embedding,
             allowed_sources=allowed_sources,
             k=k,
+            sources=["meeting_embeddings"],
         )
 
         if query_to_compare:
