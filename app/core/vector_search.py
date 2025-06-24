@@ -109,7 +109,7 @@ def get_top_k_neighbors_by_embedding(
         if allowed_sources:
             resp = supabase.rpc(
                 "match_combined_filtered_embeddings",
-                {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
+                {"src_tables": tables, "query_embedding": vector_embedding, "match_count": k},
             ).execute()
         else:
             resp = supabase.rpc(

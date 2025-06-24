@@ -8,7 +8,7 @@ from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
-from app.data_sources.apis.mep import fetch_and_store_current_meps
+from app.data_sources.apis.mep import fetch_and_store_current_meps as scrape_meps
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDrucksachenScraper
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
@@ -64,22 +64,30 @@ def scrape_belgian_parliament_meetings(stop_event: multiprocessing.synchronize.E
     return run_belgian_parliament_scraper(start_date=today, end_date=today, stop_event=stop_event)
 
 
-def send_daily_newsletter(stop_event: multiprocessing.synchronize.Event):
-    users = supabase.auth.admin.list_users()
-    ids = [user.id for user in users]
+def _send_newsletter(frequency: str, stop_event: multiprocessing.synchronize.Event):
+    daily_newsletter_subscribers = (
+        supabase.table("profiles").select("id").eq("newsletter_frequency", frequency).execute()
+    )
+    user_ids = [user["id"] for user in daily_newsletter_subscribers.data] if daily_newsletter_subscribers.data else []
 
-    logger.info(f"Sending daily newsletter to {len(ids)} users")
+    logger.info(f"Sending {frequency} newsletter to {len(user_ids)} users")
 
-    for user_id in ids:
+    for user_id in user_ids:
         if stop_event.is_set():
             logger.error(
-                f"Stopping newsletter sending due to stop event. Newsletters not sent: {len(ids) - ids.index(user_id)}"
+                f"""Stopping newsletter sending due to stop event.
+                Newsletters not sent: {len(user_ids) - user_ids.index(user_id)}"""
             )
             return
+        Newsletter.send_newsletter_to_user(user_id)
 
-        subscribed = supabase.table("profiles").select("subscribed_newsletter").eq("id", user_id).execute()
-        if subscribed.data and subscribed.data[0]["subscribed_newsletter"] is True:
-            Newsletter.send_newsletter_to_user(user_id)
+
+def send_daily_newsletter(stop_event: multiprocessing.synchronize.Event):
+    return _send_newsletter("daily", stop_event)
+
+
+def send_weekly_newsletter(stop_event: multiprocessing.synchronize.Event):
+    return _send_newsletter("weekly", stop_event)
 
 
 def scrape_mec_prep_bodies_meetings(stop_event: multiprocessing.synchronize.Event):
@@ -141,6 +149,11 @@ def clean_up_embeddings(stop_event: multiprocessing.synchronize.Event):
     embedding_cleanup(stop_event=stop_event)
 
 
+# Ignoring the stop_event as it is a non-iterative job
+def fetch_and_store_current_meps(_: multiprocessing.synchronize.Event):
+    scrape_meps()
+
+
 def setup_scheduled_jobs():
     scheduler.register(
         "fetch_and_store_current_meps", fetch_and_store_current_meps, schedule.every().monday.at("02:00")
@@ -193,7 +206,7 @@ def setup_scheduled_jobs():
         schedule.every().day.at("04:20"),
         run_in_process=True,
     )
-
-    scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("04:30"))
+    scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("08:00"))
+    scheduler.register("send_weekly_newsletter", send_weekly_newsletter, schedule.every().monday.at("08:00"))
     scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
     scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
