@@ -91,7 +91,11 @@ def create_alert(
     return alert
 
 
-def get_user_alerts(user_id: str, *, include_inactive: Optional[bool] = None,) -> list[dict]:
+def get_user_alerts(
+    user_id: str,
+    *,
+    include_inactive: Optional[bool] = None,
+) -> list[dict]:
     """Return alerts belonging to *user_id* (active by default)."""
     query = supabase.table("alerts").select("*").eq("user_id", user_id)
     if not include_inactive:
