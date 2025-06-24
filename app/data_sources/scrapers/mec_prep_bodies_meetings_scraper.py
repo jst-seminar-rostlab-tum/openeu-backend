@@ -174,8 +174,10 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
                         url=link["href"],
                         title=title,
                         meeting_timestamp=date.isoformat(),
-                        meeting_location="",  # room_label + " (" + building_label + " building)",
-                        embedding_input=f"{title}, {date.isoformat()}",  # , {room_label} in {building_label} building",
+                        # location could be retrieved from the meeting detail page, but is not
+                        # available in the list view to reduce number of requests, we leave it empty for now
+                        meeting_location="",
+                        embedding_input=f"{title}, {date.isoformat()}",
                     )
 
                     if last_entry and meeting == last_entry:
@@ -214,7 +216,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
 
             # crawl the page with a new AsyncWebCrawler instance
             # crawl4ai docs recommend reusing the same crawler instance for multiple pages,
-            # but this is the only found way to avoid running into bot protection issues
+            # but by recreating the crawler instance for each page, we can avoid issues with bot protection
             async with AsyncWebCrawler() as crawler:
                 (meetings_on_page, largest_known_page, scraper_error_result) = await self._scrape_meetings_by_page(
                     start_date=start_date, end_date=end_date, page=current_page, crawler=crawler, last_entry=last_entry
