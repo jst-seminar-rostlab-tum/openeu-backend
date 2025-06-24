@@ -1,8 +1,3 @@
-"""Utilities for composing and sending *smart‑alert* emails.
-
-This mirrors the structure of `app/core/mail/newsletter.py` so future
-maintainers can rely on a consistent mental model.
-"""
 from __future__ import annotations
 
 import logging
@@ -15,13 +10,21 @@ from app.core.email import Email, EmailService
 from app.core.mail.newsletter import get_user_email, get_user_name, _load_base64_text_file
 from app.core.openai_client import openai
 from app.core.supabase_client import supabase
+from app.core.alerts import mark_alert_ran, set_alert_active
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Subject line generation (GPT) ------------------------------------------------
-# ---------------------------------------------------------------------------
 
+"""Utilities for composing and sending *smart‑alert* emails.
+
+This mirrors the structure of `app/core/mail/newsletter.py` so future
+maintainers can rely on a consistent mental model.
+"""
+
+
+
+
+# ================ Subject line generation (GPT) ================
 _SUBJECT_PROMPT_TMPL = (
     "You are an email subject generator for EU startup founders. "
     "Create a catchy subject line (max 8 words) that summarises the alert and "
@@ -29,7 +32,6 @@ _SUBJECT_PROMPT_TMPL = (
     "Alert: {alert}\n"
     "Meetings: {titles}"
 )
-
 
 def _generate_subject(alert: dict, meetings: list[dict]) -> str:
     """Return a catchy subject line via GPT; fall back to static if error."""
@@ -48,10 +50,8 @@ def _generate_subject(alert: dict, meetings: list[dict]) -> str:
         return f"New meetings for your alert – {datetime.now().date()}"
 
 
-# ---------------------------------------------------------------------------
-# Email body rendering --------------------------------------------------------
-# ---------------------------------------------------------------------------
 
+# ================ Email body rendering ================
 _BASE_DIR = Path(__file__).parent
 _LOGO_PATH = _BASE_DIR / "logo1.b64"  # reuse the same logo asset as newsletter
 _TEMPLATE_NAME = "alert_mailbody.html.j2"
@@ -90,23 +90,16 @@ def _build_email_body(*, alert: dict, meetings: list[dict], user_id: str) -> tup
     return rendered_html, mean_similarity
 
 
-# ---------------------------------------------------------------------------
-# Public mailer facade
-# ---------------------------------------------------------------------------
 
 
-class SmartAlertMailer:  # pylint: disable=too-few-public-methods
-    """Singleton‑style mailer for smart alerts (mirrors Newsletter class)."""
-
-    email_client: EmailService = EmailService()
-
+# ================ Public mailer facade ================
+class SmartAlertMailer:
     @staticmethod
     def send_alert_email(*, user_id: str, alert: dict, meetings: list[dict]):
-        """Compose and send the alert email, then write to notifications."""
         user_mail = get_user_email(user_id=user_id)
         if not user_mail:
             logger.warning("No email address for user_id=%s; skipping alert email", user_id)
-            return
+            return False  # <--- Indicate no email sent
 
         subject = _generate_subject(alert, meetings)
         mail_body, mean_sim = _build_email_body(alert=alert, meetings=meetings, user_id=user_id)
@@ -115,17 +108,20 @@ class SmartAlertMailer:  # pylint: disable=too-few-public-methods
         try:
             SmartAlertMailer.email_client.send_email(mail)
             logger.info("Smart alert email sent to user_id=%s (alert=%s)", user_id, alert["id"])
-        except Exception as exc:  # pylint: disable=broad-except
+            # Only here: log notifications and mark as ran
+            supabase.table("alert_notifications").insert(
+                [
+                    {
+                        "alert_id": alert["id"],
+                        "meeting_id": m["id"],
+                        "similarity": m.get("similarity", 0.0),
+                    }
+                    for m in meetings
+                ]
+            ).execute()
+            mark_alert_ran(alert["id"])
+            set_alert_active(alert["id"], active=False)
+            return True  # <--- Success!
+        except Exception as exc:
             logger.error("Failed to send smart alert to user_id=%s: %s", user_id, exc)
-
-            # Log each sent meeting to alert_notifications to prevent re-sends
-        supabase.table("alert_notifications").insert(
-            [
-                {
-                    "alert_id": alert["id"],
-                    "meeting_id": m["id"],
-                    "similarity": m.get("similarity", 0.0),
-                }
-                for m in meetings
-            ]
-        ).execute()
+            return False
