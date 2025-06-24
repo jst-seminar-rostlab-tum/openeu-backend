@@ -7,6 +7,7 @@ from app.api.chat import router as api_chat
 from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
+from app.api.alerts import router as api_alerts
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
 from app.api.suggestions import router as api_suggestions
@@ -26,6 +27,7 @@ app.include_router(api_chat)
 app.include_router(api_topics)
 
 app.include_router(notifications_router)
+app.include_router(api_alerts)
 app.include_router(api_suggestions)
 
 

@@ -3,6 +3,10 @@ from typing import Optional, Union
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def get_top_k_neighbors(
     query: Optional[str] = None,
@@ -59,7 +63,9 @@ def get_top_k_neighbors(
         if tables:
             rpc_args.update({"src_tables": tables})
 
+    logger.info(f"Calling {rpc_name} with: query_embedding={embedding[:5]}, match_count={k}, (len={len(embedding)})")
     resp = supabase.rpc(rpc_name, rpc_args).execute()
+    logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
     return resp.data
 
 

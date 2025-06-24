@@ -24,8 +24,42 @@ from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissi
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
+from app.core.alerts import (
+    fetch_due_alerts,
+    process_alert,
+)
+from app.core.mail.alert_email import SmartAlertMailer
 
 logger = logging.getLogger(__name__)
+
+
+# ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
+def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
+    """
+    Loop over all *due* alerts and e-mail the user any new meetings.
+
+    • fetch_due_alerts() reads alert frequency / last_run_at
+    • process_alert() returns *new* meetings & logs alert_notifications
+    • send_alert_email() renders + dispatches the e-mail and writes to the
+      generic `notifications` table (type='alert')
+    """
+    due_alerts = fetch_due_alerts()
+
+    logger.info("Processing %d alert(s)", len(due_alerts))
+    for alert in due_alerts:
+        if stop_event.is_set():
+            logger.warning("Stop event set – aborting smart-alerts job")
+            return
+
+        meetings = process_alert(alert)
+        if not meetings:
+            continue  # nothing matched this time
+
+        SmartAlertMailer.send_alert_email(
+            user_id=alert["user_id"],
+            alert=alert,
+            meetings=meetings,
+        )
 
 
 def scrape_eu_laws_by_topic(stop_event: multiprocessing.synchronize.Event):
@@ -210,3 +244,8 @@ def setup_scheduled_jobs():
     scheduler.register("send_weekly_newsletter", send_weekly_newsletter, schedule.every().monday.at("08:00"))
     scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
     scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
+    scheduler.register(
+        "send_smart_alerts",
+        send_smart_alerts,
+        schedule.every().day.at("08:00"),  # daily = get alerts from overnight in the morning
+    )
