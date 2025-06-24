@@ -12,6 +12,13 @@ class ProfileCreate(BaseModel):
     topic_list: list[str]
     newsletter_frequency: Literal["daily", "weekly", "none"]
 
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    surname: str | None = None
+    company_name: str | None = None
+    company_description: str | None = None
+    topic_list: list[str] | None = None
+    newsletter_frequency: Literal["daily", "weekly", "none"] | None = None
 
 class ProfileDB(ProfileCreate):
     embedding: list[float]
