@@ -24,11 +24,10 @@ This file deliberately mirrors the API style already used in
 `app/core/relevant_meetings.py` to minimise cognitive overhead.
 """
 
-# ---------------------------------------------------------------------------
-# Embeddings helpers
-# ---------------------------------------------------------------------------
 
+RELEVANCY_THRESHOLD = 0.95  # global constant
 
+# ================ Embeddings helpers ================
 def _utc_now() -> datetime:
     """Return the current moment as a timezone‑aware UTC datetime."""
     return datetime.now(timezone.utc)
@@ -56,17 +55,11 @@ def build_embedding(text: str) -> list[float]:
     return emb
 
 
-# ---------------------------------------------------------------------------
-# Alerts CRUD helpers
-# ---------------------------------------------------------------------------
-
-
+# ================ Alerts helpers ================
 def create_alert(
     *,
     user_id: str,
     description: str,
-    frequency: str = "daily",
-    relevancy_threshold: float = 0.75,
 ) -> dict:
     """Insert a new record into the *alerts* table and return it."""
     emb = build_embedding(description)
@@ -75,8 +68,8 @@ def create_alert(
         "user_id": user_id,
         "description": description,
         "embedding": emb,
-        "frequency": frequency,
-        "relevancy_threshold": relevancy_threshold,
+        "relevancy_threshold": RELEVANCY_THRESHOLD,  # always use fixed value
+        # remove frequency
     }
     resp = supabase.table("alerts").insert(payload).execute()
     if hasattr(resp, "error") and resp.error:
@@ -89,6 +82,7 @@ def create_alert(
 
     logger.info("Created alert %s for user %s", alert.get("id"), user_id)
     return alert
+
 
 
 def get_user_alerts(
@@ -104,39 +98,13 @@ def get_user_alerts(
     return resp.data or []
 
 
-# ---------------------------------------------------------------------------
-# Scheduler utilities
-# ---------------------------------------------------------------------------
-
-_FREQUENCY_TO_DELTA = {
-    "daily": timedelta(days=1),
-    "weekly": timedelta(weeks=1),
-    "monthly": timedelta(days=30),  # coarse approximation
-}
-
-
+# ================ Scheduler utilities ================
 def fetch_due_alerts(now: datetime | None = None) -> list[dict]:
-    """Return all *active* alerts whose *last_run_at* is older than their
-    configured frequency (or has never run)."""
-    if now is None:
-        now = _utc_now()
-
-    # Fetch in two steps because Supabase RPC/SQL is limited when mixing
-    # intervals; filtering in Python is acceptable for our small alert counts.
+    """Return all *active* alerts that have never been run (single-use)."""
     resp = supabase.table("alerts").select("*").eq("is_active", True).execute()
     alerts: list[dict] = resp.data or []
-
-    due: list[dict] = []
-    for alert in alerts:
-        freq = alert.get("frequency", "daily")
-        delta = _FREQUENCY_TO_DELTA.get(freq, timedelta(days=1))
-        last_run: str | None = alert.get("last_run_at")
-        if last_run is None:
-            due.append(alert)
-            continue
-        last_dt = datetime.fromisoformat(last_run.replace("Z", "+00:00"))
-        if now - last_dt >= delta:
-            due.append(alert)
+    # Only those where last_run_at is null (never triggered)
+    due = [alert for alert in alerts if alert.get("last_run_at") is None]
     return due
 
 
@@ -147,11 +115,7 @@ def mark_alert_ran(alert_id: str, *, ran_at: datetime | None = None) -> None:
     supabase.table("alerts").update({"last_run_at": ran_at.isoformat()}).eq("id", alert_id).execute()
 
 
-# ---------------------------------------------------------------------------
-# Matching logic to retrieve relevant meetings
-# ---------------------------------------------------------------------------
-
-
+# ================ logic to retrieve relevant meetings ================
 def find_relevant_meetings(alert: dict, *, k: int = 50) -> list[dict]:
     """Run a vector search for meetings that match *alert* and pass its threshold.
 
@@ -207,18 +171,14 @@ def find_relevant_meetings(alert: dict, *, k: int = 50) -> list[dict]:
 
 
 def process_alert(alert: dict) -> list[dict]:
-    """Wrapper that returns *new* meeting items for an alert and records that
-    they were sent (but **does not** send the email itself).
-
-    The calling job is responsible for actually dispatching the email and
-    writing to the user‑visible `notifications` table.
+    """Wrapper that returns *new* meeting items for an alert and records that they were sent.
+    After first trigger, alert becomes inactive (single-use).
     """
     meetings = find_relevant_meetings(alert)
     if not meetings:
         mark_alert_ran(alert["id"])
         return []
 
-    # Log to alert_notifications so we don't re‑send next time
     supabase.table("alert_notifications").insert(
         [
             {
@@ -231,6 +191,7 @@ def process_alert(alert: dict) -> list[dict]:
     ).execute()
 
     mark_alert_ran(alert["id"])
+    set_alert_active(alert["id"], active=False)  # <-- deactivate after sending
     logger.info(
         "Alert %s matched %d new meeting(s) for user %s",
         alert["id"],
@@ -238,6 +199,7 @@ def process_alert(alert: dict) -> list[dict]:
         alert["user_id"],
     )
     return meetings
+
 
 
 # ---------------------------------------------------------------------------
