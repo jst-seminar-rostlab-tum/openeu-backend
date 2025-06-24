@@ -73,6 +73,64 @@ def get_top_k_neighbors(
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
-    logger.info(f"response: {resp}")
+    logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
 
     return resp.data
+
+def get_top_k_neighbors_by_embedding(
+    vector_embedding: list[float], allowed_sources: Optional[dict[str, str]] = None, k: int = 5, sources: Optional[list] = None
+) -> list[dict]:
+    """
+    Fetch the top-k nearest neighbors for a pre-computed embedding.
+
+    Parameters:
+    - vector_embedding: pre-computed embedding vector
+    - allowed_sources: mapping of table names to column names to filter the search.
+    - k: number of neighbors to retrieve.
+    - sources: a list indicating which embedding RPC to use:
+        * ["document_embeddings"]
+        * ["meeting_embeddings"]
+        * None or other: combined embeddings
+
+    Returns:
+        A list of dicts representing matching records.
+    """
+    tables = []
+    cols = []
+    if allowed_sources:
+        tables = list(allowed_sources.keys())
+        cols = list(allowed_sources.values())
+
+    if sources == ["document_embeddings"]:
+        if allowed_sources:
+            resp = supabase.rpc(
+                "match_filtered",
+                {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
+            ).execute()
+        else:
+            resp = supabase.rpc("match_default", {"query_embedding": vector_embedding, "match_count": k}).execute()
+
+    elif sources == ["meeting_embeddings"]:
+        if allowed_sources:
+            resp = supabase.rpc(
+                "match_filtered_meetings",
+                {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
+            ).execute()
+        else:
+            resp = supabase.rpc(
+                "match_default_meetings", {"query_embedding": vector_embedding, "match_count": k}
+            ).execute()
+
+    else:
+        if allowed_sources:
+            resp = supabase.rpc(
+                "match_combined_filtered_embeddings",
+                {"src_tables": tables, "query_embedding": vector_embedding, "match_count": k},
+            ).execute()
+        else:
+            resp = supabase.rpc(
+                "match_combined_embeddings", {"query_embedding": vector_embedding, "match_count": k}
+            ).execute()
+
+    return resp.data
+

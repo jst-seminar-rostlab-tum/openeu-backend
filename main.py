@@ -9,6 +9,7 @@ from app.api.crawler import router as api_crawler
 from app.api.meetings import router as api_meetings
 from app.api.legislative_files import router as api_legislative_files  # <- make sure this import is correct
 from app.api.notifications import router as notifications_router
+from app.api.alerts import router as api_alerts
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
 
@@ -38,6 +39,7 @@ app.include_router(api_topics)
 app.include_router(api_legislative_files)
 
 app.include_router(notifications_router)
+app.include_router(api_alerts)
 
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
