@@ -247,5 +247,5 @@ def setup_scheduled_jobs():
     scheduler.register(
         "send_smart_alerts",
         send_smart_alerts,
-        schedule.every().day.at("08:00"),  # daily = get alerts from overnight in the morning
+        schedule.every().hour.at(":15"),  # hourly
     )

@@ -41,7 +41,7 @@ def _generate_subject(alert: dict, meetings: list[dict]) -> str:
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
         )
-        return resp.choices[0].message.content.strip()
+        return (resp.choices[0].message.content or "").strip()
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("GPT subject generation failed – %s; falling back", exc)
         # graceful degradation
