@@ -22,7 +22,11 @@ async def create_alert_endpoint(request: Request):
     try:
         payload = await request.json()
         logger.info("POST /alerts | caller=%s | payload=%s", caller_ip, payload)
-        alert = create_alert(**payload)
+        # Only accept user_id and description
+        alert = create_alert(
+            user_id=payload["user_id"],
+            description=payload["description"]
+        )
         return JSONResponse(status_code=201, content={"data": alert})
     except Exception as e:
         logger.error("INTERNAL ERROR (POST /alerts): %s", e)
