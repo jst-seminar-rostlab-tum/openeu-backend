@@ -8,7 +8,7 @@ from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
 from app.data_sources.apis.austrian_parliament import run_scraper
-from app.data_sources.apis.mep import fetch_and_store_current_meps
+from app.data_sources.apis.mep import fetch_and_store_current_meps as scrape_meps
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDrucksachenScraper
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
@@ -147,6 +147,11 @@ def scrape_legislative_observatory(stop_event: multiprocessing.synchronize.Event
 
 def clean_up_embeddings(stop_event: multiprocessing.synchronize.Event):
     embedding_cleanup(stop_event=stop_event)
+
+
+# Ignoring the stop_event as it is a non-iterative job
+def fetch_and_store_current_meps(_: multiprocessing.synchronize.Event):
+    scrape_meps()
 
 
 def setup_scheduled_jobs():

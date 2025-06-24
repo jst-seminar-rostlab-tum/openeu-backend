@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
@@ -41,6 +42,7 @@ def get_meetings(
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
     country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
     # ---------- 1)  LOG INCOMING REQUEST ----------
@@ -72,6 +74,16 @@ def get_meetings(
 
         if query:
             # tell the vector search which tables are allowed -- value can be any string
+            if user_id:
+                resp = (
+                    supabase.table("profiles")
+                    .select("company_name,company_description,topic_list")
+                    .eq("id", user_id)
+                    .single()
+                    .execute()
+                )
+                if resp.data:
+                    query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
             neighbors = get_top_k_neighbors(
                 query=query,
@@ -139,6 +151,11 @@ def get_meetings(
             if len(topics) == 1 and "," in topics[0]:
                 topics = [t.strip() for t in topics[0].split(",") if t.strip()]
             db_query = db_query.in_("topic", topics)
+
+            # --- USER RELEVANT MEETINGS CASE ---
+        if user_id:
+            relevant = fetch_relevant_meetings(user_id=user_id, k=limit, query_to_compare=db_query)
+            return relevant.meetings
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data
