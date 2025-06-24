@@ -37,14 +37,8 @@ logger = logging.getLogger(__name__)
 def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     """
     Loop over all *due* alerts and e-mail the user any new meetings.
-
-    • fetch_due_alerts() reads alert frequency / last_run_at
-    • process_alert() returns *new* meetings & logs alert_notifications
-    • send_alert_email() renders + dispatches the e-mail and writes to the
-      generic `notifications` table (type='alert')
     """
     due_alerts = fetch_due_alerts()
-
     logger.info("Processing %d alert(s)", len(due_alerts))
     for alert in due_alerts:
         if stop_event.is_set():
@@ -53,9 +47,9 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
 
         meetings = process_alert(alert)
         if not meetings:
-            continue  # nothing matched this time
+            continue
 
-        SmartAlertMailer.send_alert_email(
+        email_sent = SmartAlertMailer.send_alert_email(
             user_id=alert["user_id"],
             alert=alert,
             meetings=meetings,
