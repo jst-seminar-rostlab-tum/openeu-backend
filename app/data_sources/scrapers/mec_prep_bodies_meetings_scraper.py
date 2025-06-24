@@ -134,7 +134,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
         largest_page = self._get_largest_page_number(internal_links)
 
         selector = Selector(text=crawler_result.html)
-        meeting_results: list[tuple[datetime, str]] = []
+        meeting_results: list[tuple[datetime, str, str]] = []
         date_groups = selector.css("div.gsc-excerpt-list__item")
         for date_group in date_groups:
             # extract the date from the date group, format is "17 May 2025"
@@ -150,28 +150,30 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
             # extract the meeting links from the date group
             meeting_links = date_group.css("a.gsc-excerpt-item__link")
             for link in meeting_links:
-                url = link.attrib.get("href")
-                url_already_exists = any(existing_url == url for (_, existing_url) in meeting_results)
+                meeting_url = link.attrib.get("href")
+                if not meeting_url:
+                    logger.warning("Meeting link is missing href attribute, skipping.")
+                    continue
+
+                url_already_exists = any(existing_url == meeting_url for (_, _, existing_url) in meeting_results)
                 # only save the first occurrence of a url (same url can occur multiple times
                 # if meeting spans multiple days)
                 if url_already_exists:
                     continue
-                meeting_results.append((date, url))
+                title: str = link.css("span.gsc-excerpt-item__title::text").get() or ""
+                meeting_results.append((date, title, meeting_url))
 
         # matches meetings like /meetings/mpo/2025/5/coreper-1-permanent-representatives-committee-(349018)/
         meeting_url_pattern = re.compile(r"meetings/mpo/\d{4}/\d{1,2}/.*\((\d+)\)", re.IGNORECASE)
 
-        for date, url in meeting_results:
+        for date, title, meeting_url in meeting_results:
             try:
-                match = meeting_url_pattern.search(url)
+                match = meeting_url_pattern.search(meeting_url)
                 if match:
                     meeting_id = str(match.group(1))
-
-                    title = link["text"].strip()
-
                     meeting = MECPrepBodiesMeeting(
                         id=meeting_id,
-                        url=link["href"],
+                        url=meeting_url,
                         title=title,
                         meeting_timestamp=date.isoformat(),
                         # location could be retrieved from the meeting detail page, but is not
@@ -189,7 +191,7 @@ class MECPrepBodiesMeetingsScraper(ScraperBase):
                         return (found_meetings, largest_page, scraper_error_result)
                     self.last_entry = meeting
             except Exception as e:
-                logger.error(f"Error processing meeting link {link['href']}: {e}")
+                logger.error(f"Error processing meeting link {meeting_url}: {e}")
                 continue
 
         return (found_meetings, largest_page, None)
