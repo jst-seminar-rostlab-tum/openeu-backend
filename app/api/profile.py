@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def create_embeddings(profile: ProfileCreate):
+async def create_embeddings(profile: SimpleNamespace):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_list,
     then upsert the record into Supabase.
@@ -101,7 +101,7 @@ def get_user_profile(user_id: str) -> JSONResponse:
 @router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileDB)
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
-        payload = profile.dict(exclude_unset=True)
+        payload = profile.model_dump(exclude_unset=True)
 
         result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
         if len(result.data) == 0:
@@ -112,7 +112,7 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
             or profile.company_description is not None
             or profile.countries is not None
         ):
-            embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(result.data[0]))}
+            embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(**result.data[0]))}
             result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
             if len(result.data) == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
