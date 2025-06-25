@@ -17,17 +17,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def create_embeddings(profile: ProfileUpdate):
+async def create_embeddings(profile: SimpleNamespace):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_id_list,
     then upsert the record into Supabase.
     """
     # Build input text for embedding
-    combined = (
-        f"{profile.company_name}. {profile.company_description}."
-        f" Topics: {', '.join(profile.topic_id_list)}"
-        f" Topics: {', '.join(profile.countries)}"
-    )
+    combined = f"{profile.company_name}. {profile.company_description}." f" countries: {', '.join(profile.countries)}"
     # Generate embedding
     try:
         logger.info("Requesting embedding from OpenAI for profile %s", profile.id)
@@ -48,7 +44,7 @@ async def create_profile(profile: ProfileCreate):
 
     # Upsert into Supabase
     payload = profile.model_dump()
-    
+
     topic_ids = payload.pop("topic_id_list")
 
     payload["id"] = str(payload["id"])
@@ -103,12 +99,11 @@ def get_user_profile(user_id: str) -> JSONResponse:
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
         payload = profile.model_dump(exclude_unset=True)
-        result = {}
         if "topic_id_list" in payload:
             topic_ids = payload.pop("topic_id_list")
         else:
             topic_ids = []
-        
+
         if payload:
             result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
             if len(result.data) == 0:
@@ -119,13 +114,12 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                 or profile.company_description is not None
                 or profile.countries is not None
             ):
-                embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(topic_id_list=topic_ids, **result.data[0]))}
+                embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(**(result.data[0])))}
                 result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
                 if len(result.data) == 0:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-            result = result.data[0] 
-
-        
+            result = result.data[0]
+        result = {}
         if profile.topic_id_list is not None:
             profile_id = user_id
             try:
@@ -145,15 +139,15 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                     inserted = insert_resp.data or []
                     result = {
                         **result,
-                        "topics_requested": topics_data,   # the topics you looked up
-                        "links_created":    inserted,      # the rows you actually wrote
+                        "topics_requested": topics_data,  # the topics you looked up
+                        "links_created": inserted,  # the rows you actually wrote
                     }
                     logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
                 else:
                     logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
             except Exception as e:
                 logger.error("Error linking topics for profile %s: %s", profile_id, e)
-                
+
         return JSONResponse(status_code=status.HTTP_200_OK, content=result)
     except Exception as e:
         logger.error("Supabase update failed for profile %s: %s", user_id, e)
