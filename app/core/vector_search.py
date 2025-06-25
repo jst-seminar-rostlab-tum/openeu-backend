@@ -72,7 +72,6 @@ def get_top_k_neighbors(
             rpc_args["allowed_countries"] = allowed_countries
         if allowed_topic_ids is not None:
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
-        
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     logger.info(f"response: {resp}")

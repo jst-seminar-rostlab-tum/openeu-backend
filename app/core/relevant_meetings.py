@@ -29,7 +29,7 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
-        resp = supabase.table("profiles").select("embedding","countries").eq("id", user_id).single().execute()
+        resp = supabase.table("profiles").select("embedding", "countries").eq("id", user_id).single().execute()
         profile_embedding = resp.data["embedding"]
         allowed_countries = resp.data["countries"]
         resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()

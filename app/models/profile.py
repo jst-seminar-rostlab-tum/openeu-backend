@@ -13,6 +13,7 @@ class ProfileCreate(BaseModel):
     countries: list[str]
     newsletter_frequency: Literal["daily", "weekly", "none"]
 
+
 class ProfileUpdate(BaseModel):
     name: str | None = None
     surname: str | None = None
@@ -21,6 +22,7 @@ class ProfileUpdate(BaseModel):
     topic_list: list[str] | None = None
     countries: list[str] | None = None
     newsletter_frequency: Literal["daily", "weekly", "none"] | None = None
+
 
 class ProfileDB(ProfileCreate):
     embedding: list[float]
