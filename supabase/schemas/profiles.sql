@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     company_name TEXT NOT NULL,
     company_description TEXT NOT NULL,
     topic_list TEXT[] NOT NULL,
-    countries TEXT[] NOT NULL,
+    countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
     newsletter_frequency TEXT NOT NULL DEFAULT 'none',
     embedding VECTOR(1536) NOT NULL
 );
