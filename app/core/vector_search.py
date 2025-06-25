@@ -1,13 +1,20 @@
 from typing import Optional, Union
+import logging
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", force=True)
+logger = logging.getLogger(__name__)
 
 
 def get_top_k_neighbors(
     query: Optional[str] = None,
     embedding: Optional[list[float]] = None,
     allowed_sources: Optional[dict[str, str]] = None,
+    allowed_topics: Optional[list[str]] = None,
+    allowed_topic_ids: Optional[list[str]] = None,
+    allowed_countries: Optional[list[str]] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -23,10 +30,12 @@ def get_top_k_neighbors(
         * ["document_embeddings"]
         * ["meeting_embeddings"]
         * None or other: combined embeddings
+    -allowed_topics/allowed countries only viable for meetings
 
     Returns:
         A list of dicts representing matching records.
     """
+
     if (query is None and embedding is None) or (query and embedding):
         raise ValueError("Provide exactly one of `query` or `embedding`.")
 
@@ -45,75 +54,27 @@ def get_top_k_neighbors(
 
     # Determine which RPC to call based on sources
     if sources == ["document_embeddings"]:
-        rpc_name = "match_filtered" if tables else "match_default"
-        if tables:
-            rpc_args.update({"src_tables": tables, "content_columns": cols})
+        rpc_name = "match_filtered"
 
-    elif sources == ["meeting_embeddings"]:
-        rpc_name = "match_filtered_meetings" if tables else "match_default_meetings"
-        if tables:
-            rpc_args.update({"src_tables": tables, "content_columns": cols})
+    elif sources == ["meeting_embeddings"] or allowed_topic_ids or allowed_topics or allowed_countries:
+        rpc_name = "match_filtered_meetings"
 
     else:
-        rpc_name = "match_combined_filtered_embeddings" if tables else "match_combined_embeddings"
-        if tables:
-            rpc_args.update({"src_tables": tables})
+        rpc_name = "match_combined_filtered_embeddings"
+
+    if tables:
+        rpc_args.update({"src_tables": tables, "content_columns": cols})
+
+    if rpc_name == "match_filtered_meetings":
+        if allowed_topics is not None:
+            rpc_args["allowed_topics"] = allowed_topics
+        if allowed_countries is not None:
+            rpc_args["allowed_countries"] = allowed_countries
+        if allowed_topic_ids is not None:
+            rpc_args["allowed_topic_ids"] = allowed_topic_ids
+        
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
-    return resp.data
-
-
-def get_top_k_neighbors_by_embedding(
-    vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources=Optional[list]
-) -> list[dict]:
-    """
-    Fetch the top-k nearest neighbors for a text query or a given embedding.
-
-    Parameters:
-    - embedding: pre-computed embedding vector
-    - allowed_sources: mapping of table names to column names to filter the search.
-    - k: number of neighbors to retrieve.
-    - sources: a list indicating which embedding RPC to use:
-        * ["document_embeddings"]
-        * ["meeting_embeddings"]
-        * None or other: combined embeddings
-
-    Returns:
-        A list of dicts representing matching records.
-    """
-    if allowed_sources:
-        tables = list(allowed_sources.keys())
-        cols = list(allowed_sources.values())
-
-    if sources == ["document_embeddings"]:
-        if allowed_sources:
-            resp = supabase.rpc(
-                "match_filtered",
-                {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
-            ).execute()
-        else:
-            resp = supabase.rpc("match_default", {"query_embedding": vector_embedding, "match_count": k}).execute()
-
-    if sources == ["meeting_embeddings"]:
-        if allowed_sources:
-            resp = supabase.rpc(
-                "match_filtered_meetings",
-                {"src_tables": tables, "content_columns": cols, "query_embedding": vector_embedding, "match_count": k},
-            ).execute()
-        else:
-            resp = supabase.rpc(
-                "match_default_meetings", {"query_embedding": vector_embedding, "match_count": k}
-            ).execute()
-
-    else:
-        if allowed_sources:
-            resp = supabase.rpc(
-                "match_combined_filtered_embeddings",
-                {"src_tables": tables, "query_embedding": vector_embedding, "match_count": k},
-            ).execute()
-        else:
-            resp = supabase.rpc(
-                "match_combined_embeddings", {"query_embedding": vector_embedding, "match_count": k}
-            ).execute()
+    logger.info(f"response: {resp}")
 
     return resp.data
