@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 async def create_embeddings(profile: ProfileUpdate):
     """
-    Create or update a user profile: compute embedding from company_name, company_description, and topic_list,
+    Create or update a user profile: compute embedding from company_name, company_description, and topic_id_list,
     then upsert the record into Supabase.
     """
     # Build input text for embedding
     combined = (
         f"{profile.company_name}. {profile.company_description}."
-        f" Topics: {', '.join(profile.topic_list)}"
+        f" Topics: {', '.join(profile.topic_id_list)}"
         f" Topics: {', '.join(profile.countries)}"
     )
     # Generate embedding
@@ -49,7 +49,7 @@ async def create_profile(profile: ProfileCreate):
     # Upsert into Supabase
     payload = profile.model_dump()
     
-    topic_ids = payload.pop("topic_list")
+    topic_ids = payload.pop("topic_id_list")
 
     payload["id"] = str(payload["id"])
     payload["embedding"] = embedding
@@ -104,8 +104,8 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
     try:
         payload = profile.model_dump(exclude_unset=True)
         result = {}
-        if "topic_list" in payload:
-            topic_ids = payload.pop("topic_list")
+        if "topic_id_list" in payload:
+            topic_ids = payload.pop("topic_id_list")
         else:
             topic_ids = []
         
@@ -114,19 +114,19 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
             if len(result.data) == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
             if (
-                profile.topic_list is not None
+                profile.topic_id_list is not None
                 or profile.company_name is not None
                 or profile.company_description is not None
                 or profile.countries is not None
             ):
-                embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(topic_list=topic_ids, **result.data[0]))}
+                embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(topic_id_list=topic_ids, **result.data[0]))}
                 result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
                 if len(result.data) == 0:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
             result = result.data[0] 
 
         
-        if profile.topic_list is not None:
+        if profile.topic_id_list is not None:
             profile_id = user_id
             try:
                 supabase.table("profiles_to_topics").delete().eq("profile_id", user_id).execute()
