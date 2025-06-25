@@ -99,10 +99,7 @@ def get_user_profile(user_id: str) -> JSONResponse:
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
         payload = profile.model_dump(exclude_unset=True)
-        if "topic_id_list" in payload:
-            topic_ids = payload.pop("topic_id_list")
-        else:
-            topic_ids = []
+        topic_ids = payload.pop("topic_id_list") if "topic_id_list" in payload else []
 
         if payload:
             result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
@@ -121,7 +118,7 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
             result = result.data[0]
         else:
             result = {}
-        
+
         if profile.topic_id_list is not None:
             profile_id = user_id
             try:
