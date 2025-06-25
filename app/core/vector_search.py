@@ -66,11 +66,11 @@ def get_top_k_neighbors(
         rpc_args.update({"src_tables": tables, "content_columns": cols})
 
     if rpc_name == "match_filtered_meetings":
-        if allowed_topics is not None:
+        if allowed_topics is not None and allowed_topics != []:
             rpc_args["allowed_topics"] = allowed_topics
-        if allowed_countries is not None:
+        if allowed_countries is not None and allowed_countries != []:
             rpc_args["allowed_countries"] = allowed_countries
-        if allowed_topic_ids is not None:
+        if allowed_topic_ids is not None and allowed_topic_ids != []:
             rpc_args["allowed_topic_ids"] = allowed_topic_ids
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()

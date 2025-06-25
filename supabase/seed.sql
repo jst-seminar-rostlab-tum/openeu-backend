@@ -463,7 +463,6 @@ INSERT INTO profiles (
   surname,
   company_name,
   company_description,
-  topic_list,
   countries,
   newsletter_frequency,
   embedding
@@ -474,13 +473,6 @@ VALUES (
   'Smith',
   'BrightWave Technologies',
   'We develop AI-driven analytics for retail optimization.',
-  -- topic_list as a PostgreSQL TEXT[]:
-  ARRAY[
-    'Machine Learning',
-    'Retail Analytics',
-    'Data Visualization',
-    'Predictive Modeling'
-  ],
   ARRAY[
     'Poland',
     'Germany',
