@@ -25,4 +25,11 @@ class ProfileUpdate(BaseModel):
 
 
 class ProfileDB(ProfileCreate):
+    id: UUID4
+    name: str
+    surname: str
+    company_name: str
+    company_description: str
+    countries: list[str]
+    newsletter_frequency: Literal["daily", "weekly", "none"]
     embedding: list[float]

@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def create_embeddings(profile: SimpleNamespace):
+async def create_embeddings(profile: ProfileUpdate):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_list,
     then upsert the record into Supabase.
@@ -48,6 +48,8 @@ async def create_profile(profile: ProfileCreate):
 
     # Upsert into Supabase
     payload = profile.model_dump()
+    
+    topic_ids = payload.pop("topic_list")
 
     payload["id"] = str(payload["id"])
     payload["embedding"] = embedding
@@ -62,7 +64,6 @@ async def create_profile(profile: ProfileCreate):
     # 3. Upsert profile-topic relationships
     # Convert profile_id to string for consistency
     profile_id = payload["id"]
-    topic_ids = profile.topic_list
 
     try:
         supabase.table("profiles_to_topics").delete().eq("profile_id", profile_id).execute()
@@ -102,24 +103,31 @@ def get_user_profile(user_id: str) -> JSONResponse:
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
         payload = profile.model_dump(exclude_unset=True)
-
-        result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
-        if len(result.data) == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-        if (
-            profile.topic_list is not None
-            or profile.company_name is not None
-            or profile.company_description is not None
-            or profile.countries is not None
-        ):
-            embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(**result.data[0]))}
-            result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
+        result = {}
+        if "topic_list" in payload:
+            topic_ids = payload.pop("topic_list")
+        else:
+            topic_ids = []
+        
+        if payload:
+            result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
             if len(result.data) == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+            if (
+                profile.topic_list is not None
+                or profile.company_name is not None
+                or profile.company_description is not None
+                or profile.countries is not None
+            ):
+                embedding_payload = {"embedding": await create_embeddings(SimpleNamespace(topic_list=topic_ids, **result.data[0]))}
+                result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
+                if len(result.data) == 0:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+            result = result.data[0] 
 
+        
         if profile.topic_list is not None:
             profile_id = user_id
-            topic_ids = profile.topic_list
             try:
                 supabase.table("profiles_to_topics").delete().eq("profile_id", user_id).execute()
 
@@ -133,13 +141,20 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                 ]
 
                 if link_records:
-                    supabase.table("profiles_to_topics").insert(link_records).execute()
+                    insert_resp = supabase.table("profiles_to_topics").insert(link_records).execute()
+                    inserted = insert_resp.data or []
+                    result = {
+                        **result,
+                        "topics_requested": topics_data,   # the topics you looked up
+                        "links_created":    inserted,      # the rows you actually wrote
+                    }
                     logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
                 else:
                     logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
             except Exception as e:
                 logger.error("Error linking topics for profile %s: %s", profile_id, e)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=result.data[0])
+                
+        return JSONResponse(status_code=status.HTTP_200_OK, content=result)
     except Exception as e:
         logger.error("Supabase update failed for profile %s: %s", user_id, e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase update failed") from e
