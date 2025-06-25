@@ -119,7 +119,9 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                 if len(result.data) == 0:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
             result = result.data[0]
-        result = {}
+        else:
+            result = {}
+        
         if profile.topic_id_list is not None:
             profile_id = user_id
             try:
