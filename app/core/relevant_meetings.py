@@ -1,7 +1,9 @@
 import logging
 from collections import defaultdict
+from typing import Optional
 
 from openai import OpenAI
+from postgrest import SyncSelectRequestBuilder
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
@@ -25,7 +27,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
+def fetch_relevant_meetings(
+    user_id: str,
+    k: int,
+    query_to_compare: Optional[SyncSelectRequestBuilder] = None,
+) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
@@ -48,6 +54,14 @@ def fetch_relevant_meetings(user_id: str, k: int) -> RelevantMeetingsResponse:
             allowed_countries=allowed_countries,
             k=k,
         )
+
+        if query_to_compare:
+            match = query_to_compare.order("meeting_start_datetime", desc=True).execute()
+
+            if match.data:
+                allowed_keys = {(r["source_table"], r["source_id"]) for r in match.data}
+
+                neighbors = [n for n in neighbors if (n["source_table"], n["source_id"]) in allowed_keys]
 
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
