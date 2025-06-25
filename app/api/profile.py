@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
-from app.models.profile import ProfileCreate, ProfileUpdate, ProfileDB
+from app.models.profile import ProfileCreate, ProfileUpdate, ProfileDB, ProfileReturn
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -83,13 +83,38 @@ async def create_profile(profile: ProfileCreate):
     return JSONResponse(status_code=status.HTTP_201_CREATED, content={"status": "created"})
 
 
-@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileDB)
+@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
 def get_user_profile(user_id: str) -> JSONResponse:
     try:
-        result = supabase.table("profiles").select("*").eq("id", user_id).execute()
-        if len(result.data) == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-        return JSONResponse(status_code=status.HTTP_200_OK, content=result.data[0])
+        result_profile = (
+            supabase.table("profiles")
+            .select("*")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+
+        if not result_profile.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Profile with id '{user_id}' not found"
+            )
+
+        profile = result_profile.data
+
+        result_topics = (
+            supabase.table("profiles_to_topics")
+            .select("topic_id, topic")
+            .eq("profile_id", user_id)
+            .execute()
+        )
+
+        topic_ids = [item["topic_id"] for item in result_topics.data or []]
+        topics = [item["topic"] for item in result_topics.data or []]
+
+        payload = {**profile, "topic_ids": topic_ids, "topics": topics}
+
+        return JSONResponse(status_code=status.HTTP_200_OK, content=payload)
     except Exception as e:
         logger.error("Supabase select failed for profile %s: %s", user_id, e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
