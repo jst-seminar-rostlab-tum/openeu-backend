@@ -12,7 +12,6 @@ from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
 
-
 class RelevantMeetingsResponse(BaseModel):
     meetings: list[Meeting]
 
@@ -28,7 +27,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def fetch_relevant_meetings(user_id: str, k: int, query_to_compare: Optional[SyncSelectRequestBuilder] = None,) -> RelevantMeetingsResponse:
+def fetch_relevant_meetings(
+    user_id: str,
+    k: int,
+    query_to_compare: Optional[SyncSelectRequestBuilder] = None,
+) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
@@ -51,7 +54,7 @@ def fetch_relevant_meetings(user_id: str, k: int, query_to_compare: Optional[Syn
             allowed_countries=allowed_countries,
             k=k,
         )
-        
+
         if query_to_compare:
             match = query_to_compare.order("meeting_start_datetime", desc=True).execute()
 
