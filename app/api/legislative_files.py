@@ -9,7 +9,7 @@ from app.models.legislative_file import LegislativeFilesResponse
 router = APIRouter()
 
 
-@router.get("/legislative_files", response_model=LegislativeFilesResponse)
+@router.get("/legislative-files", response_model=LegislativeFilesResponse)
 def get_legislative_files(
     limit: int = Query(100, gt=1),
     query: Optional[str] = Query(None, description="Semantic search query"),
