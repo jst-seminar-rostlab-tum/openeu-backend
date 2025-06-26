@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -94,6 +92,7 @@ def _build_email_body(*, alert: dict, meetings: list[dict], user_id: str) -> tup
 
 # ================ Public mailer facade ================
 class SmartAlertMailer:
+    email_client = EmailService()
     @staticmethod
     def send_alert_email(*, user_id: str, alert: dict, meetings: list[dict]):
         user_mail = get_user_email(user_id=user_id)
@@ -113,7 +112,7 @@ class SmartAlertMailer:
                 [
                     {
                         "alert_id": alert["id"],
-                        "meeting_id": m["id"],
+                        "meeting_id": m["meeting_id"],
                         "similarity": m.get("similarity", 0.0),
                     }
                     for m in meetings
