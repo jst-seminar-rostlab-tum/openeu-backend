@@ -77,7 +77,7 @@ def get_meetings(
             if user_id:
                 resp = (
                     supabase.table("profiles")
-                    .select("company_name,company_description,topic_list")
+                    .select("company_name,company_description")
                     .eq("id", user_id)
                     .single()
                     .execute()
