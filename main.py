@@ -26,6 +26,7 @@ logging.basicConfig(
 logging.getLogger("httpcore").setLevel(logging.INFO)
 logging.getLogger("httpx").setLevel(logging.INFO)
 logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("hpack").setLevel(logging.INFO)
 
 app = FastAPI()
 app.include_router(profile.router)
