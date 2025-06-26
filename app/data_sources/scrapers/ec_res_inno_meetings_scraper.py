@@ -256,9 +256,9 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
                 event_type=meeting.event_type,
                 description=existing_meeting.description if existing_meeting else "",
                 subjects=existing_meeting.subjects if existing_meeting else [],
-                embedding_input=f"{meeting.title} on {meeting.start_date}"
-                f"{(' until ' + meeting.end_date) if meeting.end_date else ''} {meeting.location} "
-                + f"{meeting.event_type}{', ' + existing_meeting.description if existing_meeting else ''}",
+                embedding_input=f'"{meeting.title}" on {meeting.start_date}'
+                f"{(' until ' + meeting.end_date) if meeting.end_date else ''}, location: {meeting.location}"
+                + f"{', description: "' + existing_meeting.description + '"' if existing_meeting else ''}",
             )
             self.meetings.append(meeting_to_store)
 
