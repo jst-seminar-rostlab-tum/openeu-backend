@@ -35,9 +35,16 @@ def fetch_relevant_meetings(
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
-        resp = supabase.table("profiles").select("embedding", "countries").eq("id", user_id).single().execute()
+        resp = (
+            supabase.table("profiles")
+            .select("embedding", "countries", "newsletter_frequency")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
         profile_embedding = resp.data["embedding"]
         allowed_countries = resp.data["countries"]
+        newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()
         allowed_topic_ids = [d["topic_id"] for d in resp.data] or None
 
@@ -77,7 +84,13 @@ def fetch_relevant_meetings(
     # Get today's date range
     today = datetime.now().date()
     start_date = datetime.combine(today, time.min)
-    end_date = datetime.combine(today, time.max)
+    # Adjust end_date based on newsletter_frequency
+    if newsletter_frequency == "weekly":
+        from datetime import timedelta
+
+        end_date = datetime.combine(today + timedelta(days=7), time.max)
+    else:
+        end_date = datetime.combine(today, time.max)
 
     try:
         rows = (
@@ -89,8 +102,10 @@ def fetch_relevant_meetings(
                     "max_results": k,
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
-                }
-            ).execute().data
+                },
+            )
+            .execute()
+            .data
         )
     except Exception:
         logger.exception("Unexpected error fetching meetings with filter")
