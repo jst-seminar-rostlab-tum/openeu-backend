@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
-from app.core.vector_search import get_top_k_neighbors_by_embedding
+from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
 
@@ -32,29 +32,27 @@ def fetch_relevant_meetings(
     k: int,
     query_to_compare: Optional[SyncSelectRequestBuilder] = None,
 ) -> RelevantMeetingsResponse:
-    """
-    Fetches relevant meetings for a user, optionally using additional filter params.
-    """
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
-        resp = supabase.table("profiles").select("embedding").eq("id", user_id).single().execute()
+        resp = supabase.table("profiles").select("embedding", "countries").eq("id", user_id).single().execute()
         profile_embedding = resp.data["embedding"]
+        allowed_countries = resp.data["countries"]
+        resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()
+        allowed_topic_ids = [d["topic_id"] for d in resp.data] or None
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
         return RelevantMeetingsResponse(meetings=[])
 
-    # 2) call `get_top_k_neighbors_by_embedding`
+    # 2) call `get_top_k_neighbors`
     try:
-        response = supabase.rpc("get_meeting_tables").execute().data
-        allowed_sources = {row["source_table"]: "embedding_input" for row in response if row.get("source_table")}
-
-        neighbors = get_top_k_neighbors_by_embedding(
-            vector_embedding=profile_embedding,
-            allowed_sources=allowed_sources,
-            k=k,
+        neighbors = get_top_k_neighbors(
+            embedding=profile_embedding,
             sources=["meeting_embeddings"],
+            allowed_topic_ids=allowed_topic_ids,
+            allowed_countries=allowed_countries,
+            k=k,
         )
 
         if query_to_compare:
