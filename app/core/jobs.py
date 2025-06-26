@@ -40,10 +40,11 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     """
     due_alerts = fetch_due_alerts()
     logger.info("Processing %d alert(s)", len(due_alerts))
+    email_sent = False
     for alert in due_alerts:
         if stop_event.is_set():
             logger.warning("Stop event set – aborting smart-alerts job")
-            return
+            return email_sent
 
         meetings = process_alert(alert)
         if not meetings:
@@ -54,6 +55,7 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
             alert=alert,
             meetings=meetings,
         )
+    return email_sent
 
 
 def scrape_eu_laws_by_topic(stop_event: multiprocessing.synchronize.Event):
