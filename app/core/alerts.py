@@ -179,31 +179,16 @@ def process_alert(alert: dict) -> list[dict]:
         mark_alert_ran(alert["id"])
         return []
 
-    supabase.table("alert_notifications").insert(
-        [
-            {
-                "alert_id": alert["id"],
-                "meeting_id": m["meeting_id"],
-                "similarity": m["similarity"],
-            }
-            for m in meetings
-        ]
-    ).execute()
-
-    mark_alert_ran(alert["id"])
-    set_alert_active(alert["id"], active=False)  # <-- deactivate after sending
     logger.info(
-        "Alert %s matched %d new meeting(s) for user %s",
-        alert["id"],
-        len(meetings),
-        alert["user_id"],
+        "Alert %s matched %d new meeting(s) for user %s – handing to mailer",
+        alert["id"], len(meetings), alert["user_id"]
     )
     return meetings
 
 
 
 # ---------------------------------------------------------------------------
-# Convenience toggles – pause / resume / delete
+# Convenience toggles for SmartAlerts – pause / resume / delete
 # ---------------------------------------------------------------------------
 
 
