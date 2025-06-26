@@ -1,0 +1,33 @@
+FROM python:3.13.3-slim
+
+WORKDIR /code
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gnupg wget unzip xvfb libgbm1 \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
+    libcairo2 libasound2 libsecret-1-0 libgles2 \
+    libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
+    nodejs npm \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir  poetry==2.1.3
+RUN pip install --no-cache-dir  playwright crawl4ai
+
+COPY . .
+
+RUN poetry install
+
+RUN poetry run playwright install chromium
+
+RUN crawl4ai-setup
+
+
+RUN echo "✅ Checking Playwright..." && \
+    playwright --version && \
+    echo "✅ Checking Crawl4AI..." && \
+    crawl4ai-doctor || echo "⚠️  Crawl4AI doctor failed – this may be expected on certain hosts"
+
+EXPOSE 3000
+
+CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--log-config", "log_conf.yaml", "--reload"]
