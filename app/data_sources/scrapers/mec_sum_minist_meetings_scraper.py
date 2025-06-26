@@ -197,8 +197,15 @@ class MECSumMinistMeetingsScraper(ScraperBase):
             "page": page,
         }
         url = MEC_MEETINGS_BASE_URL + "?" + urlencode(params)
-        config = CrawlerRunConfig()
-        crawler_result = await crawler.arun(url=url, crawler_config=config)
+        config = CrawlerRunConfig(
+            # verbose=True,
+            # log_console=True,
+            # magic=True, # seems to only make bot protection issues worse
+            # simulate_user=True, # seems to only make bot protection issues worse
+            # override_navigator=True, # seems to only make bot protection issues worse
+            # user_agent_mode="random", # seems to only make bot protection issues worse
+        )
+        crawler_result = await crawler.arun(url=url, config=config)
 
         if "Checking your browser" in crawler_result.html:
             logger.error(f"Bot protection detected for page {page}. Therefore, we cannot scrape something now.")
@@ -262,15 +269,18 @@ class MECSumMinistMeetingsScraper(ScraperBase):
         if start_date > end_date:
             raise ValueError("start_date must be before end_date")
 
-        async with AsyncWebCrawler() as crawler:
-            while current_page <= largest_known_page:
-                if self.stop_event.is_set():
-                    return ScraperResult(
-                        success=False,
-                        error=Exception("Scrape stopped by external stop event"),
-                        last_entry=self.last_entry,
-                    )
+        while current_page <= largest_known_page:
+            if self.stop_event.is_set():
+                return ScraperResult(
+                    success=False,
+                    error=Exception("Scrape stopped by external stop event"),
+                    last_entry=self.last_entry,
+                )
 
+            # crawl the page with a new AsyncWebCrawler instance
+            # crawl4ai docs recommend reusing the same crawler instance for multiple pages,
+            # but by recreating the crawler instance for each page, we can avoid issues with bot protection
+            async with AsyncWebCrawler() as crawler:
                 (meetings_on_page, largest_known_page, scraper_error_result) = await self._scrape_meetings_by_page(
                     start_date=start_date, end_date=end_date, page=current_page, crawler=crawler, last_entry=last_entry
                 )

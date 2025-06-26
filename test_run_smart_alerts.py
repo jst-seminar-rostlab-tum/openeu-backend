@@ -1,4 +1,13 @@
 import os
+os.environ.update({
+    "EMAIL_BACKEND": "smtp",
+    "EMAIL_HOST": "localhost",
+    "EMAIL_PORT": "1025",
+    "EMAIL_USER": "",
+    "EMAIL_PASS": "",
+    "EMAIL_USE_TLS": "false",   # or "0"
+})
+
 import multiprocessing
 import psycopg2
 from app.core.jobs import send_smart_alerts
@@ -21,6 +30,7 @@ with smtplib.SMTP("localhost", 1025) as server:
 
 USER_EMAIL = "ju-kleinle@web.de"
 PROFILE_NAME = "Julius Kleinle"
+
 
 # Step 1: Create/check user via Admin API
 def get_or_create_user(email):

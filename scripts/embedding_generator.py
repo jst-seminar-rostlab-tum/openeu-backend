@@ -13,8 +13,8 @@ class EmbeddingGenerator:
     def __init__(self):
         try:
             response = supabase.rpc("get_meeting_tables").execute().data
-            self.known_meeting_sources =  [row["source_table"] for row in response]
-            
+            self.known_meeting_sources = [row["source_table"] for row in response]
+
         except Exception as e:
             logging.error(f"Failed to init EmbeddingGenerator with exception: {e}")
             raise e

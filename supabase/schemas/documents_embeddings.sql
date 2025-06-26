@@ -15,7 +15,6 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 --TODO: Analyze should be run on the table every 10000 updates or so to keep ivfflat efficient!
 
 
-
 --Remote Procedure Call to query for K-NN
 -- src_tables:   list of table names
 -- content_columns: corresponding list of column names
@@ -23,10 +22,10 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 -- match_count: 5
 
 create or replace function public.match_filtered(
-  src_tables      text[],
-  content_columns text[],
   query_embedding vector,
-  match_count     int
+  match_count     int,
+  src_tables      text[] DEFAULT NULL,
+  content_columns text[] DEFAULT NULL
 )
 returns table(
   source_table  text,
@@ -47,36 +46,12 @@ begin
       ((1 - (e.embedding <#> query_embedding))/2) as similarity
     from documents_embeddings e
     where
-      e.source_table = any(src_tables)
-      and e.content_column = any(content_columns)
-    order by e.embedding <#> query_embedding
-    limit match_count;
-end;
-$$;
-
-
-create or replace function public.match_default(
-  query_embedding vector,
-  match_count     int
-)
-returns table(
-  source_table  text,
-  source_id     text,
-  content_text  text,
-  similarity    float
-)
-language plpgsql
-as $$
-declare
-  max_dist float := sqrt(1536);  -- approx. 39.1918
-begin
-  return query
-    select
-      e.source_table,
-      e.source_id,
-      e.content_text,
-      ((1 - (e.embedding <#> query_embedding))/2) as similarity
-    from documents_embeddings e
+      (
+        src_tables is null
+        or e.source_table = any(src_tables))
+      and (
+        content_columns is null
+        or e.content_column = any(content_columns))
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
