@@ -39,8 +39,8 @@ def build_embedding(text: str) -> list[float]:
     Parameters
     ----------
     text : str
-        Natural‑language description coming from the user (e.g. "I want all
-        new meetings about sustainability").
+        Natural‑language description coming from the user (e.g. "I want to be notified when
+        a meeting about new sustainability legislation is held (in the EU parliament)").
 
     Returns
     -------
