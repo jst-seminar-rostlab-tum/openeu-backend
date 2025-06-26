@@ -42,8 +42,8 @@ class EcResInnoMeeting(BaseModel):
     id: Optional[str] = None
     title: str
     meeting_url: str
-    start_date: date
-    end_date: Optional[date] = None
+    start_date: str
+    end_date: Optional[str] = None
     location: str
     event_type: str
     description: str
@@ -55,8 +55,8 @@ class EcResInnoMeetingSearchResult(BaseModel):
     # id: Optional[str] = None
     title: str
     meeting_url: str
-    start_date: date
-    end_date: Optional[date] = None
+    start_date: str
+    end_date: Optional[str] = None
     location: str
     event_type: str
     # description: str
@@ -68,8 +68,8 @@ class EcResInnoMeetingRss(BaseModel):
     id: Optional[str] = None
     title: str
     meeting_url: str
-    # start_date: date
-    # end_date: Optional[date] = None
+    # start_date: str
+    # end_date: Optional[str] = None
     # location: str
     event_type: str
     description: str
@@ -176,6 +176,7 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
         for item in items:
             title = item.xpath("title/text()").get(default="").strip()
             description = item.xpath("description/text()").get(default="").strip()
+            description = re.sub(r"<.*?>", "", description)  # remove html tags from description
             link = item.xpath("link/text()").get(default="")
             atom_id = item.xpath("*[local-name()='id']/text()").get(default="")
             event_type = item.xpath(
@@ -255,7 +256,8 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
                 event_type=meeting.event_type,
                 description=existing_meeting.description if existing_meeting else "",
                 subjects=existing_meeting.subjects if existing_meeting else [],
-                embedding_input=f"{meeting.title} on {meeting.start_date.strftime('%Y-%m-%d')} {meeting.location} "
+                embedding_input=f"{meeting.title} on {meeting.start_date}"
+                f"{(' until ' + meeting.end_date) if meeting.end_date else ''} {meeting.location} "
                 + f"{meeting.event_type}{', ' + existing_meeting.description if existing_meeting else ''}",
             )
             self.meetings.append(meeting_to_store)
@@ -323,6 +325,9 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
             return sel.css(css_sel + "::text").get(default="").strip()
 
         title = extract_text(".ecl-content-block__title .ecl-link")
+        if title == "":
+            # sometimes the title is in a different structure
+            title = extract_text(".ecl-content-block__title .ecl-link__label")
 
         # Extract date from time element (format: DD MM YYYY)
         date_day = extract_text(".ecl-date-block__day")  # e.g. "15" or "15-18"
@@ -339,10 +344,13 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
         event_type = extract_text(".ecl-content-block__primary-meta-item")
         meeting_url = sel.css("a.ecl-link::attr(href)").get(default="")
 
+        if title == "":
+            title = "No title found"
+
         return EcResInnoMeetingSearchResult(
             title=title,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat() if end_date else None,
             location=location,
             meeting_url=meeting_url,
             event_type=event_type,
