@@ -24,3 +24,22 @@ def get_suggestions(
     except Exception as e:
         logger.error("INTERNAL ERROR: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/legislation-suggestions", response_model=SuggestionResponse)
+def get_legislation_suggestions(
+    request: Request,
+    query: str = Query(..., min_length=2, description="Fuzzy text to search legislation titles"),
+    limit: int = Query(5, ge=1, le=20, description="Number of suggestions to return"),
+):
+    caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    logger.info("GET /legislation-suggestions | caller=%s | query='%s' | limit=%s", caller_ip, query, limit)
+
+    try:
+        result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
+
+        return {"data": result.data[:limit]}
+
+    except Exception as e:
+        logger.error("INTERNAL ERROR: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
