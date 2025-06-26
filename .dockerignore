@@ -1,11 +1,32 @@
+# Python cache
 __pycache__/
+*.py[cod]
+
+# Logs
 *.log
+
+# Git / VCS
 .git/
-.vscode/
 *.md
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Python envs
+.venv/
+venv/
+
+# Dev folders
 tests/
 notebooks/
-.env
-node_modules/
-*.DS_Store
 examples/
+
+# Node.js
+node_modules/
+
+# Docker sensitive
+.env
+*.DS_Store
+.cache/
+.local/
