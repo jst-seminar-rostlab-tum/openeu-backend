@@ -166,7 +166,7 @@ def find_relevant_meetings(alert: dict, *, k: int = 50) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Public façade – single call that the cron job will use
+# Public facade – single call that the cron job will use
 # ---------------------------------------------------------------------------
 
 
