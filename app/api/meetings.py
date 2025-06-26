@@ -192,3 +192,40 @@ def get_meeting_suggestions(
     except Exception as e:
         logger.error("INTERNAL ERROR: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/legislative-files/meetings")
+def get_meetings_by_legislative_id(
+    legislative_id: str = Query(..., description="Legislative procedure reference ID to filter meetings"),
+    limit: int = Query(500, gt=0, le=1000, description="Maximum number of meetings to return"),
+) -> JSONResponse:
+    """
+    Returns all meetings from the mep_meetings table that reference the given legislative (procedure_reference) ID.
+    """
+    try:
+        if not legislative_id or not legislative_id.strip():
+            raise HTTPException(status_code=400, detail="legislative_id must be provided and non-empty.")
+
+        result = (
+            supabase.table("mep_meetings")
+            .select("*")
+            .eq("procedure_reference", legislative_id)
+            .limit(limit)
+            .order("meeting_date")
+            .execute()
+        )
+
+        data = result.data
+        if not isinstance(data, list):
+            raise ValueError("Expected list of records from Supabase")
+
+        logger.info(
+            f"GET /legislative-files/meetings | legislative_id={legislative_id} | returned {len(data)} result(s)"
+        )
+        return JSONResponse(status_code=200, content={"data": data})
+    except HTTPException as he:
+        logger.warning(f"Bad request: {he.detail}")
+        raise he
+    except Exception as e:
+        logger.error(f"INTERNAL ERROR in /legislative-files/meetings: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.") from e
