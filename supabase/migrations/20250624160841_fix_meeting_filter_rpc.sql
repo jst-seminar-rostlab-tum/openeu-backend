@@ -13,7 +13,7 @@ create table "public"."profiles_to_topics" (
 );
 
 
-alter table "public"."profiles" add column "countries" text[] not null;
+alter table "public"."profiles" add column "countries" text[] not null default '{}'::text[];
 
 alter table "public"."profiles_to_topics" add constraint "profiles_to_topics_profile_id_fkey" FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE not valid;
 
