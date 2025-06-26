@@ -57,11 +57,17 @@ def get_top_k_neighbors(
         rpc_name = "match_filtered"
 
     elif sources == ["meeting_embeddings"]:
+        # If **any** meeting-specific filter is supplied we need the “filtered”
+        # procedure; otherwise fall back to the lean default.
+        wants_meeting_filter = bool(
+            allowed_sources or allowed_topics or allowed_topic_ids or allowed_countries
+        )
         rpc_name = (
             "match_filtered_meetings"
-            if allowed_sources or allowed_topics or allowed_topic_ids or allowed_countries
+            if wants_meeting_filter
             else "match_default_meetings"
         )
+
     else:
         rpc_name = "match_combined_filtered_embeddings"
 
