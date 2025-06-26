@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import logging
 
 from app.api import profile
 from app.api.chat import router as api_chat
@@ -16,6 +17,15 @@ from app.core.jobs import setup_scheduled_jobs
 
 setup_scheduled_jobs()
 settings = Settings()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("asyncio").setLevel(logging.INFO)
 
 app = FastAPI()
 app.include_router(profile.router)

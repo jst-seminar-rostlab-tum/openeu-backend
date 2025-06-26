@@ -12,13 +12,6 @@ from app.core.deepl_translator import translator
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.data_sources.translator.translator import DeepLTranslator
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-
 logger = logging.getLogger(__name__)
 
 # Base URL for the Belgian Parliament

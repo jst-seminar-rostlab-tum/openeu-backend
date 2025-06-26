@@ -11,9 +11,6 @@ from app.models.profile import ProfileCreate, ProfileUpdate, ProfileDB, ProfileR
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-)
 logger = logging.getLogger(__name__)
 
 
@@ -86,27 +83,15 @@ async def create_profile(profile: ProfileCreate):
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
 def get_user_profile(user_id: str) -> JSONResponse:
     try:
-        result_profile = (
-            supabase.table("profiles")
-            .select("*")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        result_profile = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
 
         if not result_profile.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Profile with id '{user_id}' not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Profile with id '{user_id}' not found")
 
         profile = result_profile.data
 
         result_topics = (
-            supabase.table("profiles_to_topics")
-            .select("topic_id, topic")
-            .eq("profile_id", user_id)
-            .execute()
+            supabase.table("profiles_to_topics").select("topic_id, topic").eq("profile_id", user_id).execute()
         )
 
         topic_ids = [item["topic_id"] for item in result_topics.data or []]

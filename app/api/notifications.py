@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from app.core.supabase_client import supabase
 from app.models.notifications import Notification
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
