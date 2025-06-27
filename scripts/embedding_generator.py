@@ -20,7 +20,6 @@ class EmbeddingGenerator:
             raise e
 
         self.settings = Settings()
-        logging.basicConfig(level=logging.INFO)
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=MAX_TOKENS,
