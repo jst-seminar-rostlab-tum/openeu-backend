@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS profiles_to_topics (
     profile_id UUID NOT NULL,
     topic TEXT,
     topic_id TEXT NOT NULL,
+    PRIMARY KEY (profile_id, topic_id),
     FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
     FOREIGN KEY (topic_id) REFERENCES public.meeting_topics(id) ON DELETE CASCADE
 );
