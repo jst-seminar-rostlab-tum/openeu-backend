@@ -10,12 +10,13 @@ from app.data_sources.scraper_base import ScraperBase, ScraperResult
 
 
 class LegislativeObservatory(BaseModel):
-    reference: str
+    id: str
     link: str | None = None
     title: str | None = None
     lastpubdate: str | None = None
     committee: str | None = None
     rapporteur: str | None = None
+    embedding_input: str | None = None
 
 
 class LegislativeObservatorySpider(scrapy.Spider):
@@ -32,13 +33,28 @@ class LegislativeObservatorySpider(scrapy.Spider):
         entries = []
         items = response.xpath("//item")
         for entry in items:
+            embedding_input = " ".join(
+                filter(
+                    None,
+                    [
+                        entry.xpath("./reference/text()").get(),
+                        entry.xpath("./link/text()").get(),
+                        entry.xpath("./title/text()").get(),
+                        entry.xpath("./lastpubdate/text()").get(),
+                        entry.xpath("./committee/committee/text()").get(),
+                        entry.xpath("./rapporteur/rapporteur/text()").get(),
+                    ],
+                )
+            )
+
             obj = LegislativeObservatory(
-                reference=entry.xpath("./reference/text()").get(),
+                id=entry.xpath("./reference/text()").get(),
                 link=entry.xpath("./link/text()").get(),
                 title=entry.xpath("./title/text()").get(),
                 lastpubdate=entry.xpath("./lastpubdate/text()").get(),
                 committee=entry.xpath("./committee/committee/text()").get(),
                 rapporteur=entry.xpath("./rapporteur/rapporteur/text()").get(),
+                embedding_input=embedding_input.strip() or None,
             )
             entries.append(obj)
 
@@ -64,17 +80,25 @@ class LegislativeObservatoryScraper(ScraperBase):
 
     def _collect_entry(self, entries: list[LegislativeObservatory]):
         for entry in entries:
-            scraper_error_result = self.store_entry(entry.model_dump(), on_conflict="reference", embedd_entries=False)
+            scraper_error_result = self.store_entry(entry.model_dump(), on_conflict="id", embedd_entries=True)
             if scraper_error_result is None:
                 self.entries.append(entry)
             else:
-                self.logger.warning(f"Failed to store entry: {entry.reference} -> {scraper_error_result}")
+                self.logger.warning(f"Failed to store entry: {entry.id} -> {scraper_error_result}")
 
 
 # ------------------------------
 # Testing
 # ------------------------------
 if __name__ == "__main__":
+    """
+    neighbors = get_top_k_neighbors(
+        query="Ukraine",
+        allowed_sources={"legislative_files": "title"},
+        k=3,
+        sources=["document_embeddings"],  # triggers match_filtered
+    )
+    """
     print("Scraping Legislative Observatories...")
     scraper = LegislativeObservatoryScraper(stop_event=multiprocessing.Event())
     result = scraper.scrape_once(last_entry=None)
