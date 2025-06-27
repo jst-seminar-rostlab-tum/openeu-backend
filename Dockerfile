@@ -49,6 +49,10 @@ RUN rm -rf tests/ examples/ notebooks/ .git __pycache__
 RUN echo "✅ Checking uvicorn path..." && \
     ls -lah /code/.venv/bin/uvicorn || (echo "❌ uvicorn not found!" && exit 1)
 
+RUN ls -l /code/.venv/bin/uvicorn && \
+    head -n1 /code/.venv/bin/uvicorn && \
+    /code/.venv/bin/python --version
+
 # Health check for Crawl4AI & Playwright
 RUN echo "✅ Checking Playwright..." && \
     playwright --version && \
@@ -57,4 +61,4 @@ RUN echo "✅ Checking Playwright..." && \
 
 EXPOSE 3000
 
-CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--log-config", "log_conf.yaml", "--reload"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--log-config", "log_conf.yaml", "--reload"]
