@@ -1,6 +1,4 @@
 import logging
-import re
-
 import numpy as np
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
@@ -9,6 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
+from enchant import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,11 @@ EXCLUDED_WORDS = {
     "patriots",
     "en",
     "romanian",
+    "la",
+    "omnibus",
+    "voyage",
+    "google",
+    "gens",
 }
 
 TOPICS_TABLE = "meeting_topics"
@@ -100,14 +104,18 @@ def add_other_topic() -> int | None:
 class TopicExtractor:
     _sentence_model = None
     _keybert_model = None
+    _dictionary = None
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         if TopicExtractor._sentence_model is None:
             TopicExtractor._sentence_model = SentenceTransformer(model_name)
         if TopicExtractor._keybert_model is None:
             TopicExtractor._keybert_model = KeyBERT(model_name)
+        if TopicExtractor._dictionary is None:
+            TopicExtractor._dictionary = Dict("en_US")
         self.model = TopicExtractor._sentence_model
         self.kw_model = TopicExtractor._keybert_model
+        self.dictionary = TopicExtractor._dictionary
 
     def extract_keywords_from_texts(self, all_texts: list[tuple[str, str]], top_n_keywords: int) -> list[str]:
         """
@@ -116,8 +124,7 @@ class TopicExtractor:
         """
 
         def is_english_word(word: str) -> bool:
-            # Only allow a-z, A-Z, 0-9, space, and hyphen
-            return bool(re.fullmatch(r"[A-Za-z \-]+", word))
+            return self.dictionary.check(word) and (len(word) > 3)
 
         all_keywords: list[str] = []
         for text in all_texts:
