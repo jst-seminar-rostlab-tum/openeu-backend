@@ -1,9 +1,13 @@
 __pycache__/
+*.pyc
+*.pyo
 *.log
 .git/
 .vscode/
-*.md
+.idea/
 tests/
 notebooks/
-.env
+examples/
 node_modules/
+.DS_Store
+.env
