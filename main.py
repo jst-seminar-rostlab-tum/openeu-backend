@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import logging
 
 from app.api import profile
 from app.api.chat import router as api_chat
@@ -17,6 +18,16 @@ from app.core.jobs import setup_scheduled_jobs
 
 setup_scheduled_jobs()
 settings = Settings()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("hpack").setLevel(logging.INFO)
 
 app = FastAPI()
 app.include_router(profile.router)
@@ -48,7 +59,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         if is_allowed_origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS,PATCH"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
 
         return response
