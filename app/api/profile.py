@@ -165,6 +165,16 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
             except Exception as e:
                 logger.error("Error linking topics for profile %s: %s", profile_id, e)
 
+        result_topics = (
+            supabase.table("profiles_to_topics")
+            .select("topic_id, topic")
+            .eq("profile_id", user_id)
+            .execute()
+        )
+
+        topic_ids = [item["topic_id"] for item in result_topics.data or []]
+
+        result = {**result, "topic_ids": topic_ids}
         return JSONResponse(status_code=status.HTTP_200_OK, content=result)
     except Exception as e:
         logger.error("Supabase update failed for profile %s: %s", user_id, e)
