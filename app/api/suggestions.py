@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, Query, Request
-from app.models.suggestion import SuggestionResponse
+from app.models.suggestion import SuggestionResponse, LegislationSuggestionResponse
 from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def get_suggestions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/legislation-suggestions", response_model=SuggestionResponse)
+@router.get("/legislation-suggestions", response_model=LegislationSuggestionResponse)
 def get_legislation_suggestions(
     request: Request,
     query: str = Query(..., min_length=2, description="Fuzzy text to search legislation titles"),
