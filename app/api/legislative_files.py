@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
+import logging
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
 
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
-from app.models.legislative_file import LegislativeFilesResponse
+from app.models.legislative_file import LegislativeFilesResponse, LegislativeFileSuggestionResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -58,4 +60,23 @@ def get_legislative_files(
         return JSONResponse(status_code=200, content={"data": records[:limit]})
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/legislative-files/suggestions", response_model=LegislativeFileSuggestionResponse)
+def get_legislation_suggestions(
+    request: Request,
+    query: str = Query(..., min_length=2, description="Fuzzy text to search legislation titles"),
+    limit: int = Query(5, ge=1, le=20, description="Number of suggestions to return"),
+):
+    caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    logger.info("GET /legislative-files/suggestions | caller=%s | query='%s' | limit=%s", caller_ip, query, limit)
+
+    try:
+        result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
+
+        return {"data": result.data[:limit]}
+
+    except Exception as e:
+        logger.error("INTERNAL ERROR: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

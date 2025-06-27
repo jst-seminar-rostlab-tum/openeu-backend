@@ -16,5 +16,15 @@ class LegislativeFile(BaseModel):
     similarity: Optional[float] = None
 
 
+class LegislativeFileSuggestion(BaseModel):
+    id: str
+    title: str
+    similarity_score: float
+
+
 class LegislativeFilesResponse(BaseModel):
     legislative_files: list[LegislativeFile]
+
+
+class LegislativeFileSuggestionResponse(BaseModel):
+    data: list[LegislativeFileSuggestion]
