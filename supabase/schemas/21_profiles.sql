@@ -4,16 +4,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     surname TEXT NOT NULL,
     company_name TEXT NOT NULL,
     company_description TEXT NOT NULL,
-    topic_list TEXT[] NOT NULL,
     countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
     newsletter_frequency TEXT NOT NULL DEFAULT 'none',
     embedding VECTOR(1536) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS profiles_to_topics (
-    profile_id UUID,
+    profile_id UUID NOT NULL,
     topic TEXT,
-    topic_id TEXT,
+    topic_id TEXT NOT NULL,
     FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
     FOREIGN KEY (topic_id) REFERENCES public.meeting_topics(id) ON DELETE CASCADE
 );
