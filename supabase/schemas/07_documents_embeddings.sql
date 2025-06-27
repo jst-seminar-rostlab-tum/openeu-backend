@@ -14,7 +14,6 @@ create index on documents_embeddings using ivfflat(embedding vector_l2_ops) with
 
 --TODO: Analyze should be run on the table every 10000 updates or so to keep ivfflat efficient!
 
-
 --Remote Procedure Call to query for K-NN
 -- src_tables:   list of table names
 -- content_columns: corresponding list of column names
