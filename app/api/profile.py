@@ -158,7 +158,7 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
                 ]
 
                 if link_records:
-                    insert_resp = supabase.table("profiles_to_topics").insert(link_records).execute()
+                    supabase.table("profiles_to_topics").insert(link_records).execute()
                     logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
                 else:
                     logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
