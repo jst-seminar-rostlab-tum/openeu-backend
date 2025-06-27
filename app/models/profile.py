@@ -9,9 +9,20 @@ class ProfileCreate(BaseModel):
     surname: str
     company_name: str
     company_description: str
-    topic_list: list[str]
+    topic_ids: list[str]
+    countries: list[str]
     newsletter_frequency: Literal["daily", "weekly", "none"]
 
 
-class ProfileDB(ProfileCreate):
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    surname: str | None = None
+    company_name: str | None = None
+    company_description: str | None = None
+    topic_ids: list[str] | None = None
+    countries: list[str] | None = None
+    newsletter_frequency: Literal["daily", "weekly", "none"] | None = None
+
+
+class ProfileReturn(ProfileCreate):
     embedding: list[float]
