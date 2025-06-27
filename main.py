@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 import logging
+import re
+from fastapi.responses import JSONResponse
 
 from app.api import profile
 from app.api.chat import router as api_chat
@@ -12,6 +15,7 @@ from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
 from app.api.suggestions import router as api_suggestions
+from app.core.auth import decode_supabase_jwt, User
 
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
@@ -66,6 +70,58 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(CustomCORSMiddleware)
+
+
+class JWTMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app: ASGIApp):
+        super().__init__(app)
+        self.public_paths = [r"^/$", r"^/docs$", r"^/redoc$", r"^/openapi.json$", r"^/scheduler/tick"]
+
+    async def dispatch(self, request: Request, call_next):
+        for pattern in self.public_paths:
+            if re.match(pattern, request.url.path):
+                response = await call_next(request)
+                return response
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Authentication required. Missing Authorization header."},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise ValueError("Invalid authentication scheme. Must be Bearer.")
+
+            payload = decode_supabase_jwt(token)
+
+            # Store the decoded user information in request.state
+            # This makes the user object available to any endpoint via `request.state.user`
+            # or through the `get_current_user` dependency.
+            request.state.user = User(id=payload.get("sub"), email=payload.get("email"))
+
+        except (ValueError, HTTPException) as e:
+            detail = getattr(e, "detail", str(e))
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": f"Invalid authentication token: {detail}"},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": f"An unexpected error occurred during authentication: {e}"},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        response = await call_next(request)
+        return response
+
+
+app.add_middleware(JWTMiddleware)
 
 
 @app.get("/")
