@@ -151,7 +151,10 @@ def get_meetings(
             # --- USER RELEVANT MEETINGS CASE ---
         if user_id:
             relevant = fetch_relevant_meetings(user_id=user_id, k=limit, query_to_compare=db_query)
-            return relevant.meetings
+            data = []
+            for m in relevant.meetings:
+                data.append(m.model_dump(mode="json"))
+            return JSONResponse(status_code=200, content={"data": data})
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data
