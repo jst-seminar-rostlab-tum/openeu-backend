@@ -38,13 +38,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Copy site-packages from builder (user deps)
 COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /usr/local/bin/poetry /usr/local/bin/poetry
+
 
 # Copy app source code
 COPY . .
 
 # Port
 EXPOSE 3000
+
+# Validate runtime health
+RUN echo "✅ Checking Playwright..." && \
+    playwright --version && \
+    echo "✅ Checking Crawl4AI..." && \
+    crawl4ai-doctor || echo "⚠️  Crawl4AI doctor failed – this may be expected on certain hosts"
 
 # Start command
 CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--log-config", "log_conf.yaml", "--reload"]
