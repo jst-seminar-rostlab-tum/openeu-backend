@@ -24,8 +24,38 @@ from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissi
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
+from app.core.alerts import (
+    fetch_due_alerts,
+    process_alert,
+)
+from app.core.mail.alert_email import SmartAlertMailer
 
 logger = logging.getLogger(__name__)
+
+
+# ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
+def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
+    """
+    Loop over all *due* alerts and e-mail the user any new meetings.
+    """
+    due_alerts = fetch_due_alerts()
+    logger.info("Processing %d alert(s)", len(due_alerts))
+    email_sent = False
+    for alert in due_alerts:
+        if stop_event.is_set():
+            logger.warning("Stop event set – aborting smart-alerts job")
+            return email_sent
+
+        meetings = process_alert(alert)
+        if not meetings:
+            continue
+
+        email_sent = SmartAlertMailer.send_alert_email(
+            user_id=alert["user_id"],
+            alert=alert,
+            meetings=meetings,
+        )
+    return email_sent
 
 
 def scrape_eu_laws_by_topic(stop_event: multiprocessing.synchronize.Event):
@@ -210,3 +240,8 @@ def setup_scheduled_jobs():
     scheduler.register("send_weekly_newsletter", send_weekly_newsletter, schedule.every().monday.at("08:00"))
     scheduler.register("clean_up_embeddings", clean_up_embeddings, schedule.every().day.at("04:40"))
     scheduler.register("scrape_tweets", scrape_tweets, schedule.every().day.at("04:50"))
+    scheduler.register(
+        "send_smart_alerts",
+        send_smart_alerts,
+        schedule.every().hour.at(":15"),  # hourly
+    )
