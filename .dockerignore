@@ -1,39 +1,13 @@
-# Python cache
 __pycache__/
-*.py[cod]
-
-# Logs
+*.pyc
+*.pyo
 *.log
-
-# Git / VCS
 .git/
-*.md
-
-# IDE / editor
 .vscode/
 .idea/
-
-# Python envs
-.venv/
-venv/
-
-# Dev folders
 tests/
 notebooks/
 examples/
-
-# Node.js
 node_modules/
-
-# Docker sensitive
+.DS_Store
 .env
-*.DS_Store
-.cache/
-.local/
-
-
-playwright/
-crawl4ai/
-scripts/
-bin/
-*.egg-info/

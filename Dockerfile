@@ -7,54 +7,40 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     POETRY_NO_INTERACTION=1
 
-# Install system deps & Poetry
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget unzip build-essential && \
     pip install --no-cache-dir poetry==2.1.3 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable in-project virtualenvs
 ENV POETRY_VIRTUALENVS_CREATE=true
 RUN poetry config virtualenvs.in-project true
 
-# Copy dependency definitions only
 COPY pyproject.toml poetry.lock* ./
-
-# Install only main dependencies into .venv
 RUN poetry install --only main --no-root
 
 # === Stage 2: Runtime ===
 FROM trungnguyen1409/openeu-base@sha256:22b8522a91d1341bf7609db757e7a507aa2822ba0e059295dc21a28fedcb2f94
 
-# Health checks (optional)
-RUN echo "✅ Checking Playwright..." && \
-    playwright --version && \
-    echo "✅ Checking Crawl4AI..." && \
-    crawl4ai-doctor || echo "⚠️  Crawl4AI doctor failed – this may be expected on certain hosts"
-
 WORKDIR /code
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/code/.venv/bin:$PATH" \
-    VIRTUAL_ENV="/code/.venv"
+    VIRTUAL_ENV="/code/.venv" \
+    PATH="/code/.venv/bin:$PATH"
 
-# Copy installed virtual environment from builder
+# Copy prebuilt venv + deps
 COPY --from=builder /app/.venv /code/.venv
 COPY --from=builder /app/poetry.lock /code/
 COPY --from=builder /app/pyproject.toml /code/
 
-# Copy app source code
+# Copy app source
 COPY . .
 
-# Optional: Clean dev stuff not already ignored by .dockerignore
+# Optional cleanup
 RUN rm -rf tests/ examples/ notebooks/ .git __pycache__
 
-# Health checks (optional)
-RUN echo "✅ Checking Playwright..." && \
-    playwright --version && \
-    echo "✅ Checking Crawl4AI..." && \
-    crawl4ai-doctor || echo "⚠️  Crawl4AI doctor failed – this may be expected on certain hosts"
+# Health check
+RUN crawl4ai-doctor || echo "⚠️  Crawl4AI doctor failed – continuing"
 
 EXPOSE 3000
 
