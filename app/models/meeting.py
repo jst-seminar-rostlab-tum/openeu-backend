@@ -9,7 +9,7 @@ class Meeting(BaseModel):
     source_table: str
     source_id: str
     title: str
-    topic: str
+    topic: Optional[str] = None
     status: Optional[str] = None
     meeting_url: Optional[str] = None
     meeting_start_datetime: datetime
