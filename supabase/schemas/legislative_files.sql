@@ -3,8 +3,14 @@ create table if not exists public.legislative_files (
     link text,
     title text,
     lastpubdate text,
+    details_link text,
     committee text,
     rapporteur text,
-    embedding_input text,                
-    scraped_at timestamp with time zone NOT NULL DEFAULT now()
+    status text,
+    subjects jsonb,
+    key_players jsonb,
+    key_events jsonb,
+    documentation_gateway jsonb,
+    embedding_input text,
+    scraped_at timestamp with time zone not null default now()
 );
