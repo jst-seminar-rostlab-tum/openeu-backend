@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
-from app.models.profile import ProfileCreate, ProfileUpdate, ProfileDB, ProfileReturn
+from app.models.profile import ProfileCreate, ProfileUpdate, ProfileReturn
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def create_embeddings(profile: SimpleNamespace):
     """
-    Create or update a user profile: compute embedding from company_name, company_description, and topic_id_list,
+    Create or update a user profile: compute embedding from company_name, company_description, and topic_ids,
     then upsert the record into Supabase.
     """
     # Build input text for embedding
@@ -45,7 +45,7 @@ async def create_profile(profile: ProfileCreate):
     # Upsert into Supabase
     payload = profile.model_dump()
 
-    topic_ids = payload.pop("topic_id_list")
+    topic_ids = payload.pop("topic_ids")
 
     payload["id"] = str(payload["id"])
     payload["embedding"] = embedding
@@ -110,9 +110,8 @@ def get_user_profile(user_id: str) -> JSONResponse:
         )
 
         topic_ids = [item["topic_id"] for item in result_topics.data or []]
-        topics = [item["topic"] for item in result_topics.data or []]
 
-        payload = {**profile, "topic_ids": topic_ids, "topics": topics}
+        payload = {**profile, "topic_ids": topic_ids}
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=payload)
     except Exception as e:
@@ -120,18 +119,18 @@ def get_user_profile(user_id: str) -> JSONResponse:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
 
 
-@router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileDB)
+@router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
 async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
     try:
         payload = profile.model_dump(exclude_unset=True)
-        topic_ids = payload.pop("topic_id_list") if "topic_id_list" in payload else []
+        topic_ids = payload.pop("topic_ids") if "topic_ids" in payload else []
 
         if payload:
             result = supabase.table("profiles").update(payload).eq("id", user_id).execute()
             if len(result.data) == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
             if (
-                profile.topic_id_list is not None
+                profile.topic_ids is not None
                 or profile.company_name is not None
                 or profile.company_description is not None
                 or profile.countries is not None
@@ -144,7 +143,7 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
         else:
             result = {}
 
-        if profile.topic_id_list is not None:
+        if profile.topic_ids is not None:
             profile_id = user_id
             try:
                 supabase.table("profiles_to_topics").delete().eq("profile_id", user_id).execute()
@@ -160,12 +159,6 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
 
                 if link_records:
                     insert_resp = supabase.table("profiles_to_topics").insert(link_records).execute()
-                    inserted = insert_resp.data or []
-                    result = {
-                        **result,
-                        "topics_requested": topics_data,  # the topics you looked up
-                        "links_created": inserted,  # the rows you actually wrote
-                    }
                     logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
                 else:
                     logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
