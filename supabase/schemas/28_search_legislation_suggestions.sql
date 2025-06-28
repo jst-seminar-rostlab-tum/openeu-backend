@@ -12,9 +12,15 @@ as $$
   select DISTINCT
     id,
     title,
-    similarity(title, search_text) as similarity_score
+    GREATEST(
+      similarity(title, search_text),
+      similarity(id, search_text)
+    ) as similarity_score
   from legislative_files
-  where similarity(title, search_text) > 0.1
+  where (
+    similarity(title, search_text) > 0.1
+    or similarity(id, search_text) > 0.1
+  )
     and title is not null
   order by similarity_score desc
   limit 5
