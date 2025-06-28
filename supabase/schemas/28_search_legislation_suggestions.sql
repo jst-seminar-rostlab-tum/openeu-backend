@@ -9,19 +9,22 @@ returns table (
 )
 language sql
 as $$
-  select DISTINCT
+  select 
     id,
     title,
-    GREATEST(
-      similarity(title, search_text),
-      similarity(id, search_text)
-    ) as similarity_score
-  from legislative_files
-  where (
-    similarity(title, search_text) > 0.1
-    or similarity(id, search_text) > 0.1
-  )
-    and title is not null
+    similarity_score
+  from (
+    select 
+      id,
+      title,
+      GREATEST(
+        similarity(title, search_text),
+        similarity(id, search_text)
+      ) as similarity_score
+    from legislative_files
+    where (title is not null or id is not null)
+  ) scored
+  where similarity_score > 0.1
   order by similarity_score desc
   limit 5
 $$; 
