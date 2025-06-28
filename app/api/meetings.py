@@ -200,7 +200,7 @@ def get_meetings_by_legislative_id(
     limit: int = Query(500, gt=0, le=1000, description="Maximum number of meetings to return"),
 ) -> JSONResponse:
     """
-    Returns all meetings from the mep_meetings table that reference the given legislative (procedure_reference) ID.
+    Returns all meetings from the mep_meetings table that reference the given legislative (procedure_reference) ID
     """
     try:
         if not legislative_id or not legislative_id.strip():
