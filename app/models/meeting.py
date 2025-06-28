@@ -21,5 +21,14 @@ class Meeting(BaseModel):
     similarity: Optional[float] = None
 
 
+class MeetingSuggestion(BaseModel):
+    title: str
+    similarity_score: float
+
+
 class RelevantMeetingsResponse(BaseModel):
     meetings: list[Meeting]
+
+
+class MeetingSuggestionResponse(BaseModel):
+    data: list[MeetingSuggestion]

@@ -1,56 +1,29 @@
-# === Stage 1: Builder ===
-FROM python:3.13-slim AS builder
-
-WORKDIR /code
-
-# Install system dependencies (for Chromium & Playwright)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget unzip xvfb nodejs npm \
-    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-    libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
-    libcairo2 libasound2 libsecret-1-0 libgles2 \
-    libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml poetry.lock* ./
-
-# Install Poetry and shared CLI tools
-RUN pip install --no-cache-dir poetry==2.1.3 crawl4ai playwright
-
-# Install Chromium for Playwright
-RUN poetry run playwright install chromium
-# TRY THIS: RUN playwright install chromium
-
-# Clean up unnecessary caches and Chromium extras
-RUN rm -rf \
-    /root/.cache/pip \
-    /root/.cache/ms-playwright \
-    /root/.cache/pypoetry \
-    /usr/local/lib/python3.13/site-packages/playwright/.local-browsers/**/chrome-linux/swiftshader \
-    /usr/local/lib/python3.13/site-packages/playwright/.local-browsers/**/chrome-linux/default-apps \
-    /usr/local/lib/python3.13/site-packages/playwright/.local-browsers/**/chrome-linux/locales \
-    /usr/local/lib/python3.13/site-packages/playwright/.local-browsers/**/chrome-linux/optimization_guide
-
-# Optional: Remove npm if not used at runtime
-RUN rm -rf /usr/lib/node_modules /usr/bin/npm
-
-
-# === Stage 2: Runtime ===
 FROM python:3.13-slim
 
 WORKDIR /code
 
-# Install only runtime system dependencies
+# Install minimal system dependencies for Chromium and crawl4ai
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    xvfb nodejs \
+    curl gnupg wget unzip xvfb libgbm1 \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
     libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
     libcairo2 libasound2 libsecret-1-0 libgles2 \
     libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    nodejs npm \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy only shared tools and site-packages
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin/poetry /usr/local/bin/poetry
-COPY --from=builder /usr/local/bin/playwright /usr/local/bin/playwright
-COPY --from=builder /usr/local/bin/crawl4ai* /usr/local/bin/
+# Install Poetry (only needed to resolve crawl4ai dep tree if required)
+RUN pip install --no-cache-dir poetry==2.1.3
+
+# Install only Playwright + crawl4ai (no app deps)
+RUN pip install --no-cache-dir playwright crawl4ai
+
+# Install Chromium browser for Playwright
+RUN playwright install chromium
+
+RUN crawl4ai-setup
+# Optional: Remove npm to reduce size (only if not needed later)
+RUN rm -rf /usr/lib/node_modules /usr/bin/npm
+
+# Sanity check
+RUN playwright --version && crawl4ai-doctor || echo "⚠️ Crawl4AI check failed but continuing..."
