@@ -75,7 +75,7 @@ app.add_middleware(CustomCORSMiddleware)
 class JWTMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp):
         super().__init__(app)
-        self.public_paths = [r"^/$", r"^/docs$", r"^/redoc$", r"^/openapi.json$", r"^/scheduler/tick"]
+        self.public_paths = [r"^/$", r"^/docs$", r"^/redoc$", r"^/openapi.json$", r"^/scheduler/tick", r"^/topics"]
 
     async def dispatch(self, request: Request, call_next):
         for pattern in self.public_paths:
