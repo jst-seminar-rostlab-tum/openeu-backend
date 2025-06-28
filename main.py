@@ -78,6 +78,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.public_paths = [r"^/$", r"^/docs$", r"^/redoc$", r"^/openapi.json$", r"^/scheduler/tick", r"^/topics"]
 
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         for pattern in self.public_paths:
             if re.match(pattern, request.url.path):
                 response = await call_next(request)
@@ -97,7 +100,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 raise ValueError("Invalid authentication scheme. Must be Bearer.")
 
             payload = decode_supabase_jwt(token)
-
             # Store the decoded user information in request.state
             # This makes the user object available to any endpoint via `request.state.user`
             # or through the `get_current_user` dependency.
@@ -105,6 +107,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         except (ValueError, HTTPException) as e:
             detail = getattr(e, "detail", str(e))
+
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": f"Invalid authentication token: {detail}"},
