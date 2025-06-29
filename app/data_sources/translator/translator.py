@@ -1,7 +1,20 @@
 import re
-from typing import cast
+from langdetect import detect, LangDetectException
 
-from deepl import TextResult, Translator
+from app.services.llm_service.llm_client import LLMClient
+from app.services.llm_service.llm_models import LLMModels
+import logging
+
+logger = logging.getLogger(__name__)
+
+base_prompt = (
+    "You are a professional translator. Translate "
+    "the following text to English, "
+    "without adding or removing meaning. Do not "
+    "assume facts not present in the original "
+    "text. Keep the translation as neutral and "
+    "faithful as possible.\n\n{content}"
+)
 
 
 class TextPreprocessor:
@@ -17,32 +30,50 @@ class TextPreprocessor:
         return text
 
 
-class DeepLTranslator:
+class Translator:
     """
-    Translates arbitrary text to English using DeepL.
-
-    Applies basic pre-cleaning to reduce character count and optimize API usage.
-
-    DeepL API usage constraints:
-    - Header size: max 16 KiB
-    - Request size: max 128 KiB
-    - Free tier: 500,000 characters/month
+    A service to translate text to English using an LLM.
     """
 
-    def __init__(self, deepl_translator: Translator, prod: bool = False):
+    def __init__(self, prod: bool = False):
         """
         Initialize the translator.
 
-        :param deepl_translator: Instance of DeepL Translator.
         :param prod: Flag to indicate whether translations should be performed (True for production).
         """
-        self.translator = deepl_translator
         self.prod = prod
 
-    def translate(self, text: str) -> TextResult:
-        if not self.prod:
-            return TextResult(text=text, detected_source_lang="unknown", billed_characters=0)
+    def translate(self, text: str) -> str:
+        """
+        Translates a single string of text into English.
 
-        cleaned_text = TextPreprocessor.clean(text)
-        result = self.translator.translate_text(cleaned_text, target_lang="EN-US")
-        return cast(TextResult, result)
+        If the text is already in English or translation fails, the original
+        text is returned.
+
+        Args:
+            :param text: The text to translate (e.g., a title or description).
+            :param self: The instance of the Translator class.
+
+        Returns:
+            str: The translated English text, or the original text.
+        """
+        if not text or not text.strip() or not self.prod:
+            return text
+
+        text = TextPreprocessor.clean(text)
+
+        try:
+            detected_lang = detect(text)
+            if detected_lang == "en":
+                return text
+        except LangDetectException:
+            logger.warning("Language detection failed for text, proceeding with translation attempt.")
+
+        try:
+            prompt = base_prompt.format(content=text)
+            llm_client = LLMClient(model=LLMModels.openai_4o_mini)
+            translated_text = llm_client.generate_response(prompt)
+            return translated_text
+        except Exception as e:
+            logger.error(f"Translation failed due to an error: {e}")
+            return text

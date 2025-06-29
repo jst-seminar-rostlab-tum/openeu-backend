@@ -13,10 +13,9 @@ from rapidfuzz import fuzz
 from scrapy.crawler import CrawlerProcess
 from scrapy.http import Response
 
-from app.core.deepl_translator import translator
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from app.data_sources.translator.translator import DeepLTranslator
+from app.data_sources.translator.translator import Translator
 
 # ------------------------------
 # Data Model
@@ -50,7 +49,7 @@ class SpanishCommissionSpider(scrapy.Spider):
         self.date = date
         self.result_callback = result_callback
         self.entries: list[CommissionAgendaEntry] = []
-        self.translator = DeepLTranslator(translator)
+        self.translator = Translator()
         super().__init__()
 
     async def start(self) -> AsyncGenerator[scrapy.Request, None]:
@@ -131,10 +130,10 @@ class SpanishCommissionSpider(scrapy.Spider):
                             else:
                                 links[label] = full_url
 
-            # title_en = self.translator.translate(title).text if title else "Untitled"
+            # title_en = self.translator.translate(title) if title else "Untitled"
 
             location = (location_div.css("::text").get() or "").strip() if location_div else None
-            # location_en = self.translator.translate(location).text if location else None
+            # location_en = self.translator.translate(location) if location else None
 
             embedding_input = (
                 f"{title} {self.date.isoformat()} {time} {location or ''} {description_text or ''}".strip()

@@ -8,10 +8,9 @@ from typing import Any, Optional
 import requests
 from pydantic import BaseModel
 
-from app.core.deepl_translator import translator
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from app.data_sources.translator.translator import DeepLTranslator
+from app.data_sources.translator.translator import Translator
 
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ class AustrianParliamentScraper(ScraperBase):
         self.start_date = start_date
         self.end_date = end_date
         self.session = requests.Session()
-        self.translator = DeepLTranslator(translator)
+        self.translator = Translator()
 
         # Configure headers for request
         self.session.headers.update(
@@ -172,7 +171,7 @@ class AustrianParliamentScraper(ScraperBase):
         title = " ".join(title.split())
         try:
             translation_result = self.translator.translate(title)
-            return title, translation_result.text
+            return title, translation_result
         except Exception as e:
             logger.warning(f"Translation failed for title '{title}': {e}. Using German title as English title.")
             return title, title
