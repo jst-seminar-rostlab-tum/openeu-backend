@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
@@ -28,6 +28,7 @@ def fetch_relevant_meetings(
     user_id: str,
     k: int,
     query_to_compare: Optional[SyncSelectRequestBuilder] = None,
+    consider_frequency: bool = True,
 ) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
@@ -78,28 +79,29 @@ def fetch_relevant_meetings(
     source_tables = [n["source_table"] for n in neighbors]
     source_ids = [n["source_id"] for n in neighbors]
 
-    # Get today's date range
-    today = datetime.now().date()
-    start_date = datetime.combine(today, time.min)
-    # Adjust end_date based on newsletter_frequency
-    if newsletter_frequency == "weekly":
-        from datetime import timedelta
+    rpc_params: dict = {
+        "source_tables": source_tables,
+        "source_ids": source_ids,
+        "max_results": k,
+    }
 
-        end_date = datetime.combine(today + timedelta(days=7), time.max)
-    else:
-        end_date = datetime.combine(today, time.max)
+    if consider_frequency:
+        # Get today's date range
+        today = datetime.now().date()
+        start_date = datetime.combine(today, time.min)
+        # Adjust end_date based on newsletter_frequency
+        if newsletter_frequency == "weekly":
+            end_date = datetime.combine(today + timedelta(days=7), time.max)
+        else:
+            end_date = datetime.combine(today, time.max)
+        rpc_params["start_date"] = start_date.isoformat()
+        rpc_params["end_date"] = end_date.isoformat()
 
     try:
         rows = (
             supabase.rpc(
                 "get_meetings_by_filter",
-                {
-                    "source_tables": source_tables,
-                    "source_ids": source_ids,
-                    "max_results": k,
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                },
+                rpc_params,
             )
             .execute()
             .data
