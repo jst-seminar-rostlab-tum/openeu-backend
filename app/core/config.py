@@ -70,6 +70,12 @@ class Settings:
             value = ""
         return value
 
+    def get_supabase_jwt_secret(self) -> str:
+        value = os.getenv("SUPABASE_JWT_SECRET")
+        if value is None:
+            value = ""
+        return value
+
     def get_supabase_project_id(self) -> str:
         value = os.getenv("SUPABASE_PROJECT_ID")
         if value is None:
