@@ -8,9 +8,8 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
 
-from app.core.deepl_translator import translator
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from app.data_sources.translator.translator import DeepLTranslator
+from app.data_sources.translator.translator import Translator
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ class BelgianParliamentScraper(ScraperBase):
             end_date: Optional end date for filtering meetings
         """
         super().__init__(table_name="belgian_parliament_meetings", stop_event=stop_event)
-        self.translator = DeepLTranslator(translator)
+        self.translator = Translator()
         self.start_date = start_date or date.today()
         self.end_date = end_date or self.start_date
         self.current_date = self.start_date
@@ -179,7 +178,7 @@ class BelgianParliamentScraper(ScraperBase):
         title_en = ""
         try:
             translation_result = self.translator.translate(title)
-            title_en = translation_result.text
+            title_en = translation_result
         except Exception as e:
             logger.warning(f"Translation failed for title '{title}': {e}. Using Belgian title as English title.")
             title_en = title
@@ -242,7 +241,7 @@ class BelgianParliamentScraper(ScraperBase):
         if description:
             try:
                 translation_result = self.translator.translate(description)
-                description_en = translation_result.text
+                description_en = translation_result
             except Exception as e:
                 logger.warning(
                     f"Translation failed for description '{description}': {e}. \
