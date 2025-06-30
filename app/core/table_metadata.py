@@ -5,6 +5,7 @@ TABLE_METADATA = {
     "austrian_parliament_meetings": "Meetings of the Austrian National Council and Federal Council",
     "belgian_parliament_meetings": "Meetings of the Belgian Federal Parliament",
     "ep_meetings": "European Parliament committee meetings and plenary sessions",
+    "ipex_meetings": "Meetings of the Interparliamentary EU Information Exchange (IPEX)",
     "mec_prep_bodies_meetings": "Meetings of MEP preparatory bodies and working groups",
     "mec_sum_minist_meetings": "Meetings of EU Council ministerial summits",
     "meeting_calendar": "Calendar of EU institutional meetings",
