@@ -30,7 +30,7 @@ Table of contents:
 
 EC_RES_INNO_MEETINGS_BASE_URL = "https://research-and-innovation.ec.europa.eu/events/upcoming-events_en"
 EC_RES_INNO_MEETINGS_RSS_URL = "https://research-and-innovation.ec.europa.eu/node/4/rss_en"
-MEP_MEETINGS_TABLE_NAME = "ec_res_inno_meetings"
+EC_RES_INNO_MEETINGS_TABLE_NAME = "ec_res_inno_meetings"
 
 
 # ------------------------------
@@ -83,6 +83,11 @@ class EcResInnoMeetingRss(BaseModel):
 
 
 class EcResInnoMeetingsSpider(scrapy.Spider):
+    """A Scrapy spider for scraping Research and Innovation meetings from the European Commission website.
+    This spider scrapes meeting information from the RSS feed and the main events page and merges the results since
+    both sources contain different information about the same meetings.
+    """
+
     name = "meetings_spider"
     custom_settings = {"LOG_LEVEL": "ERROR", "CONCURRENT_REQUESTS": 1}
 
@@ -364,13 +369,13 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
 
 class EcResInnoMeetingsScraper(ScraperBase):
     """
-    A scraper for the MEP meetings of the European Parliament that implements Scraper Base Interface.
+    A scraper for the Innovation & Research meetings of the European Council that implements Scraper Base Interface.
     """
 
-    logger = logging.getLogger("MEPMeetingsScraper")
+    logger = logging.getLogger("EcResInnoMeetingsScraper")
 
     def __init__(self, start_date: date, end_date: date, stop_event: multiprocessing.synchronize.Event):
-        super().__init__(table_name=MEP_MEETINGS_TABLE_NAME, stop_event=stop_event)
+        super().__init__(table_name=EC_RES_INNO_MEETINGS_TABLE_NAME, stop_event=stop_event)
         self.start_date = start_date
         self.end_date = end_date
         self.entries: list[EcResInnoMeeting] = []
@@ -398,7 +403,6 @@ class EcResInnoMeetingsScraper(ScraperBase):
             return ScraperResult(success=False, error=e)
 
     def _collect_entry(self, entries: list[EcResInnoMeeting]):
-        # TODO upsert correctly
         for entry in entries:
             try:
                 self.store_entry(entry.model_dump(), embedd_entries=True)
