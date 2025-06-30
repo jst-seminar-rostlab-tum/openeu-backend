@@ -203,7 +203,7 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_legislative_observatory",
         scrape_legislative_observatory,
-        schedule.every().day.at("04:20"),
+        schedule.every().monday.at("04:20"),
         run_in_process=True,
     )
     scheduler.register("send_daily_newsletter", send_daily_newsletter, schedule.every().day.at("08:00"))

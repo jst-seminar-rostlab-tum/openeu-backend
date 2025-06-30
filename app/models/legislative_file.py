@@ -11,8 +11,14 @@ class LegislativeFile(BaseModel):
     link: Optional[str] = None
     title: str
     lastpubdate: Optional[date] = None
+    details_link: Optional[str] = None
     committee: Optional[str] = None
     rapporteur: Optional[str] = None
+    status: Optional[str] = None
+    subjects: Optional[list[str]] = None
+    key_players: Optional[list[dict]] = None
+    key_events: Optional[list[dict]] = None
+    documentation_gateway: Optional[list[dict]] = None
     similarity: Optional[float] = None
 
 
