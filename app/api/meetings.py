@@ -8,12 +8,8 @@ from fastapi.responses import JSONResponse
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
-from app.models.meeting import Meeting
+from app.models.meeting import Meeting, MeetingSuggestionResponse
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -154,8 +150,16 @@ def get_meetings(
 
             # --- USER RELEVANT MEETINGS CASE ---
         if user_id:
-            relevant = fetch_relevant_meetings(user_id=user_id, k=limit, query_to_compare=db_query)
-            return relevant.meetings
+            relevant = fetch_relevant_meetings(
+                user_id=user_id,
+                k=limit,
+                query_to_compare=db_query,
+                consider_frequency=False
+            )
+            data = []
+            for m in relevant.meetings:
+                data.append(m.model_dump(mode="json"))
+            return JSONResponse(status_code=200, content={"data": data})
 
         result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
         data = result.data
@@ -165,6 +169,25 @@ def get_meetings(
         # ---------- 2c)  LOG NON-EMPTY / EMPTY RESPONSE (default path) ----------
         logger.info("Response formed – %d result(s) from default query", len(data))
         return JSONResponse(status_code=200, content={"data": data})
+
+    except Exception as e:
+        logger.error("INTERNAL ERROR: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/meetings/suggestions", response_model=MeetingSuggestionResponse)
+def get_meeting_suggestions(
+    request: Request,
+    query: str = Query(..., min_length=2, description="Fuzzy text to search meeting titles"),
+    limit: int = Query(5, ge=1, le=20, description="Number of suggestions to return"),
+):
+    caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    logger.info("GET /meetings/suggestions | caller=%s | query='%s' | limit=%s", caller_ip, query, limit)
+
+    try:
+        result = supabase.rpc("search_meetings_suggestions", {"search_text": query}).execute()
+
+        return {"data": result.data[:limit]}
 
     except Exception as e:
         logger.error("INTERNAL ERROR: %s", e)

@@ -4,7 +4,6 @@ import logging
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
 

@@ -9,6 +9,7 @@ class Meeting(BaseModel):
     source_table: str
     source_id: str
     title: str
+    topic: Optional[str] = None
     status: Optional[str] = None
     meeting_url: Optional[str] = None
     meeting_start_datetime: datetime
@@ -20,5 +21,14 @@ class Meeting(BaseModel):
     similarity: Optional[float] = None
 
 
+class MeetingSuggestion(BaseModel):
+    title: str
+    similarity_score: float
+
+
 class RelevantMeetingsResponse(BaseModel):
     meetings: list[Meeting]
+
+
+class MeetingSuggestionResponse(BaseModel):
+    data: list[MeetingSuggestion]
