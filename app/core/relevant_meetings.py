@@ -1,6 +1,6 @@
 import logging
-from collections import defaultdict
 from typing import Optional
+from datetime import datetime, time, timedelta
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
@@ -28,13 +28,21 @@ def fetch_relevant_meetings(
     user_id: str,
     k: int,
     query_to_compare: Optional[SyncSelectRequestBuilder] = None,
+    consider_frequency: bool = True,
 ) -> RelevantMeetingsResponse:
     meetings: list[Meeting] = []
     # 1) load the stored profile embedding for `user_id`
     try:
-        resp = supabase.table("profiles").select("embedding", "countries").eq("id", user_id).single().execute()
+        resp = (
+            supabase.table("profiles")
+            .select("embedding", "countries", "newsletter_frequency")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
         profile_embedding = resp.data["embedding"]
         allowed_countries = resp.data["countries"]
+        newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()
         allowed_topic_ids = [d["topic_id"] for d in resp.data] or None
 
@@ -67,30 +75,44 @@ def fetch_relevant_meetings(
         return RelevantMeetingsResponse(meetings=[])
 
     # 3) fetch metadata for each neighbor
-    ids_by_source = defaultdict(list)
-    for n in neighbors:
-        ids_by_source[n["source_table"]].append(n["source_id"])
+    # Prepare lists for the filter function
+    source_tables = [n["source_table"] for n in neighbors]
+    source_ids = [n["source_id"] for n in neighbors]
+
+    rpc_params: dict = {
+        "source_tables": source_tables,
+        "source_ids": source_ids,
+        "max_results": k,
+    }
+
+    if consider_frequency:
+        # Get today's date range
+        today = datetime.now().date()
+        start_date = datetime.combine(today, time.min)
+        # Adjust end_date based on newsletter_frequency
+        if newsletter_frequency == "weekly":
+            end_date = datetime.combine(today + timedelta(days=7), time.max)
+        else:
+            end_date = datetime.combine(today, time.max)
+        rpc_params["start_date"] = start_date.isoformat()
+        rpc_params["end_date"] = end_date.isoformat()
+
+    try:
+        rows = (
+            supabase.rpc(
+                "get_meetings_by_filter",
+                rpc_params,
+            )
+            .execute()
+            .data
+        )
+    except Exception:
+        logger.exception("Unexpected error fetching meetings with filter")
+        return RelevantMeetingsResponse(meetings=[])
 
     fetched = {}
-    for source_table, id_list in ids_by_source.items():
-        try:
-            rows = (
-                supabase.table("v_meetings")
-                .select("*")
-                .eq("source_table", source_table)
-                .in_("source_id", id_list)
-                .execute()
-                .data
-            )
-        except Exception:
-            logger.exception("Unexpected error fetching %s", source_table)
-            continue
-
-        if not rows:
-            logger.info(f"No rows found for {source_table} with ids {id_list} ind v_meetings")
-
-        for row in rows:
-            fetched[(source_table, row["source_id"])] = row
+    for row in rows:
+        fetched[(row["source_table"], row["source_id"])] = row
 
     # 4) assemble ordered list, injecting similarity
     for n in neighbors:

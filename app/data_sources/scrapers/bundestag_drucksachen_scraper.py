@@ -6,9 +6,8 @@ from typing import Any, Optional
 
 import requests
 
-from app.core.deepl_translator import translator
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from app.data_sources.translator.translator import DeepLTranslator
+from app.data_sources.translator.translator import Translator
 
 
 class BundestagDrucksachenScraper(ScraperBase):
@@ -20,7 +19,7 @@ class BundestagDrucksachenScraper(ScraperBase):
         retry_delay: float = 2.0,
     ):
         super().__init__(table_name, stop_event, max_retries, retry_delay)
-        self.translator = DeepLTranslator(translator)
+        self.translator = Translator()
         self.API_BASE = "https://search.dip.bundestag.de/api/v1"
         self.API_KEY = os.getenv("BUNDESTAG_KEY")
         self.HEADERS = {"Authorization": f"ApiKey {self.API_KEY}"}
@@ -80,7 +79,7 @@ class BundestagDrucksachenScraper(ScraperBase):
                     record["text"] = text_json.get("text", "")
 
                     try:
-                        record["title_english"] = str(self.translator.translate(record["titel"] or ""))
+                        record["title_english"] = self.translator.translate(record["titel"] or "")
                     except Exception as e:
                         logging.error(f"Translation failed for {pid}: {e}")
                         record["title_english"] = "Not available"
