@@ -21,7 +21,7 @@ class LLMClient:
         https://docs.litellm.ai/docs/
 
     Examples:
-        >>> service = LLMClient(LLMModels.GPT_4)
+        >>> service = LLMClient(LLMModels.openai_4o)
         >>> response = service.generate_response("Tell me a joke")
     """
 

@@ -35,7 +35,7 @@ class Translator:
     A service to translate text to English using an LLM.
     """
 
-    def __init__(self, prod: bool = False):
+    def __init__(self, prod: bool = True):
         """
         Initialize the translator.
 
