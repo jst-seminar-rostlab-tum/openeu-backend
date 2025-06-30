@@ -73,7 +73,7 @@ class Settings:
     def get_supabase_jwt_secret(self) -> str:
         value = os.getenv("SUPABASE_JWT_SECRET")
         if value is None:
-            value = ""
+            raise ValueError("SUPABASE_JWT_SECRET environment variable is not set. This is required for authentication.")
         return value
 
     def get_supabase_project_id(self) -> str:
