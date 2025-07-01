@@ -63,6 +63,7 @@ class EmailService:
             EmailService.logger.warning("No recipients provided for email, doing nothing")
             return
 
+        sender_info = {"name": email.sender_name, "email": email.sender_email}
         env = os.getenv("ENVIRONMENT", "production").lower()
         backend = os.getenv("EMAIL_BACKEND", "brevo").lower()
 

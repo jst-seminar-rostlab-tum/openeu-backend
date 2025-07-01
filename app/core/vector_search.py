@@ -55,36 +55,40 @@ def get_top_k_neighbors(
     if sources == ["document_embeddings"]:
         rpc_name = "match_filtered"
 
-    elif sources == ["meeting_embeddings"]:
+    elif sources == ["meeting_embeddings"] or allowed_topic_ids or allowed_topics or allowed_countries:
         rpc_name = "match_filtered_meetings"
+    else:
+        rpc_name = "match_combined_filtered_embeddings"
 
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
 
     logger.info(f"Calling {rpc_name} with: query_embedding={embedding[:5]}, match_count={k}, (len={len(embedding)})")
     if rpc_name == "match_filtered_meetings":
-        rpc_args = {
-            "query_embedding": embedding,
-            "match_count": k,
-        }
+        if allowed_topics is not None and allowed_topics != []:
+            rpc_args = {
+                "query_embedding": embedding,
+                "match_count": k,
+            }
 
-        if tables:
-            rpc_args["src_tables"] = tables
-        if cols:
-            rpc_args["content_columns"] = cols
-        if allowed_topics:
-            rpc_args["allowed_topics"] = allowed_topics
-        if allowed_topic_ids:
-            rpc_args["allowed_topic_ids"] = allowed_topic_ids
-        if allowed_countries:
-            rpc_args["allowed_countries"] = allowed_countries
-        # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
-        rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
+            if tables:
+                rpc_args["src_tables"] = tables
+            if cols:
+                rpc_args["content_columns"] = cols
+            if allowed_topics:
+                rpc_args["allowed_topics"] = allowed_topics
+            if allowed_topic_ids:
+                rpc_args["allowed_topic_ids"] = allowed_topic_ids
+            if allowed_countries:
+                rpc_args["allowed_countries"] = allowed_countries
+            # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
+            rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
 
     return resp.data
+
 
 def get_top_k_neighbors_by_embedding(
     vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources: Optional[list[str]] = None
@@ -141,4 +145,3 @@ def get_top_k_neighbors_by_embedding(
             ).execute()
 
     return resp.data
-
