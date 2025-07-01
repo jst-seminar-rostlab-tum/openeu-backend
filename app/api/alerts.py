@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 
 from app.core.alerts import (
     create_alert,
@@ -51,7 +51,7 @@ async def create_alert_endpoint(alert: CreateAlertRequest, request: Request):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/alerts", response_model=List[AlertResponse])
+@router.get("/alerts", response_model=list[AlertResponse])
 async def get_alerts_endpoint(
     request: Request,
     user_id: str = Query(..., description="User ID for retrieving alerts"),

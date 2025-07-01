@@ -10,8 +10,6 @@ import smtplib
 from email.message import EmailMessage
 
 
-
-
 class Email:
     """
     Simple container for an outbound transactional e-mail.
@@ -46,7 +44,7 @@ class EmailService:
     configuration.api_key["api-key"] = settings.get_brevo_api_key()
     client = brevo_python.TransactionalEmailsApi(brevo_python.ApiClient(configuration))
     prevent_email_sending = not settings.is_production()
-   
+
     @staticmethod
     def _anonymize_email(email: str) -> str:
         if not email or "@" not in email:

@@ -50,7 +50,10 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
         if not meetings:
             continue
 
-        logger.info("About to call SmartAlertMailer.send_alert_email for user_id=%s, alert_id=%s", alert["user_id"], alert["id"])
+        logger.info(
+            "About to call SmartAlertMailer.send_alert_email for user_id=%s, " \
+            "alert_id=%s", alert["user_id"], alert["id"]
+        )
         email_sent = SmartAlertMailer.send_alert_email(
             user_id=alert["user_id"],
             alert=alert,

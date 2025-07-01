@@ -66,12 +66,18 @@ def get_top_k_neighbors(
         rpc_args = {
             "query_embedding": embedding,
             "match_count": k,
-            "src_tables": tables if tables else None,
-            "content_columns": cols if cols else None,
-            "allowed_topics": allowed_topics if allowed_topics is not None else None,
-            "allowed_topic_ids": allowed_topic_ids if allowed_topic_ids is not None else None,
-            "allowed_countries": allowed_countries if allowed_countries is not None else None,
         }
+
+        if tables:
+            rpc_args["src_tables"] = tables
+        if cols:
+            rpc_args["content_columns"] = cols
+        if allowed_topics:
+            rpc_args["allowed_topics"] = allowed_topics
+        if allowed_topic_ids:
+            rpc_args["allowed_topic_ids"] = allowed_topic_ids
+        if allowed_countries:
+            rpc_args["allowed_countries"] = allowed_countries
         # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
         rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
 
@@ -81,7 +87,7 @@ def get_top_k_neighbors(
     return resp.data
 
 def get_top_k_neighbors_by_embedding(
-    vector_embedding: list[float], allowed_sources: Optional[dict[str, str]] = None, k: int = 5, sources: Optional[list] = None
+    vector_embedding: list[float], allowed_sources: dict[str, str], k: int = 5, sources: Optional[list[str]] = None
 ) -> list[dict]:
     """
     Fetch the top-k nearest neighbors for a pre-computed embedding.
@@ -98,8 +104,7 @@ def get_top_k_neighbors_by_embedding(
     Returns:
         A list of dicts representing matching records.
     """
-    tables = []
-    cols = []
+    resp = None
     if allowed_sources:
         tables = list(allowed_sources.keys())
         cols = list(allowed_sources.values())

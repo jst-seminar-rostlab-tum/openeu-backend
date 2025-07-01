@@ -1,4 +1,14 @@
 import os
+import multiprocessing
+import logging
+import smtplib
+from email.mime.text import MIMEText
+
+from app.core.jobs import send_smart_alerts
+from app.core.mail.newsletter import get_user_email
+from app.core.supabase_client import supabase
+from app.core.alerts import create_alert, get_user_alerts, build_embedding
+
 os.environ.update({
     "EMAIL_BACKEND": "local_dev_only_smtp",
     "EMAIL_HOST": "localhost",
@@ -9,22 +19,11 @@ os.environ.update({
     "ENVIRONMENT": "development",
 })
 
-import multiprocessing
-import psycopg2
-from app.core.jobs import send_smart_alerts
-from app.core.mail.newsletter import get_user_email
-from app.core.supabase_client import supabase
-from app.core.alerts import create_alert, get_user_alerts
-
-import logging
 logging.basicConfig(
     level=logging.INFO,  # or logging.DEBUG for more detail
-    format="%(asctime)s %(levelname)s %(name)s - %(message)s"
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
 )
 
-
-from app.core.supabase_client import supabase
-from app.core.alerts import build_embedding
 # or wherever your embedding logic lives!
 
 # Set this to the test alert ID you want to update, or loop over all
@@ -77,11 +76,7 @@ def get_or_create_user(email):
         print("User already exists:", user.id)
         return user.id
     print("Creating test user via Admin API...")
-    resp = supabase.auth.admin.create_user({
-        "email": email,
-        "password": "testpassword",
-        "email_confirm": True
-    })
+    resp = supabase.auth.admin.create_user({"email": email, "password": "testpassword", "email_confirm": True})
     user_id = resp.user.id if hasattr(resp, "user") else resp["user"]["id"]
     print("Created user:", user_id)
     return user_id
@@ -89,20 +84,24 @@ def get_or_create_user(email):
 
 USER_ID = get_or_create_user(USER_EMAIL)
 
+
 def ensure_profile_exists():
     resp = supabase.table("profiles").select("*").eq("id", USER_ID).execute()
     if not resp.data:
         print("Inserting profile row...")
-        supabase.table("profiles").insert({
-            "id": USER_ID,
-            "name": PROFILE_NAME,
-            "surname": "Kleinle",
-            "company_name": "TestCompany",
-            "company_description": "Test company description",
-            "embedding": [0.0] * 1536,
-            "newsletter_frequency": "daily",
-            "countries": [],   # Required, since 'countries' is not null!
-        }).execute()
+        supabase.table("profiles").insert(
+            {
+                "id": USER_ID,
+                "name": PROFILE_NAME,
+                "surname": "Kleinle",
+                "company_name": "TestCompany",
+                "company_description": "Test company description",
+                "embedding": [0.0] * 1536,
+                "newsletter_frequency": "daily",
+                "countries": [],  # Required, since 'countries' is not null!
+            }
+        ).execute()
+
 
 def ensure_alert_exists():
     alerts = get_user_alerts(USER_ID)
@@ -110,9 +109,11 @@ def ensure_alert_exists():
         print("Creating dummy alert...")
         create_alert(user_id=USER_ID, description="Test alert for dev")
 
+
 def test_get_user_email():
     email = get_user_email(USER_ID)
     print("Fetched email:", email)
+
 
 if __name__ == "__main__":
     ensure_profile_exists()
@@ -122,7 +123,6 @@ if __name__ == "__main__":
     stop_event = multiprocessing.Event()
     print("Running send_smart_alerts...")
     send_smart_alerts(stop_event)
-
 
 
 print("=== About to call send_smart_alerts ===")
