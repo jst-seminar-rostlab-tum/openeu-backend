@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class Person(BaseModel):
+class Rapporteur(BaseModel):
     name: str
     link: Optional[str] = None
 
@@ -19,8 +19,8 @@ class KeyPlayer(BaseModel):
     committee: str
     committee_full: Optional[str] = None
     committee_link: Optional[str] = None
-    rapporteurs: Optional[list[Person]] = None
-    shadow_rapporteurs: Optional[list[Person]] = None
+    rapporteurs: Optional[list[Rapporteur]] = None
+    shadow_rapporteurs: Optional[list[Rapporteur]] = None
 
 
 class KeyEvent(BaseModel):

@@ -6,8 +6,8 @@ import scrapy
 from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 
-from app.data_sources.scrapers.base_scraper import ScraperBase, ScraperResult
-from app.models.legislative_file import KeyPlayer, KeyEvent, Person, Reference
+from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.models.legislative_file import KeyPlayer, KeyEvent, Rapporteur, Reference
 
 
 # ------------------------------
@@ -116,7 +116,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                     href = tag.attrib.get("href")
                     if name:
                         rapporteurs.append(
-                            Person(name=name.strip(), link=response.urljoin(href) if href else None))
+                            Rapporteur(name=name.strip(), link=response.urljoin(href) if href else None))
 
                 # --- Shadow Rapporteurs ---
                 shadow_rapporteurs = []
@@ -129,7 +129,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                         href = tag.attrib.get("href")
                         if name:
                             shadow_rapporteurs.append(
-                                Person(name=name.strip(), link=response.urljoin(
+                                Rapporteur(name=name.strip(), link=response.urljoin(
                                     href) if href else None)
                             )
 
