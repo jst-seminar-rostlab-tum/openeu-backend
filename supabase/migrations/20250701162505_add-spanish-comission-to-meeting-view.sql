@@ -1,3 +1,10 @@
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('spanish_commission_meetings',    'Spain',          'ES')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+
 CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings
