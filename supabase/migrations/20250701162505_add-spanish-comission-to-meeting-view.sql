@@ -155,25 +155,34 @@ with base as (
 
     -- Spanish Commission meetings
     select
-        s.id || '_spanish_commission'              as meeting_id,
-        s.id                                       as source_id,
-        'spanish_commission_meetings'              as source_table,
-        coalesce(s.title_en, s.title)              as title,
+        s.id || '_spanish_commission'              AS meeting_id,
+        s.id                                       AS source_id,
+        'spanish_commission_meetings'              AS source_table,
+        coalesce(s.title_en, s.title)              AS title,
         (
-            -- date is DATE, time is optional TEXT -> build timestamptz
-            -- fallback to time = 00:00, if no time provided
-            (s.date
-             + coalesce(s.time::time, '00:00'::time)
-            )                                     ::timestamptz
-        )                                          as meeting_start_datetime,
-        null::timestamptz                          as meeting_end_datetime,
-        coalesce(s.location_en, s.location)        as exact_location,
-        coalesce(s.description_en, s.description)  as description,
-        s.url                                      as meeting_url,
-        null::text                                 as status,
-        null::text                                 as source_url,
-        null::text[]                               as tags,
-        s.scraped_at                               as scraped_at
+            s.date +
+            COALESCE(
+            -- Extract time if it matches 'HH:MM' at the start (with optional space, period, or 'h.')
+            (
+                CASE
+                WHEN s.time IS NULL OR trim(s.time) = '' OR lower(trim(s.time)) = 'empty'
+                    THEN NULL
+                WHEN trim(s.time) ~ '^(\d{1,2}:\d{2})'
+                    THEN substring(trim(s.time) FROM '^(\d{1,2}:\d{2})')::time
+                ELSE NULL
+                END
+            ),
+            '00:00'::time
+            )
+        )::timestamptz                             AS meeting_start_datetime,
+        NULL::timestamptz                          AS meeting_end_datetime,
+        coalesce(s.location_en, s.location)        AS exact_location,
+        coalesce(s.description_en, s.description)  AS description,
+        s.url                                      AS meeting_url,
+        NULL::text                                 AS status,
+        NULL::text                                 AS source_url,
+        NULL::text[]                               AS tags,
+        s.scraped_at                               AS scraped_at
     from public.spanish_commission_meetings s
 
     union all
