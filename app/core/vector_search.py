@@ -68,18 +68,12 @@ def get_top_k_neighbors(
         rpc_args = {
             "query_embedding": embedding,
             "match_count": k,
+            **({"src_tables": tables} if tables else {}),
+            **({"content_columns": cols} if cols else {}),
+            **({"allowed_topics": allowed_topics} if allowed_topics else {}),
+            **({"allowed_topic_ids": allowed_topic_ids} if allowed_topic_ids else {}),
+            **({"allowed_countries": allowed_countries} if allowed_countries else {}),
         }
-
-        if tables:
-            rpc_args["src_tables"] = tables
-        if cols:
-            rpc_args["content_columns"] = cols
-        if allowed_topics:
-            rpc_args["allowed_topics"] = allowed_topics
-        if allowed_topic_ids:
-            rpc_args["allowed_topic_ids"] = allowed_topic_ids
-        if allowed_countries:
-            rpc_args["allowed_countries"] = allowed_countries
         # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
         rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
 
