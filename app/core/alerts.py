@@ -122,14 +122,15 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
     Duplicates that were already sent via *alert_notifications* are filtered
     out so a given user only ever receives a meeting once per alert.
     """
+    # Patch: match_filtered_meetings requires content_columns and src_tables as args!
     neighbors = get_top_k_neighbors(
         embedding=alert["embedding"],
-        k=k,
+        k=50,
         sources=["meeting_embeddings"],
-        allowed_sources={},
-        allowed_topics=[],
-        allowed_topic_ids=[],
-        allowed_countries=[],
+        allowed_sources=None,           # << Allow any table/column
+        allowed_topics=None,
+        allowed_topic_ids=None,
+        allowed_countries=None,
     )
     if not neighbors:
         return []
@@ -168,7 +169,6 @@ def process_alert(alert: dict) -> list[dict]:
     """
     meetings = find_relevant_meetings_for_alert(alert)
     if not meetings:
-        mark_alert_ran(alert["id"])
         return []
 
     logger.info(

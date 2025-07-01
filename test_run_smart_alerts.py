@@ -6,6 +6,25 @@ from app.core.mail.newsletter import get_user_email
 from app.core.supabase_client import supabase
 from app.core.alerts import create_alert, get_user_alerts
 
+import logging
+logging.basicConfig(
+    level=logging.INFO,  # or logging.DEBUG for more detail
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s"
+)
+
+
+from app.core.supabase_client import supabase
+from app.core.alerts import build_embedding
+# or wherever your embedding logic lives!
+
+# Set this to the test alert ID you want to update, or loop over all
+""" alert_rows = supabase.table("alerts").select("*").execute().data
+
+for alert in alert_rows:
+    new_emb = build_embedding(alert['description'])   # ensure you use the same context logic
+    supabase.table("alerts").update({"embedding": new_emb}).eq("id", alert["id"]).execute()
+    print(f"Updated alert {alert['id']}") """
+
 
 """ import smtplib
 from email.mime.text import MIMEText
@@ -21,6 +40,23 @@ with smtplib.SMTP("localhost", 1025) as server:
 
 USER_EMAIL = "ju-kleinle@web.de"
 PROFILE_NAME = "Julius Kleinle"
+
+
+import smtplib
+from email.mime.text import MIMEText
+
+
+print("=== Starting test_run_smart_alerts.py ===")
+
+
+msg = MIMEText("Hello from local test!")
+msg["Subject"] = "Mailpit Test"
+msg["From"] = "sender@example.com"
+msg["To"] = "receiver@example.com"
+
+with smtplib.SMTP("localhost", 1025) as server:
+    server.send_message(msg)
+
 
 # Step 1: Create/check user via Admin API
 def get_or_create_user(email):
@@ -53,9 +89,9 @@ def ensure_profile_exists():
             "surname": "Kleinle",
             "company_name": "TestCompany",
             "company_description": "Test company description",
-            "topic_list": [],
             "embedding": [0.0] * 1536,
             "newsletter_frequency": "daily",
+            "countries": [],   # Required, since 'countries' is not null!
         }).execute()
 
 def ensure_alert_exists():
@@ -76,3 +112,7 @@ if __name__ == "__main__":
     stop_event = multiprocessing.Event()
     print("Running send_smart_alerts...")
     send_smart_alerts(stop_event)
+
+
+
+print("=== About to call send_smart_alerts ===")
