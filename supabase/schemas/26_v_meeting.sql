@@ -154,7 +154,6 @@ with base as (
     union all
 
     -- Spanish Commission meetings
-    -- Spanish Commission meetings (robust time handling)
     select
         s.id || '_spanish_commission'              AS meeting_id,
         s.id                                       AS source_id,
