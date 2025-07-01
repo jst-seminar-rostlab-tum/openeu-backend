@@ -65,24 +65,23 @@ def get_top_k_neighbors(
 
     logger.info(f"Calling {rpc_name} with: query_embedding={embedding[:5]}, match_count={k}, (len={len(embedding)})")
     if rpc_name == "match_filtered_meetings":
-        if allowed_topics is not None and allowed_topics != []:
-            rpc_args = {
-                "query_embedding": embedding,
-                "match_count": k,
-            }
+        rpc_args = {
+            "query_embedding": embedding,
+            "match_count": k,
+        }
 
-            if tables:
-                rpc_args["src_tables"] = tables
-            if cols:
-                rpc_args["content_columns"] = cols
-            if allowed_topics:
-                rpc_args["allowed_topics"] = allowed_topics
-            if allowed_topic_ids:
-                rpc_args["allowed_topic_ids"] = allowed_topic_ids
-            if allowed_countries:
-                rpc_args["allowed_countries"] = allowed_countries
-            # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
-            rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
+        if tables:
+            rpc_args["src_tables"] = tables
+        if cols:
+            rpc_args["content_columns"] = cols
+        if allowed_topics:
+            rpc_args["allowed_topics"] = allowed_topics
+        if allowed_topic_ids:
+            rpc_args["allowed_topic_ids"] = allowed_topic_ids
+        if allowed_countries:
+            rpc_args["allowed_countries"] = allowed_countries
+        # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
+        rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
 
     resp = supabase.rpc(rpc_name, rpc_args).execute()
     logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
