@@ -1,4 +1,14 @@
 import os
+os.environ.update({
+    "EMAIL_BACKEND": "local_dev_only_smtp",
+    "EMAIL_HOST": "localhost",
+    "EMAIL_PORT": "1025",
+    "EMAIL_USER": "",
+    "EMAIL_PASS": "",
+    "EMAIL_USE_TLS": "false",   # or "0"
+    "ENVIRONMENT": "development",
+})
+
 import multiprocessing
 import psycopg2
 from app.core.jobs import send_smart_alerts

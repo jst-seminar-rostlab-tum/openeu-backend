@@ -46,7 +46,7 @@ class EmailService:
     configuration.api_key["api-key"] = settings.get_brevo_api_key()
     client = brevo_python.TransactionalEmailsApi(brevo_python.ApiClient(configuration))
     prevent_email_sending = not settings.is_production()
-
+   
     @staticmethod
     def _anonymize_email(email: str) -> str:
         if not email or "@" not in email:
@@ -63,9 +63,32 @@ class EmailService:
     def send_email(email: Email):
         if len(email.recipients) == 0:
             EmailService.logger.warning("No recipients provided for email, doing nothing")
+            return
 
+        env = os.getenv("ENVIRONMENT", "production").lower()
+        backend = os.getenv("EMAIL_BACKEND", "brevo").lower()
+
+        # Send using SMTP if explicitly requested in dev
+        if backend == "local_dev_only_smtp" and env == "development":
+            msg = EmailMessage()
+            msg["Subject"] = email.subject
+            msg["From"] = email.sender_email
+            msg["To"] = ", ".join(email.recipients)
+            msg.set_content(email.text_body or "This is a fallback text body")
+            msg.add_alternative(email.html_body, subtype="html")
+            with smtplib.SMTP(os.getenv("EMAIL_HOST", "localhost"), int(os.getenv("EMAIL_PORT", "1025"))) as smtp:
+                smtp.send_message(msg)
+            EmailService.logger.info(f"Email sent via SMTP to {email.recipients}")
+            return
+
+        # LOGGING ONLY: Dev environment, but not the special SMTP case
+        if env == "development":
+            for recipient in email.recipients:
+                EmailService.logger.info(f"[DEV] Would send email to: {recipient}")
+            return
+
+        # Default: Production - Actually send with Brevo
         sender_info = {"name": email.sender_name, "email": email.sender_email}
-
         for recipient in email.recipients:
             to_field = [{"email": recipient}]
             email_data = brevo_python.SendSmtpEmail(
@@ -77,10 +100,6 @@ class EmailService:
                 reply_to={"email": email.reply_to} if email.reply_to else None,
                 headers=email.headers or None,
             )
-
-            if EmailService.prevent_email_sending:
-                EmailService.logger.info(f"[DEV] Would send email to: {recipient}")
-            else:
-                EmailService.client.send_transac_email(email_data)
-                anonymized_recipient = EmailService._anonymize_email(recipient)
-                EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")
+            EmailService.client.send_transac_email(email_data)
+            anonymized_recipient = EmailService._anonymize_email(recipient)
+            EmailService.logger.info(f"Email sent successfully to {anonymized_recipient}")
