@@ -126,6 +126,10 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
         embedding=alert["embedding"],
         k=k,
         sources=["meeting_embeddings"],
+        allowed_sources={},
+        allowed_topics=[],
+        allowed_topic_ids=[],
+        allowed_countries=[],
     )
     if not neighbors:
         return []

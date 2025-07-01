@@ -55,11 +55,8 @@ def get_top_k_neighbors(
     if sources == ["document_embeddings"]:
         rpc_name = "match_filtered"
 
-    elif sources == ["meeting_embeddings"] or allowed_topic_ids or allowed_topics or allowed_countries:
+    elif sources == ["meeting_embeddings"]:
         rpc_name = "match_filtered_meetings"
-
-    else:
-        rpc_name = "match_combined_filtered_embeddings"
 
     if tables:
         rpc_args.update({"src_tables": tables, "content_columns": cols})
