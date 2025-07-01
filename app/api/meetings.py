@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
-from app.models.meeting import Meeting, MeetingSuggestionResponse, RelevantMeetingsResponse
+from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeetingsResponse
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +151,7 @@ def get_meetings(
             # --- USER RELEVANT MEETINGS CASE ---
         if user_id:
             relevant = fetch_relevant_meetings(
-                user_id=user_id,
-                k=limit,
-                query_to_compare=db_query,
-                consider_frequency=False
+                user_id=user_id, k=limit, query_to_compare=db_query, consider_frequency=False
             )
             data = []
             for m in relevant.meetings:
@@ -194,7 +191,7 @@ def get_meeting_suggestions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/legislative-files/meetings", response_model=RelevantMeetingsResponse)
+@router.get("/legislative-files/meetings", response_model=LegislativeMeetingsResponse)
 def get_meetings_by_legislative_id(
     legislative_id: str = Query(..., description="Legislative procedure reference ID to filter meetings"),
     limit: int = Query(500, gt=0, le=1000, description="Maximum number of meetings to return"),
