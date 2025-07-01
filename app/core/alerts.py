@@ -116,7 +116,7 @@ def mark_alert_ran(alert_id: str, *, ran_at: datetime | None = None) -> None:
 
 
 # ================ logic to retrieve relevant meetings ================
-def find_relevant_meetings(alert: dict, *, k: int = 50) -> list[dict]:
+def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
     """Run a vector search for meetings that match *alert* and pass its threshold.
 
     Duplicates that were already sent via *alert_notifications* are filtered
@@ -137,23 +137,11 @@ def find_relevant_meetings(alert: dict, *, k: int = 50) -> list[dict]:
         return []
 
     meeting_ids = [n["source_id"] for n in filtered]
-
-    # Exclude meetings that have already been sent for this alert
-    already_sent_resp = (
-        supabase.table("alert_notifications")
-        .select("meeting_id")
-        .eq("alert_id", alert["id"])
-        .in_("meeting_id", meeting_ids)
-        .execute()
-    )
-    sent_ids = {row["meeting_id"] for row in (already_sent_resp.data or [])}
-
-    remaining_ids = [mid for mid in meeting_ids if mid not in sent_ids]
-    if not remaining_ids:
+    if not meeting_ids:
         return []
 
     # Fetch meeting records from the materialised view – same as /meetings uses
-    meetings_resp = supabase.table("v_meetings").select("*").in_("source_id", remaining_ids).execute()
+    meetings_resp = supabase.table("v_meetings").select("*").in_("source_id", meeting_ids).execute()
 
     # Merge similarity back onto rows for convenience
     sim_map = {n["source_id"]: n["similarity"] for n in filtered}
@@ -174,7 +162,7 @@ def process_alert(alert: dict) -> list[dict]:
     """Wrapper that returns *new* meeting items for an alert and records that they were sent.
     After first trigger, alert becomes inactive (single-use).
     """
-    meetings = find_relevant_meetings(alert)
+    meetings = find_relevant_meetings_for_alert(alert)
     if not meetings:
         mark_alert_ran(alert["id"])
         return []

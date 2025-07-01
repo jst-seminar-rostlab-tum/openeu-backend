@@ -1,9 +1,15 @@
+import os
 import logging
 from typing import Optional
 
 import brevo_python
 
 from app.core.config import Settings
+
+import smtplib
+from email.message import EmailMessage
+
+
 
 
 class Email:

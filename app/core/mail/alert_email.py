@@ -107,17 +107,15 @@ class SmartAlertMailer:
         try:
             SmartAlertMailer.email_client.send_email(mail)
             logger.info("Smart alert email sent to user_id=%s (alert=%s)", user_id, alert["id"])
-            # Only here: log notifications and mark as ran
-            supabase.table("alert_notifications").insert(
-                [
-                    {
-                        "alert_id": alert["id"],
-                        "meeting_id": m["meeting_id"],
-                        "similarity": m.get("similarity", 0.0),
-                    }
-                    for m in meetings
-                ]
-            ).execute()
+            # Write to notifications table instead of alert_notifications
+            max_similarity = max((m.get("similarity", 0.0) for m in meetings), default=None)
+            supabase.table("notifications").insert({
+                "user_id": alert["user_id"],
+                "sent_at": datetime.utcnow().isoformat(),
+                "type": "smart_alert",
+                "message": mail_body,   # Save the HTML email here
+                "relevance_score": max_similarity,
+            }).execute()
             mark_alert_ran(alert["id"])
             set_alert_active(alert["id"], active=False)
             return True  # <--- Success!
