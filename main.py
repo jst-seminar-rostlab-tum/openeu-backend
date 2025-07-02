@@ -130,10 +130,12 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(CustomCORSMiddleware)
-
 if not settings.get_disable_auth():
     app.add_middleware(JWTMiddleware)
+
+app.add_middleware(CustomCORSMiddleware)
+
+
 
 @app.get("/")
 async def root() -> dict[str, str | bool]:
