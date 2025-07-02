@@ -144,3 +144,24 @@ We use [cron-job](https://console.cron-job.org/) to automate this process, which
 If you add a new background job, please make sure to: 
 - protect the endpoint using the `get_token_header` function from [dependencies.py](./app/dependencies.py) (an example can be found [here](./app/api/crawler.py))
 - after adding the cronjob, also add it to the status page [here](https://console.cron-job.org/statuspages/26586)
+
+
+
+## Testing Email  - Sending Emails: Local Development & Production Safety
+You can safely test email functionality during local development without sending real emails. To enable local email testing, add these variables to your .env file:
+
+```
+EMAIL_BACKEND=local_dev_only_smtp
+ENVIRONMENT=development
+EMAIL_HOST=localhost
+EMAIL_PORT=1025
+```
+**How it works:**
+- Local development: Emails are sent to your local SMTP server (such as Mailpit or MailHog). No real users will ever receive test messages.
+- All other environments: If these variables are missing, or if you’re running in staging or production, the system automatically uses the Brevo transactional email API and sends real emails using the API key in your environment.
+- Fallback behavior: If ENVIRONMENT=development but EMAIL_BACKEND is missing or not set to local_dev_only_smtp, emails are logged to the console (as before), and are not sent.
+
+Summary:
+- Local: Use EMAIL_BACKEND=local_dev_only_smtp and ENVIRONMENT=development to safely test emails using mailpit
+- Production: Remove or change these variables (ENVIRONMENT=development, EMAIL_BACKEND=local_dev_only_smtp) to use Brevo and send real emails.
+- ENVIRONMENT=development -> logging email as before
