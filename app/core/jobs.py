@@ -21,6 +21,7 @@ from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMini
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
+from app.data_sources.scrapers.ec_res_inno_meetings_scraper import EcResInnoMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
@@ -158,6 +159,13 @@ def scrape_polish_presidency_meetings(stop_event: multiprocessing.synchronize.Ev
     return scraper.scrape()
 
 
+def scrape_ec_res_inno_meetings(stop_event: multiprocessing.synchronize.Event):
+    today = datetime.now().date()
+    end_date = today + timedelta(days=365)
+    scraper = EcResInnoMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
+    return scraper.scrape()
+
+
 def scrape_spanish_commission_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
     scraper = SpanishCommissionScraper(date=today, stop_event=stop_event)
@@ -225,6 +233,12 @@ def setup_scheduled_jobs():
         "scrape_austrian_parliament_meetings",
         scrape_austrian_parliament_meetings,
         schedule.every().day.at("03:20"),
+    )
+    scheduler.register(
+        "scrape_ec_res_inno_meetings",
+        scrape_ec_res_inno_meetings,
+        schedule.every().day.at("03:30"),
+        run_in_process=True,
     )
     scheduler.register(
         "scrape_polish_presidency_meetings",
