@@ -32,7 +32,7 @@ from app.core.alerts import (
 from app.core.mail.alert_email import SmartAlertMailer
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.INFO)
 
 # ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
 def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
@@ -41,7 +41,7 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     """
     due_alerts = fetch_due_alerts()
     logger.info("Processing %d alert(s)", len(due_alerts))
-    email_sent = False
+    emails_sent = 0
     for alert in due_alerts:
         if stop_event.is_set():
             logger.warning("Stop event set – aborting smart-alerts job")
@@ -58,14 +58,15 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
             "About to call SmartAlertMailer.send_alert_email for user_id=%s, " \
             "alert_id=%s", alert["user_id"], alert["id"]
         )
-        email_sent = email_sent and SmartAlertMailer.send_alert_email(
+        email_sent = SmartAlertMailer.send_alert_email(
             user_id=alert["user_id"],
             alert=alert,
             meetings=meetings,
         )
         logger.info("Result of SmartAlertMailer.send_alert_email: %s", email_sent)
+        emails_sent += 1 if email_sent else 0
     return ScraperResult(
-        success=email_sent,
+        success=emails_sent == len(due_alerts),
     )
 
 
