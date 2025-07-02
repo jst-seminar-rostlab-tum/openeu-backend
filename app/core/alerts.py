@@ -25,7 +25,7 @@ This file deliberately mirrors the API style already used in
 """
 
 
-RELEVANCY_THRESHOLD = 0.95  # global constant
+RELEVANCY_THRESHOLD = 0.9  # global constant
 
 # ================ Embeddings helpers ================
 def _utc_now() -> datetime:
