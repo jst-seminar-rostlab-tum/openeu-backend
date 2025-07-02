@@ -58,6 +58,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/scheduler/tick",
             r"^/topics",
             r"^/profile",
+            r"^/chat",
         ]
 
     async def dispatch(self, request: Request, call_next):
@@ -134,7 +135,6 @@ if not settings.get_disable_auth():
     app.add_middleware(JWTMiddleware)
 
 app.add_middleware(CustomCORSMiddleware)
-
 
 
 @app.get("/")
