@@ -13,8 +13,8 @@ services:
     container_name: python-backend
     build:
       context: .
-      dockerfile: Dockerfile
-      platform: linux/amd64    
+      dockerfile: Dockerfile  
+    platform: linux/amd64    
     ports:
       - "3000:3000"
     restart: unless-stopped

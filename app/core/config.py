@@ -70,6 +70,14 @@ class Settings:
             value = ""
         return value
 
+    def get_supabase_jwt_secret(self) -> str:
+        value = os.getenv("SUPABASE_JWT_SECRET")
+        if value is None:
+            raise ValueError(
+                "SUPABASE_JWT_SECRET environment variable is not set. " "This is required for authentication."
+            )
+        return value
+
     def get_supabase_project_id(self) -> str:
         value = os.getenv("SUPABASE_PROJECT_ID")
         if value is None:
@@ -112,6 +120,12 @@ class Settings:
         if value is None:
             value = ""
         return value
+
+    def get_disable_auth(self) -> bool:
+        value = os.getenv("DISABLE_AUTH")
+        if value is None:
+            return False
+        return value.lower() == "true"
 
     def is_production(self) -> bool:
         """
