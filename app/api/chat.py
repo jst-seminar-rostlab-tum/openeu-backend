@@ -9,6 +9,7 @@ from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
 from app.core.supabase_client import supabase
+from app.core.table_metadata import get_table_description
 from app.core.vector_search import get_top_k_neighbors
 
 client = OpenAI()
@@ -53,7 +54,9 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     )
     context_text = ""
     for element in context:
-        context_text += f"{element.get('content_text')}\n"
+        source_table = element.get("source_table")
+        table_desc = get_table_description(source_table) if source_table else "Unspecified data"
+        context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
 
     timestamp = datetime.now(timezone.utc).isoformat(timespec="minutes")
 

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
 
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.models.legislative_file import KeyPlayer, KeyEvent, Rapporteur, Reference
 
 
 # ------------------------------
@@ -22,8 +23,8 @@ class LegislativeObservatory(BaseModel):
     rapporteur: str | None = None
     status: str | None = None
     subjects: list[str] | None = None
-    key_players: list[dict] | None = None
-    key_events: list[dict] | None = None
+    key_players: list[KeyPlayer] | None = None
+    key_events: list[KeyEvent] | None = None
     documentation_gateway: list[dict] | None = None
     embedding_input: str | None = None
 
@@ -52,7 +53,8 @@ class LegislativeObservatorySpider(scrapy.Spider):
             lastpubdate = entry.xpath("./lastpubdate/text()").get()
             committee = entry.xpath("./committee/committee/text()").get()
             rapporteur = entry.xpath("./rapporteur/rapporteur/text()").get()
-            embedding_input = " ".join(filter(None, [id, link, title, lastpubdate, committee, rapporteur]))
+            embedding_input = " ".join(
+                filter(None, [id, link, title, lastpubdate, committee, rapporteur]))
 
             main_entry = LegislativeObservatory(
                 id=id,
@@ -83,9 +85,11 @@ class LegislativeObservatorySpider(scrapy.Spider):
         )
 
         # --- Subjects ---
-        subject_block = response.xpath('//p[normalize-space(text())="Subject"]/following-sibling::p[1]').get()
+        subject_block = response.xpath(
+            '//p[normalize-space(text())="Subject"]/following-sibling::p[1]').get()
         subjects_sel = scrapy.Selector(text=subject_block or "")
-        subjects = [s.strip() for s in subjects_sel.xpath("//text()").getall() if s.strip()]
+        subjects = [s.strip() for s in subjects_sel.xpath(
+            "//text()").getall() if s.strip()]
         main_entry.subjects = subjects if subjects else None
 
         # --- Key Players ---
@@ -111,7 +115,8 @@ class LegislativeObservatorySpider(scrapy.Spider):
                     name = tag.css("span::text").get()
                     href = tag.attrib.get("href")
                     if name:
-                        rapporteurs.append({"name": name.strip(), "link": response.urljoin(href) if href else None})
+                        rapporteurs.append(
+                            Rapporteur(name=name.strip(), link=response.urljoin(href) if href else None))
 
                 # --- Shadow Rapporteurs ---
                 shadow_rapporteurs = []
@@ -124,21 +129,22 @@ class LegislativeObservatorySpider(scrapy.Spider):
                         href = tag.attrib.get("href")
                         if name:
                             shadow_rapporteurs.append(
-                                {"name": name.strip(), "link": response.urljoin(href) if href else None}
+                                Rapporteur(name=name.strip(), link=response.urljoin(
+                                    href) if href else None)
                             )
 
                 # Couldn't extract appointed data, not important
 
                 if committee_code:
                     key_players.append(
-                        {
-                            "institution": institution.strip(),
-                            "committee": committee_code.strip(),
-                            "committee_full": committee_full.strip() if committee_full else None,
-                            "committee_link": committee_link,
-                            "rapporteurs": rapporteurs or None,
-                            "shadow_rapporteurs": shadow_rapporteurs or None,
-                        }
+                        KeyPlayer(
+                            institution=institution.strip(),
+                            committee=committee_code.strip(),
+                            committee_full=committee_full.strip() if committee_full else None,
+                            committee_link=committee_link,
+                            rapporteurs=rapporteurs or None,
+                            shadow_rapporteurs=shadow_rapporteurs or None,
+                        )
                     )
 
         main_entry.key_players = key_players if key_players else None
@@ -156,18 +162,19 @@ class LegislativeObservatorySpider(scrapy.Spider):
             reference_href = reference_link_tag.css("::attr(href)").get()
 
             summary_link = row.css("td:nth-child(4) a::attr(href)").get()
-            summary_link = response.urljoin(summary_link) if summary_link else None
+            summary_link = response.urljoin(
+                summary_link) if summary_link else None
 
             key_events.append(
-                {
-                    "date": date or None,
-                    "event": event or None,
-                    "reference": {
-                        "text": reference_text.strip() if reference_text else None,
-                        "link": reference_href.strip() if reference_href else None,
-                    },
-                    "summary": summary_link if summary_link else None,
-                }
+                KeyEvent(
+                    date=date or None,
+                    event=event or None,
+                    reference=Reference(
+                        text=reference_text.strip() if reference_text else None,
+                        link=reference_href.strip() if reference_href else None,
+                    ),
+                    summary=summary_link if summary_link else None,
+                )
             )
 
         main_entry.key_events = key_events if key_events else None
@@ -180,7 +187,8 @@ class LegislativeObservatorySpider(scrapy.Spider):
             reference_link = row.css("td:nth-child(2) a::attr(href)").get()
             date = row.css("td:nth-child(3)::text").get()
             summary_link = cols[3].css("a::attr(href)").get()
-            summary_link = response.urljoin(summary_link) if summary_link else None
+            summary_link = response.urljoin(
+                summary_link) if summary_link else None
 
             doc_gateway_entries.append(
                 {
@@ -200,14 +208,20 @@ class LegislativeObservatorySpider(scrapy.Spider):
         embedding_additional = (
             [main_entry.status]
             + (main_entry.subjects or [])
-            + [p.get("committee_full", "") for p in main_entry.key_players or [] if p.get("committee_full")]
-            + [r["name"] for p in main_entry.key_players or [] for r in (p.get("rapporteurs") or [])]
-            + [r["name"] for p in main_entry.key_players or [] for r in (p.get("shadow_rapporteurs") or [])]
-            + [e.get("event", "") for e in main_entry.key_events or []]
-            + [d.get("document_type", "") for d in main_entry.documentation_gateway or []]
-            + [d.get("reference", {}).get("text", "") for d in main_entry.documentation_gateway or []]
+            + [p.committee_full for p in main_entry.key_players or []
+                if p.committee_full]
+            + [r.name for p in main_entry.key_players or []
+                for r in (p.rapporteurs or [])]
+            + [r.name for p in main_entry.key_players or []
+                for r in (p.shadow_rapporteurs or [])]
+            + [e.event for e in main_entry.key_events or [] if e.event]
+            + [d.get("document_type", "")
+               for d in main_entry.documentation_gateway or []]
+            + [d.get("reference", {}).get("text", "")
+               for d in main_entry.documentation_gateway or []]
         )
-        main_entry.embedding_input += " " + " ".join(s for s in embedding_additional if s)
+        main_entry.embedding_input += " " + \
+            " ".join(s for s in embedding_additional if s)
 
         # Return result
         self.entries.append(main_entry)
@@ -229,7 +243,8 @@ class LegislativeObservatoryScraper(ScraperBase):
     def scrape_once(self, last_entry=None, **kwargs) -> ScraperResult:
         try:
             process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
-            process.crawl(LegislativeObservatorySpider, result_callback=self._collect_entry)
+            process.crawl(LegislativeObservatorySpider,
+                          result_callback=self._collect_entry)
             process.start()
             return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
         except Exception as e:
@@ -244,7 +259,8 @@ class LegislativeObservatoryScraper(ScraperBase):
             if scraper_error_result is None:
                 self.entries.append(entry)
             else:
-                self.logger.warning(f"Failed to store entry: {entry.id} -> {scraper_error_result}")
+                self.logger.warning(
+                    f"Failed to store entry: {entry.id} -> {scraper_error_result}")
 
 
 # ------------------------------
@@ -256,6 +272,7 @@ if __name__ == "__main__":
     result = scraper.scrape_once(last_entry=None)
 
     if result.success:
-        print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
+        print(
+            f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
     else:
         print(f"Scraping failed with error: {result.error}")
