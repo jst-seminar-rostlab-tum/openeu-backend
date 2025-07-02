@@ -121,6 +121,12 @@ class Settings:
             value = ""
         return value
 
+    def get_disable_auth(self) -> bool:
+        value = os.getenv("DISABLE_AUTH")
+        if value is None:
+            return False
+        return value.lower() == "true"
+
     def is_production(self) -> bool:
         """
         Check if the application is running in a production environment.

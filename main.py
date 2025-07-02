@@ -133,7 +133,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(JWTMiddleware)
+if not settings.get_disable_auth():
+    app.add_middleware(JWTMiddleware)
 
 
 @app.get("/")
