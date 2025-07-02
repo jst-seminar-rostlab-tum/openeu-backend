@@ -130,7 +130,11 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 
+if not settings.get_disable_auth():
+    app.add_middleware(JWTMiddleware)
+
 app.add_middleware(CustomCORSMiddleware)
+
 
 
 @app.get("/")
