@@ -17,11 +17,15 @@ SIMILARITY_THRESHOLD = 0.1
 BATCH_SIZE = 500
 
 
+# DEPRECATED: automatic topic extraction currently disabled, but kept for future work (comments)
+
+
 def clear_assignments():
     """
     Clears all entries in the meeting_topic_assignments tables.
     """
     supabase.table(ASSIGNMENTS_TABLE).delete().not_.is_("id", None).execute()
+    # supabase.table(TOPICS_TABLE).delete().not_.is_("id", None).execute()
 
 
 def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meeting]:
@@ -41,11 +45,19 @@ def fetch_and_prepare_meetings() -> list[Meeting]:
     """
     offset = 0
     all_meetings: list[Meeting] = []
+    # all_texts: list[tuple[str, str]] = []
     while True:
         batch: list[Meeting] = fetch_meetings_batch(offset)
         if not batch:
             break
         for m in batch:
+            """
+            text = m.title
+            if m.description:
+                text = f"{text}. {m.description}"
+            text = text.strip()
+            all_texts.append((text, m.source_table))
+            """
             all_meetings.append(m)
         offset += BATCH_SIZE
     return all_meetings
@@ -75,6 +87,61 @@ class TopicExtractor:
             TopicExtractor._keybert_model = KeyBERT(model_name)
         self.model = TopicExtractor._sentence_model
         self.kw_model = TopicExtractor._keybert_model
+
+    '''
+    def extract_keywords_from_texts(self, all_texts: list[tuple[str, str]], top_n_keywords: int) -> list[str]:
+    """
+    Extracts keywords from a list of texts using KeyBERT, excluding generic words,
+    keywords containing non-English characters, or those starting with 'Euro'.
+    """
+
+    def is_english_word(word: str) -> bool:
+        # Only allow a-z, A-Z, 0-9, space, and hyphen
+        return bool(re.fullmatch(r"[A-Za-z \-]+", word))
+
+    all_keywords: list[str] = []
+    for text in all_texts:
+        content = text[0]
+        source_table = text[1]
+        if source_table not in [
+            "polish_presidency_meeting",
+            "spanish_commission_meetings",
+            "belgian_parliament_meetings",
+        ]:
+            keywords = self.kw_model.extract_keywords(
+                content, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
+            )
+            for kw, _ in keywords:
+                kw_lower = kw.lower()
+                if kw_lower not in EXCLUDED_WORDS and is_english_word(kw) and not kw_lower.startswith("euro"):
+                    all_keywords.append(kw)
+    return all_keywords
+
+    def cluster_keywords_and_store_topics(self, all_keywords: list[str], n_clusters: int) -> None:
+        """
+        Clusters keyword embeddings and stores topics in the database.
+        """
+        embeddings = self.model.encode(all_keywords)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(embeddings)
+        labels = kmeans.labels_
+        topic_keywords: list[str] = []
+        topic_ids = []
+        for i in range(n_clusters):
+            indices = np.where(labels == i)[0]
+            if len(indices) > 0:
+                topic = all_keywords[indices[0]].capitalize()
+                try:
+                    topic_data = {"topic": topic}
+                    resp = supabase.table(TOPICS_TABLE).upsert(topic_data).execute()
+                    topic_id = resp.data[0]["id"] if resp.data else None
+                    topic_keywords.append(topic)
+                    topic_ids.append(topic_id)
+                except Exception as e:
+                    logger.error(f"Error storing entry in Supabase: {e}")
+                    topic_keywords.append(topic)
+                    topic_ids.append(None)
+        add_other_topic()
+    '''
 
     def assign_meeting_to_topic(self, meeting: Meeting):
         """
@@ -124,6 +191,16 @@ class TopicExtractor:
 
         This function clears all existing topic assignments, fetches all meetings,
         and then iterates through each meeting to assign it to the most relevant topic.
+        """
+        """
+        clear_topics_and_assignments()
+        all_texts, all_meetings = fetch_and_prepare_meetings()
+        if not all_texts:
+            return []
+        all_keywords = self.extract_keywords_from_texts(all_texts, top_n_keywords)
+        if not all_keywords:
+            return []
+        self.cluster_keywords_and_store_topics(all_keywords, n_clusters)
         """
         clear_assignments()
         all_meetings = fetch_and_prepare_meetings()
