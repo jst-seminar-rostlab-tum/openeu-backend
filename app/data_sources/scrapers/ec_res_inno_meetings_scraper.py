@@ -303,7 +303,7 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
         start_date_day = day.split(separator)[0].strip()
         start_date_month = month.split(separator)[0].strip()
         start_date_year = year.split(separator)[0].strip()
-        start_date = datetime.date(int(start_date_year), month_to_number(start_date_month), int(start_date_day))
+        start_date = date(int(start_date_year), month_to_number(start_date_month), int(start_date_day))
 
         end_date = None
         if "-" in day:
@@ -312,7 +312,7 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
             end_date_month = month.split(separator)[1].strip() if separator in month else start_date_month
             end_date_year = year.split(separator)[1].strip() if separator in year else start_date_year
             end_date = (
-                datetime.date(int(end_date_year), month_to_number(end_date_month), int(end_date_day))
+                date(int(end_date_year), month_to_number(end_date_month), int(end_date_day))
                 if end_date_day
                 else None
             )
@@ -418,12 +418,10 @@ class EcResInnoMeetingsScraper(ScraperBase):
 
 
 if __name__ == "__main__":
-    import datetime
-
     print("Scraping meetings...")
 
     scraper = EcResInnoMeetingsScraper(
-        start_date=datetime.date(2025, 1, 15), end_date=datetime.date(2025, 6, 16), stop_event=multiprocessing.Event()
+        start_date=date(2025, 1, 15), end_date=date(2025, 6, 16), stop_event=multiprocessing.Event()
     )
     result = scraper.scrape()
     meetings = scraper.entries

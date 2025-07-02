@@ -119,7 +119,8 @@ def scrape_polish_presidency_meetings(stop_event: multiprocessing.synchronize.Ev
 
 def scrape_ec_res_inno_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    scraper = EcResInnoMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=365)
+    scraper = EcResInnoMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
