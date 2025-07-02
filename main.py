@@ -107,10 +107,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
         return response
 
 
-if not settings.get_disable_auth():
-    app.add_middleware(JWTMiddleware)
-
-
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
