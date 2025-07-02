@@ -132,6 +132,8 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CustomCORSMiddleware)
 
+if not settings.get_disable_auth():
+    app.add_middleware(JWTMiddleware)
 
 @app.get("/")
 async def root() -> dict[str, str | bool]:
