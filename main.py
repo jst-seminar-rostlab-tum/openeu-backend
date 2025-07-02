@@ -47,32 +47,6 @@ app.include_router(notifications_router)
 app.include_router(api_alerts)
 
 
-class CustomCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin")
-        is_allowed_origin = origin and (
-            origin.startswith("http://localhost")
-            or origin.endswith("openeu.netlify.app")
-            or origin.endswith("openeu.csee.tech")
-        )
-
-        if request.method == "OPTIONS" and is_allowed_origin:
-            response = PlainTextResponse("Preflight OK", status_code=200)
-        else:
-            response = await call_next(request)
-
-        if is_allowed_origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS,PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-
-        return response
-
-
-app.add_middleware(CustomCORSMiddleware)
-
-
 class JWTMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp):
         super().__init__(app)
@@ -135,6 +109,32 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
 if not settings.get_disable_auth():
     app.add_middleware(JWTMiddleware)
+
+
+class CustomCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin")
+        is_allowed_origin = origin and (
+            origin.startswith("http://localhost")
+            or origin.endswith("openeu.netlify.app")
+            or origin.endswith("openeu.csee.tech")
+        )
+
+        if request.method == "OPTIONS" and is_allowed_origin:
+            response = PlainTextResponse("Preflight OK", status_code=200)
+        else:
+            response = await call_next(request)
+
+        if is_allowed_origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS,PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+
+        return response
+
+
+app.add_middleware(CustomCORSMiddleware)
 
 
 @app.get("/")
