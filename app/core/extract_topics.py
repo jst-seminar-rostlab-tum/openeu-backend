@@ -1,42 +1,14 @@
 import logging
-import re
 
 import numpy as np
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
-from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.supabase_client import supabase
 from app.models.meeting import Meeting
 
 logger = logging.getLogger(__name__)
-
-# Exclude these generic words from the beginning
-EXCLUDED_WORDS = {
-    "committee",
-    "meeting",
-    "digital",
-    "subcommittee",
-    "eu",
-    "party",
-    "ordinary",
-    "democrats",
-    "alliance",
-    "group",
-    "progressive",
-    "delegation",
-    "preparatory",
-    "socialists",
-    "parliament",
-    "public",
-    "subtitles",
-    "europe",
-    "act",
-    "patriots",
-    "en",
-    "romanian",
-}
 
 TOPICS_TABLE = "meeting_topics"
 ASSIGNMENTS_TABLE = "meeting_topic_assignments"
@@ -45,12 +17,15 @@ SIMILARITY_THRESHOLD = 0.1
 BATCH_SIZE = 500
 
 
-def clear_topics_and_assignments():
+# DEPRECATED: automatic topic extraction currently disabled, but kept for future work (comments)
+
+
+def clear_assignments():
     """
-    Clears all entries in the meeting_topics and meeting_topic_assignments tables.
+    Clears all entries in the meeting_topic_assignments tables.
     """
     supabase.table(ASSIGNMENTS_TABLE).delete().not_.is_("id", None).execute()
-    supabase.table(TOPICS_TABLE).delete().not_.is_("id", None).execute()
+    # supabase.table(TOPICS_TABLE).delete().not_.is_("id", None).execute()
 
 
 def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meeting]:
@@ -61,27 +36,31 @@ def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meet
     return [Meeting(**item) for item in resp.data]
 
 
-def fetch_and_prepare_meetings() -> tuple[list[tuple[str, str]], list[Meeting]]:
+def fetch_and_prepare_meetings() -> list[Meeting]:
     """
-    Fetches all meetings in batches and prepares their text for topic extraction.
-    Returns a tuple of (list of texts, list of Meeting objects).
+    Fetches all meetings in batches from the database.
+
+    Returns:
+        A list of all Meeting objects.
     """
     offset = 0
-    all_texts: list[tuple[str, str]] = []
     all_meetings: list[Meeting] = []
+    # all_texts: list[tuple[str, str]] = []
     while True:
         batch: list[Meeting] = fetch_meetings_batch(offset)
         if not batch:
             break
         for m in batch:
+            """
             text = m.title
             if m.description:
                 text = f"{text}. {m.description}"
             text = text.strip()
             all_texts.append((text, m.source_table))
+            """
             all_meetings.append(m)
         offset += BATCH_SIZE
-    return all_texts, all_meetings
+    return all_meetings
 
 
 def add_other_topic() -> int | None:
@@ -109,33 +88,34 @@ class TopicExtractor:
         self.model = TopicExtractor._sentence_model
         self.kw_model = TopicExtractor._keybert_model
 
+    '''
     def extract_keywords_from_texts(self, all_texts: list[tuple[str, str]], top_n_keywords: int) -> list[str]:
-        """
-        Extracts keywords from a list of texts using KeyBERT, excluding generic words,
-        keywords containing non-English characters, or those starting with 'Euro'.
-        """
+    """
+    Extracts keywords from a list of texts using KeyBERT, excluding generic words,
+    keywords containing non-English characters, or those starting with 'Euro'.
+    """
 
-        def is_english_word(word: str) -> bool:
-            # Only allow a-z, A-Z, 0-9, space, and hyphen
-            return bool(re.fullmatch(r"[A-Za-z \-]+", word))
+    def is_english_word(word: str) -> bool:
+        # Only allow a-z, A-Z, 0-9, space, and hyphen
+        return bool(re.fullmatch(r"[A-Za-z \-]+", word))
 
-        all_keywords: list[str] = []
-        for text in all_texts:
-            content = text[0]
-            source_table = text[1]
-            if source_table not in [
-                "polish_presidency_meeting",
-                "spanish_commission_meetings",
-                "belgian_parliament_meetings",
-            ]:
-                keywords = self.kw_model.extract_keywords(
-                    content, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
-                )
-                for kw, _ in keywords:
-                    kw_lower = kw.lower()
-                    if kw_lower not in EXCLUDED_WORDS and is_english_word(kw) and not kw_lower.startswith("euro"):
-                        all_keywords.append(kw)
-        return all_keywords
+    all_keywords: list[str] = []
+    for text in all_texts:
+        content = text[0]
+        source_table = text[1]
+        if source_table not in [
+            "polish_presidency_meeting",
+            "spanish_commission_meetings",
+            "belgian_parliament_meetings",
+        ]:
+            keywords = self.kw_model.extract_keywords(
+                content, keyphrase_ngram_range=(1, 1), stop_words="english", top_n=top_n_keywords
+            )
+            for kw, _ in keywords:
+                kw_lower = kw.lower()
+                if kw_lower not in EXCLUDED_WORDS and is_english_word(kw) and not kw_lower.startswith("euro"):
+                    all_keywords.append(kw)
+    return all_keywords
 
     def cluster_keywords_and_store_topics(self, all_keywords: list[str], n_clusters: int) -> None:
         """
@@ -161,10 +141,14 @@ class TopicExtractor:
                     topic_keywords.append(topic)
                     topic_ids.append(None)
         add_other_topic()
+    '''
 
     def assign_meeting_to_topic(self, meeting: Meeting):
         """
-        Assigns a single meeting to the closest topic (or 'Other') using cosine similarity.
+        Assigns a single meeting to the closest existing topic based on cosine similarity.
+
+        If the similarity is below a threshold, it assigns the meeting to the 'Other' topic.
+        The assignment is then stored in the database.
         """
         resp = supabase.table(TOPICS_TABLE).select("id,topic").execute()
         topics = resp.data
@@ -201,9 +185,13 @@ class TopicExtractor:
         except Exception as e:
             logger.error(f"Error storing meeting-topic assignments: {e}")
 
-    def extract_topics_from_meetings(self, n_clusters=15, top_n_keywords=20):
+    def reassign_all_meetings(self):
         """
-        Orchestrates the extraction of topics and assignment of meetings to topics.
+        Orchestrates the process of assigning all meetings to predefined topics.
+
+        This function clears all existing topic assignments, fetches all meetings,
+        and then iterates through each meeting to assign it to the most relevant topic.
+        """
         """
         clear_topics_and_assignments()
         all_texts, all_meetings = fetch_and_prepare_meetings()
@@ -213,5 +201,8 @@ class TopicExtractor:
         if not all_keywords:
             return []
         self.cluster_keywords_and_store_topics(all_keywords, n_clusters)
+        """
+        clear_assignments()
+        all_meetings = fetch_and_prepare_meetings()
         for meeting in all_meetings:
             self.assign_meeting_to_topic(meeting)
