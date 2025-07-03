@@ -29,6 +29,7 @@ class AlertResponse(BaseModel):
     user_id: str
     description: str
     embedding: list[float]
+    title: str
     relevancy_threshold: float
     last_run_at: Optional[str]
     is_active: bool
