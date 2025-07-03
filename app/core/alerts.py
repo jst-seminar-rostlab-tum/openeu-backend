@@ -27,6 +27,7 @@ This file deliberately mirrors the API style already used in
 
 RELEVANCY_THRESHOLD = 0.9  # global constant
 
+
 # ================ Embeddings helpers ================
 def _utc_now() -> datetime:
     """Return the current moment as a timezone‑aware UTC datetime."""
@@ -55,6 +56,19 @@ def build_embedding(text: str) -> list[float]:
     return emb
 
 
+def generate_alert_title(description: str) -> str:
+    prompt = f"Create a catchy title for this EU policy alert description (max 8 words):\n\n{description}"
+    try:
+        resp = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        logger.error(f"Failed to generate alert title: {e}")
+        return description[:50]  # Fallback
+
+
 # ================ Alerts helpers ================
 def create_alert(
     *,
@@ -63,6 +77,7 @@ def create_alert(
 ) -> dict:
     """Insert a new record into the *alerts* table and return it."""
     emb = build_embedding(description)
+    title = generate_alert_title(description)
 
     payload = {
         "user_id": user_id,
@@ -70,6 +85,7 @@ def create_alert(
         "embedding": emb,
         "relevancy_threshold": RELEVANCY_THRESHOLD,  # always use fixed value
         # remove frequency
+        "title": title,
     }
     resp = supabase.table("alerts").insert(payload).execute()
     if hasattr(resp, "error") and resp.error:
@@ -82,7 +98,6 @@ def create_alert(
 
     logger.info("Created alert %s for user %s", alert.get("id"), user_id)
     return alert
-
 
 
 def get_user_alerts(
@@ -127,7 +142,7 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
         embedding=alert["embedding"],
         k=50,
         sources=["meeting_embeddings"],
-        allowed_sources=None,           # << Allow any table/column
+        allowed_sources=None,  # << Allow any table/column
         allowed_topics=None,
         allowed_topic_ids=None,
         allowed_countries=None,
@@ -173,10 +188,11 @@ def process_alert(alert: dict) -> list[dict]:
 
     logger.info(
         "Alert %s matched %d new meeting(s) for user %s – handing to mailer",
-        alert["id"], len(meetings), alert["user_id"]
+        alert["id"],
+        len(meetings),
+        alert["user_id"],
     )
     return meetings
-
 
 
 # ---------------------------------------------------------------------------
