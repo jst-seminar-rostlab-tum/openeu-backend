@@ -1,4 +1,4 @@
-alter table "public"."alerts" add column "title" text not null;
+alter table "public"."alerts" add column "title" text not null default 'title placeholder';
 
 set check_function_bodies = off;
 
