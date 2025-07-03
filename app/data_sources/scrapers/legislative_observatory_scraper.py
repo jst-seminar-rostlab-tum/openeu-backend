@@ -5,9 +5,11 @@ from typing import Callable
 import scrapy
 from pydantic import BaseModel
 from scrapy.crawler import CrawlerProcess
+from app.core.supabase_client import supabase
 
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
 from app.models.legislative_file import KeyPlayer, KeyEvent, Rapporteur, Reference
+from app.core.mail.status_change import notify_status_change
 
 
 # ------------------------------
@@ -53,8 +55,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
             lastpubdate = entry.xpath("./lastpubdate/text()").get()
             committee = entry.xpath("./committee/committee/text()").get()
             rapporteur = entry.xpath("./rapporteur/rapporteur/text()").get()
-            embedding_input = " ".join(
-                filter(None, [id, link, title, lastpubdate, committee, rapporteur]))
+            embedding_input = " ".join(filter(None, [id, link, title, lastpubdate, committee, rapporteur]))
 
             main_entry = LegislativeObservatory(
                 id=id,
@@ -85,11 +86,9 @@ class LegislativeObservatorySpider(scrapy.Spider):
         )
 
         # --- Subjects ---
-        subject_block = response.xpath(
-            '//p[normalize-space(text())="Subject"]/following-sibling::p[1]').get()
+        subject_block = response.xpath('//p[normalize-space(text())="Subject"]/following-sibling::p[1]').get()
         subjects_sel = scrapy.Selector(text=subject_block or "")
-        subjects = [s.strip() for s in subjects_sel.xpath(
-            "//text()").getall() if s.strip()]
+        subjects = [s.strip() for s in subjects_sel.xpath("//text()").getall() if s.strip()]
         main_entry.subjects = subjects if subjects else None
 
         # --- Key Players ---
@@ -115,8 +114,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                     name = tag.css("span::text").get()
                     href = tag.attrib.get("href")
                     if name:
-                        rapporteurs.append(
-                            Rapporteur(name=name.strip(), link=response.urljoin(href) if href else None))
+                        rapporteurs.append(Rapporteur(name=name.strip(), link=response.urljoin(href) if href else None))
 
                 # --- Shadow Rapporteurs ---
                 shadow_rapporteurs = []
@@ -129,8 +127,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                         href = tag.attrib.get("href")
                         if name:
                             shadow_rapporteurs.append(
-                                Rapporteur(name=name.strip(), link=response.urljoin(
-                                    href) if href else None)
+                                Rapporteur(name=name.strip(), link=response.urljoin(href) if href else None)
                             )
 
                 # Couldn't extract appointed data, not important
@@ -162,8 +159,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
             reference_href = reference_link_tag.css("::attr(href)").get()
 
             summary_link = row.css("td:nth-child(4) a::attr(href)").get()
-            summary_link = response.urljoin(
-                summary_link) if summary_link else None
+            summary_link = response.urljoin(summary_link) if summary_link else None
 
             key_events.append(
                 KeyEvent(
@@ -187,8 +183,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
             reference_link = row.css("td:nth-child(2) a::attr(href)").get()
             date = row.css("td:nth-child(3)::text").get()
             summary_link = cols[3].css("a::attr(href)").get()
-            summary_link = response.urljoin(
-                summary_link) if summary_link else None
+            summary_link = response.urljoin(summary_link) if summary_link else None
 
             doc_gateway_entries.append(
                 {
@@ -208,20 +203,22 @@ class LegislativeObservatorySpider(scrapy.Spider):
         embedding_additional = (
             [main_entry.status]
             + (main_entry.subjects or [])
-            + [p.committee_full for p in main_entry.key_players or []
-                if p.committee_full]
-            + [r.name for p in main_entry.key_players or []
-                for r in (p.rapporteurs or [])]
-            + [r.name for p in main_entry.key_players or []
-                for r in (p.shadow_rapporteurs or [])]
+            + [p.committee_full for p in main_entry.key_players or [] if p.committee_full]
+            + [r.name for p in main_entry.key_players or [] for r in (p.rapporteurs or [])]
+            + [r.name for p in main_entry.key_players or [] for r in (p.shadow_rapporteurs or [])]
             + [e.event for e in main_entry.key_events or [] if e.event]
-            + [d.get("document_type", "")
-               for d in main_entry.documentation_gateway or []]
-            + [d.get("reference", {}).get("text", "")
-               for d in main_entry.documentation_gateway or []]
+            + [d.get("document_type", "") for d in main_entry.documentation_gateway or []]
+            + [d.get("reference", {}).get("text", "") for d in main_entry.documentation_gateway or []]
         )
-        main_entry.embedding_input += " " + \
-            " ".join(s for s in embedding_additional if s)
+        main_entry.embedding_input += " " + " ".join(s for s in embedding_additional if s)
+
+        # Check for status change
+        old_record = supabase.table("legislative_files").select("status, title").eq("id", main_entry.id).execute()
+        old_data = old_record.data[0] if old_record.data else None
+        old_status = old_data["status"] if old_data else None
+
+        if old_status and main_entry.status != old_status:
+            notify_subscribers(main_entry=main_entry, old_status=old_status)
 
         # Return result
         self.entries.append(main_entry)
@@ -229,6 +226,26 @@ class LegislativeObservatorySpider(scrapy.Spider):
     def closed(self, reason):
         if self.result_callback:
             self.result_callback(self.entries)
+
+
+def notify_subscribers(main_entry: LegislativeObservatory, old_status: str):
+    subscription_check = supabase.table("subscriptions").select("user_id").eq("legislation_id", main_entry.id).execute()
+    subscribers = subscription_check.data or []
+
+    # Notify each user individually
+    for sub in subscribers:
+        user_id = sub["user_id"]
+        notify_status_change(
+            user_id=user_id,
+            legislation={
+                "id": main_entry.id,
+                "title": main_entry.title,
+                "link": main_entry.link,
+                "details_link": main_entry.details_link,
+                "status": main_entry.status,
+            },
+            old_status=old_status,
+        )
 
 
 # ------------------------------
@@ -243,8 +260,7 @@ class LegislativeObservatoryScraper(ScraperBase):
     def scrape_once(self, last_entry=None, **kwargs) -> ScraperResult:
         try:
             process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
-            process.crawl(LegislativeObservatorySpider,
-                          result_callback=self._collect_entry)
+            process.crawl(LegislativeObservatorySpider, result_callback=self._collect_entry)
             process.start()
             return ScraperResult(success=True, last_entry=self.entries[-1] if self.entries else None)
         except Exception as e:
@@ -259,8 +275,7 @@ class LegislativeObservatoryScraper(ScraperBase):
             if scraper_error_result is None:
                 self.entries.append(entry)
             else:
-                self.logger.warning(
-                    f"Failed to store entry: {entry.id} -> {scraper_error_result}")
+                self.logger.warning(f"Failed to store entry: {entry.id} -> {scraper_error_result}")
 
 
 # ------------------------------
@@ -272,7 +287,6 @@ if __name__ == "__main__":
     result = scraper.scrape_once(last_entry=None)
 
     if result.success:
-        print(
-            f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
+        print(f"Scraping completed successfully. Total entries stored: {len(scraper.entries)}")
     else:
         print(f"Scraping failed with error: {result.error}")
