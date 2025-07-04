@@ -5,7 +5,11 @@ from typing import Optional
 
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
-from app.models.legislative_file import LegislativeFilesResponse, LegislativeFileResponse, LegislativeFileSuggestionResponse
+from app.models.legislative_file import (
+    LegislativeFilesResponse,
+    LegislativeFileResponse,
+    LegislativeFileSuggestionResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
