@@ -58,5 +58,9 @@ class LegislativeFilesResponse(BaseModel):
     legislative_files: list[LegislativeFile]
 
 
+class LegislativeFileResponse(BaseModel):
+    legislative_file: LegislativeFile
+
+
 class LegislativeFileSuggestionResponse(BaseModel):
     data: list[LegislativeFileSuggestion]
