@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: openeu-backend
+    env: docker
+    repo: https://github.com/jst-seminar-rostlab-tum/openeu-backend.git
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DISABLE_AUTH
+        value: "false"
+    previewEnvVars:
+      - key: DISABLE_AUTH
+        value: "true"
