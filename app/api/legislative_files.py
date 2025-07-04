@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
 
+from app.core.relevant_legislatives import fetch_relevant_legislative_files
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.legislative_file import LegislativeFilesResponse, LegislativeFileSuggestionResponse
@@ -18,14 +19,25 @@ def get_legislative_files(
     year: Optional[int] = Query(None, description="Filter by reference year (e.g. 2025)"),
     committee: Optional[str] = Query(None, description="Filter by committee name"),
     rapporteur: Optional[str] = Query(None, description="Filter by rapporteur name"),
+    user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
 ):
     try:
         if query:
+            if user_id:
+                resp = (
+                    supabase.table("profiles")
+                    .select("company_name,company_description")
+                    .eq("id", user_id)
+                    .single()
+                    .execute()
+                )
+                if resp.data:
+                    query = query + "Profile information: " + str(resp.data)
             neighbors = get_top_k_neighbors(
                 query=query,
                 allowed_sources={"legislative_files": "embedding_input"},
                 k=limit,
-                sources=["document_embeddings"],  # triggers match_filtered
+                sources=["document_embeddings"],
             )
 
             if not neighbors:
@@ -43,19 +55,27 @@ def get_legislative_files(
                 r["similarity"] = similarity_map.get(r["id"])
 
         else:
-            response = supabase.table("legislative_files").select("*").limit(limit).execute()
-            records = response.data or []
+            db_query = supabase.table("legislative_files").select("*")
 
-        # Apply year filtering
-        if year:
-            records = [r for r in records if r.get("id", "").startswith(str(year))]
+            if year:
+                year_prefix = f"{year}%"
+                db_query = db_query.like("id", year_prefix)
 
-        # Apply committee filtering
-        if committee:
-            records = [r for r in records if r.get("committee") == committee]
+            if committee:
+                db_query = db_query.eq("committee", committee)
 
-        if rapporteur:
-            records = [r for r in records if r.get("rapporteur") == rapporteur]
+            if rapporteur:
+                db_query = db_query.eq("rapporteur", rapporteur)
+
+            if user_id:
+                relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=db_query, k=limit)
+                data = []
+                for m in relevant.legislative_files:
+                    data.append(m.model_dump(mode="json"))
+                return JSONResponse(status_code=200, content={"data": data})
+
+            result = db_query.limit(limit).execute()
+            records = result.data or []
 
         return JSONResponse(status_code=200, content={"data": records[:limit]})
 
