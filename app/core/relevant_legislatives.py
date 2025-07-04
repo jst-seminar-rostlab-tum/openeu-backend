@@ -43,7 +43,7 @@ def fetch_relevant_legislative_files(
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
-        return RelevantLegislativeFilesResponse(legislativeFiles=[])
+        return RelevantLegislativeFilesResponse(legislative_files=[])
 
     # 2) call `get_top_k_neighbors`
     try:
@@ -64,9 +64,9 @@ def fetch_relevant_legislative_files(
 
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
-        return RelevantLegislativeFilesResponse(legislativeFiles=[])
+        return RelevantLegislativeFilesResponse(legislative_files=[])
     if not neighbors:
-        return RelevantLegislativeFilesResponse(legislativeFiles=[])
+        return RelevantLegislativeFilesResponse(legislative_files=[])
 
     # 3) Fetch the actual legislative files based on the neighbors
     # Extract source_ids (these are the legislative file ids)
@@ -78,7 +78,7 @@ def fetch_relevant_legislative_files(
         rows = response.data
     except Exception as e:
         logger.exception(f"Unexpected error fetching legislative files: {e}")
-        return RelevantLegislativeFilesResponse(legislativeFiles=[])
+        return RelevantLegislativeFilesResponse(legislative_files=[])
 
     # Create a map from id to row for easier access
     fetched = {row["id"]: row for row in rows}
@@ -116,4 +116,4 @@ def fetch_relevant_legislative_files(
         except ValidationError as ve:
             logger.warning(f"Skipping invalid legislative file {source_id}: {ve}")
 
-    return RelevantLegislativeFilesResponse(legislativeFiles=legislative_files)
+    return RelevantLegislativeFilesResponse(legislative_files=legislative_files)
