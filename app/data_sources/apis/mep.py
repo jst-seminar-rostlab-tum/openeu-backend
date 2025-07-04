@@ -37,3 +37,9 @@ def fetch_and_store_current_meps():
         meps_dicts,
         upsert=True,
     ).execute()
+
+
+if __name__ == "__main__":
+    print("Fetching and storing current MEPs...")
+    fetch_and_store_current_meps()
+    print("Current MEPs fetched and stored successfully.")
