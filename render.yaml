@@ -8,6 +8,3 @@ services:
     envVars:
       - key: DISABLE_AUTH
         value: "false"
-    previewEnvVars:
-      - key: DISABLE_AUTH
-        value: "true"
