@@ -74,23 +74,23 @@ def get_legislative_files(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/legislative-files/{file_id}", response_model=LegislativeFileResponse)
-def get_legislative_file(file_id: str):
+@router.get("/legislative-file", response_model=LegislativeFileResponse)
+def get_legislative_file(id: str = Query(..., description="Legislative file ID")):
     """Get a single legislative file by ID"""
     try:
         response = supabase.table("legislative_files").select(
-            "*").eq("id", file_id).execute()
+            "*").eq("id", id).execute()
 
         if not response.data:
             raise HTTPException(
-                status_code=404, detail=f"Legislative file with ID '{file_id}' not found")
+                status_code=404, detail=f"Legislative file with ID '{id}' not found")
 
         return JSONResponse(status_code=200, content={"legislative_file": response.data[0]})
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error fetching legislative file %s: %s", file_id, e)
+        logger.error("Error fetching legislative file %s: %s", id, e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
