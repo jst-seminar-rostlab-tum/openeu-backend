@@ -110,7 +110,7 @@ async def create_profile(profile: ProfileCreate) -> ProfileReturn:
         else:
             result = supabase.table("politicians").upsert(politician).execute()
     except Exception as e:
-        logger.error(f"Supabase upsert failed for %s %s: %s",
+        logger.error("Supabase upsert failed for %s %s: %s",
                      "companies" if is_entrepreneur else "politicians",
                      company if is_entrepreneur else politician,
                      e)
