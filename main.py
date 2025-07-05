@@ -57,7 +57,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/openapi.json$",
             r"^/scheduler/tick",
             r"^/topics",
-            r"^/profile",
         ]
 
     async def dispatch(self, request: Request, call_next):

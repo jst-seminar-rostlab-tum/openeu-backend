@@ -1,9 +1,33 @@
+-- Company table
+CREATE TABLE IF NOT EXISTS entrepreneurs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    company_stage TEXT NOT NULL,
+    company_size INT NOT NULL,
+    industry TEXT NOT NULL
+);
+
+-- Politician table
+CREATE TABLE IF NOT EXISTS politicians (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role TEXT NOT NULL,
+    further_information TEXT,
+    institution TEXT NOT NULL,
+    area_of_expertise TEXT NOT NULL
+);
+
+CREATE TYPE user_type_enum AS ENUM ('entrepreneur', 'politician');
+
+-- Profile table
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
-    company_name TEXT NOT NULL,
-    company_description TEXT NOT NULL,
+    user_type user_type_enum NOT NULL, -- 'entrepreneur' or 'politician'
+    entrepreneur_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    politician_id UUID REFERENCES politicians(id) ON DELETE CASCADE,
     countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
     newsletter_frequency TEXT NOT NULL DEFAULT 'none',
     embedding VECTOR(1536) NOT NULL

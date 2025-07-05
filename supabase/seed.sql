@@ -456,13 +456,47 @@ INSERT INTO auth.users (
   '', NULL, false, NULL, false
 );
 
+INSERT INTO companies (
+  id,
+  role,
+  name,
+  description,
+  company_stage,
+  company_size,
+  industry
+)
+VALUES (
+  '348dd71c-8997-4e6d-8984-789c862df919',
+  'CEO',
+  'BrightWave Technologies',
+  'We develop AI-driven analytics for retail optimization.',
+  'Growth stage',
+  42,
+  'Technology'
+  );
+
+INSERT INTO politicians (
+  id,
+  role,
+  further_information,
+  institution,
+  area_of_expertise
+)
+VALUES (
+  '38464383-91bb-462c-b36c-1a683b0619b4',
+  'Chancellor',
+  NULL,
+  'CDU',
+  'Money Maker $$$'
+  );
 
 INSERT INTO profiles (
   id,
   name,
   surname,
-  company_name,
-  company_description,
+  user_type,
+  company_id,
+  politician_id,
   countries,
   newsletter_frequency,
   embedding
@@ -471,8 +505,9 @@ VALUES (
   'f82dc603-3148-4ba3-af07-89a34ef3162a',
   'Alice',
   'Smith',
-  'BrightWave Technologies',
-  'We develop AI-driven analytics for retail optimization.',
+  'entrepreneur',
+  '348dd71c-8997-4e6d-8984-789c862df919',
+  '38464383-91bb-462c-b36c-1a683b0619b4',
   ARRAY[
     'Poland',
     'Germany',
