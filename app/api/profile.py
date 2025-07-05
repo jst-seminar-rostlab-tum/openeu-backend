@@ -40,7 +40,8 @@ async def create_embeddings(profile: dict):
 
     prompt = "Generate a concise and engaging text about this user’s interests based on their profile:"
 
-    if profile["user_type"] == "entrepreneur":
+    is_entrepreneur = profile["user_type"] == "entrepreneur"
+    if is_entrepreneur:
         prompt += f"""
         - Company Role: {profile["company"]["role"]}
         - Company Name: {profile["company"]["name"]}
@@ -67,9 +68,15 @@ async def create_embeddings(profile: dict):
     - Try to enrich the text with relevant information from the provided fields.
     - Highlight their role, focus areas, and relevant topics.
     - Make the tone professional and neutral.
-    - If entrepreneur, focus on their company and industry.
-    - If politician, focus on their institution, expertise, and priorities.
     """
+    if is_entrepreneur:
+        prompt += """
+        - focus on their company and industry.
+        """
+    else:
+        prompt += """
+        - focus on their institution, expertise, and priorities.
+        """
 
     response = openai.responses.create(model="gpt-4o", input=prompt)
 
