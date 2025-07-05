@@ -1,5 +1,4 @@
 import logging
-from types import SimpleNamespace
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
