@@ -36,7 +36,6 @@ async def create_embeddings(profile: dict):
     # Build input text for embedding
 
     topics = supabase.table("meeting_topics").select("id, topic").in_("id", profile["topic_ids"]).execute()
-    print("Topics fetched:", topics)
     topics = [item["topic"] for item in topics.data] if topics.data else []
 
     prompt = "Generate a concise and engaging text about this user’s interests based on their profile:"
@@ -88,6 +87,22 @@ async def create_embeddings(profile: dict):
     return embedding
 
 
+def link_topics_to_user(topic_ids: list[str], user_id: str):
+    supabase.table("profiles_to_topics").delete().eq("id", user_id).execute()
+    # Fetch topic names for provided IDs
+    topics_resp = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
+    topics_data = topics_resp.data or []
+    # Prepare records for linking table
+    link_records = [
+        {"profile_id": user_id, "topic_id": item["id"], "topic": item["topic"]} for item in topics_data
+    ]
+    if link_records:
+        supabase.table("profiles_to_topics").insert(link_records).execute()
+        logger.info("Linked profile %s to topics %s", user_id, [item["id"] for item in topics_data])
+    else:
+        logger.warning("No valid topics found for profile %s, provided IDs: %s", user_id, topic_ids)
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_profile(profile: ProfileCreate) -> ProfileReturn:
     # Upsert into Supabase
@@ -131,29 +146,14 @@ async def create_profile(profile: ProfileCreate) -> ProfileReturn:
 
     # Upsert profile-topic relationships
     # Convert profile_id to string for consistency
-    profile_id = payload["id"]
+    user_id = payload["id"]
 
     try:
-        supabase.table("profiles_to_topics").delete().eq("id", profile_id).execute()
-
-        # Fetch topic names for provided IDs
-        topics_resp = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
-
-        topics_data = topics_resp.data or []
-        # Prepare records for linking table
-        link_records = [
-            {"profile_id": profile_id, "topic_id": item["id"], "topic": item["topic"]} for item in topics_data
-        ]
-
-        if link_records:
-            supabase.table("profiles_to_topics").insert(link_records).execute()
-            logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
-        else:
-            logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
+        link_topics_to_user(topic_ids, user_id)
     except Exception as e:
-        logger.error("Error linking topics for profile %s: %s", profile_id, e)
+        logger.error("Error linking topics for profile %s: %s", user_id, e)
 
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=get_profile(profile_id))
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content=get_profile(user_id))
 
 
 @router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
@@ -187,48 +187,20 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
     result_topics = None
     # Update interested topic
     if topic_ids is not None:
-        profile_id = user_id
         try:
-            supabase.table("profiles_to_topics").delete().eq("profile_id", user_id).execute()
-
-            # Fetch topic names for provided IDs
-            topics_resp = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
-
-            topics_data = topics_resp.data or []
-            # Prepare records for linking table
-            link_records = [
-                {"profile_id": profile_id, "topic_id": item["id"], "topic": item["topic"]} for item in topics_data
-            ]
-
-            if link_records:
-                result_topics = supabase.table("profiles_to_topics").insert(link_records).execute()
-                result_topics = result_topics.data or []
-                logger.info("Linked profile %s to topics %s", profile_id, [item["id"] for item in topics_data])
-            else:
-                logger.warning("No valid topics found for profile %s, provided IDs: %s", profile_id, topic_ids)
+            link_topics_to_user(topic_ids, user_id)
         except Exception as e:
-            logger.error("Error linking topics for profile %s: %s", profile_id, e)
-
-    if result_topics is None:
-        result_topics = (
-            supabase.table("profiles_to_topics")
-            .select("topic_id, topic")
-            .eq("profile_id", user_id)
-            .execute()
-        )
-
-    topic_ids = [item["topic_id"] for item in result_topics or []]
+            logger.error("Error linking topics for profile %s: %s", user_id, e)
 
     # Update profile data
     if payload:
         existing_profile = get_profile(user_id)
-        print("profile ------- ", existing_profile)
         embedding_payload = {"embedding": await create_embeddings(existing_profile)}
         result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
         if len(result.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=get_profile(user_id))
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content=get_profile(user_id))
 # except Exception as e:
 #    logger.error("Supabase update failed for profile %s: %s", user_id, e)
 #    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase update failed") from e
