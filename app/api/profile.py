@@ -104,7 +104,7 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_profile(profile: ProfileCreate) -> ProfileReturn:
+async def create_profile(profile: ProfileCreate) -> JSONResponse:
     # Upsert into Supabase
     payload = profile.model_dump()
     embedding = await create_embeddings(payload)
