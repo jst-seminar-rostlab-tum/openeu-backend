@@ -39,9 +39,7 @@ async def create_embeddings(profile: dict):
     print("Topics fetched:", topics)
     topics = [item["topic"] for item in topics.data] if topics.data else []
 
-    prompt = f"""
-    Generate a concise and engaging text about this user’s interests based on their profile:
-    """
+    prompt = "Generate a concise and engaging text about this user’s interests based on their profile:"
 
     if profile["user_type"] == "entrepreneur":
         prompt += f"""
@@ -115,8 +113,7 @@ async def create_profile(profile: ProfileCreate) -> ProfileReturn:
         logger.error(f"Supabase upsert failed for %s %s: %s",
                      "companies" if is_entrepreneur else "politicians",
                      company if is_entrepreneur else politician,
-                     e
-                     )
+                     e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e
 
     # Link profile to company or politician
