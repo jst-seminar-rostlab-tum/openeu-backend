@@ -88,7 +88,7 @@ async def create_embeddings(profile: dict):
 
 
 def link_topics_to_user(topic_ids: list[str], user_id: str):
-    supabase.table("profiles_to_topics").delete().eq("id", user_id).execute()
+    supabase.table("profiles_to_topics").delete().eq("profile_id", user_id).execute()
     # Fetch topic names for provided IDs
     topics_resp = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
     topics_data = topics_resp.data or []
@@ -118,6 +118,8 @@ async def create_profile(profile: ProfileCreate) -> ProfileReturn:
     politician = payload.pop("politician")
     is_entrepreneur = profile.user_type == "entrepreneur"
 
+    user_id = payload["id"]
+
     # Create comp
     try:
         if is_entrepreneur:
@@ -139,14 +141,11 @@ async def create_profile(profile: ProfileCreate) -> ProfileReturn:
 
     try:
         supabase.table("profiles").upsert(payload).execute()
-        logger.info("Successfully upserted profile %s", payload["id"])
+        logger.info("Successfully upserted profile %s", user_id)
     except Exception as e:
-        logger.error("Supabase upsert failed for profile %s: %s", payload["id"], e)
+        logger.error("Supabase upsert failed for profile %s: %s", user_id, e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e
 
-    # Upsert profile-topic relationships
-    # Convert profile_id to string for consistency
-    user_id = payload["id"]
 
     try:
         link_topics_to_user(topic_ids, user_id)
@@ -161,30 +160,39 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
     # try:
     payload = profile.model_dump(exclude_unset=True)
 
-    company = payload.pop("company")
-    politician = payload.pop("politician")
-    topic_ids = payload.pop("topic_ids") if "topic_ids" in payload else []
+    company = payload.pop("company") if "company" in payload else None
+    politician = payload.pop("politician") if "politician" in payload else None
+    topic_ids = payload.pop("topic_ids") if "topic_ids" in payload else None
 
-    existing_profile = supabase.table("profiles").update(payload).eq("id", user_id).execute()
+    # Fetch existing profile
+    if payload == {}:
+        existing_profile = supabase.table("profiles").select("*").eq("id", user_id).execute()
+    else:
+        existing_profile = supabase.table("profiles").update(payload).eq("id", user_id).execute()
+
     existing_profile = existing_profile.data[0] if existing_profile.data else None
-
     if existing_profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
-    if company is not None and existing_profile["user_type"] == "entrepreneur":
+    should_update_company = company is not None and existing_profile["user_type"] == "entrepreneur"
+    should_update_politician = politician is not None and existing_profile["user_type"] == "politician"
+    should_update_embeddings = (should_update_company
+                                or should_update_politician
+                                or topic_ids is not None
+                                or "countries" in payload)
+
+    # Update company or politician information
+    if should_update_company:
         try:
-            result = supabase.table("companies").update(company).eq("id", existing_profile["company_id"]).execute()
-            company = result.data
+            supabase.table("companies").update(company).eq("id", existing_profile["company_id"]).execute()
         except Exception as e:
             logger.error("Error updating company %s: %s", existing_profile["company_id"], e)
-    elif politician is not None and existing_profile["user_type"] == "politician":
+    elif should_update_politician:
         try:
-            result = supabase.table("politicians").update(company).eq("id", existing_profile["politician_id"]).execute()
-            politician = result.data
+            supabase.table("politicians").update(politician).eq("id", existing_profile["politician_id"]).execute()
         except Exception as e:
             logger.error("Error updating company %s: %s", existing_profile["politician_id"], e)
 
-    result_topics = None
     # Update interested topic
     if topic_ids is not None:
         try:
@@ -192,15 +200,11 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
         except Exception as e:
             logger.error("Error linking topics for profile %s: %s", user_id, e)
 
-    # Update profile data
-    if payload:
-        existing_profile = get_profile(user_id)
-        embedding_payload = {"embedding": await create_embeddings(existing_profile)}
+    # Update profile embedding
+    if should_update_embeddings:
+        embedding_payload = {"embedding": await create_embeddings(get_profile(user_id))}
         result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
         if len(result.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=get_profile(user_id))
-# except Exception as e:
-#    logger.error("Supabase update failed for profile %s: %s", user_id, e)
-#    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase update failed") from e

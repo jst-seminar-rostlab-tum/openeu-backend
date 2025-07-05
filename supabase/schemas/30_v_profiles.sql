@@ -15,7 +15,7 @@ SELECT
     row_to_json(pol) AS politician,
 
     -- Topics related to the profile
-    array_agg(top.topic_id) AS topic_ids
+    array_remove(array_agg(top.topic_id), NULL) AS topic_ids
 FROM profiles p
 LEFT JOIN companies c ON p.company_id = c.id
 LEFT JOIN politicians pol ON p.politician_id = pol.id
