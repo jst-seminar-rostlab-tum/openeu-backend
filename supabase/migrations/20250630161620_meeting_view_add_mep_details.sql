@@ -19,7 +19,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             ( SELECT row_to_json(p.*) AS row_to_json
                    FROM meps p
                   WHERE (((upper(p.family_name) || ' '::text) || p.given_name) = m.member_name)
-                 LIMIT 1) AS mep,
+                 LIMIT 1) AS member,
             ( SELECT string_agg(attendees.name, ';'::text) AS string_agg
                    FROM (mep_meeting_attendee_mapping mapping
                      JOIN mep_meeting_attendees attendees ON ((mapping.attendee_id = attendees.id)))
@@ -39,7 +39,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             e.scraped_at
            FROM ep_meetings e
@@ -56,7 +56,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             a.scraped_at
            FROM austrian_parliament_meetings a
@@ -73,7 +73,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             i.tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             i.scraped_at
            FROM ipex_events i
@@ -90,7 +90,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             b.scraped_at
            FROM belgian_parliament_meetings b
@@ -107,7 +107,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             p.scraped_at
            FROM mec_prep_bodies_meeting p
@@ -124,7 +124,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             s.scraped_at
            FROM mec_summit_ministerial_meeting s
@@ -141,7 +141,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             NULL::text[] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             p.scraped_at
            FROM polish_presidency_meeting p
@@ -170,7 +170,7 @@ create or replace view "public"."v_meetings" as  WITH base AS (
             NULL::text AS status,
             NULL::text AS source_url,
             ARRAY[w.type] AS tags,
-            NULL::json AS mep,
+            NULL::json as member,
             NULL::text AS attendees,
             w.scraped_at
            FROM weekly_agenda w
