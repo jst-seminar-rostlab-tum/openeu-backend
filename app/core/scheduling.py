@@ -157,7 +157,6 @@ class JobScheduler:
     def _run_scheduler(self):
         """Background thread that runs pending jobs every minute."""
         while not self._stop_event.wait(60):  # Run every 60 seconds
-            logging.info("Running scheduled jobs...")
             schedule.run_pending()
 
     def register(
