@@ -18,8 +18,11 @@ from app.api.topics import router as api_topics
 from app.core.auth import User, decode_supabase_jwt
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
+from app.core.scheduling import scheduler
 
 setup_scheduled_jobs()
+scheduler.start()
+
 settings = Settings()
 
 logging.basicConfig(
