@@ -1,5 +1,5 @@
 -- Company table
-CREATE TABLE IF NOT EXISTS entrepreneurs (
+CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -26,10 +26,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
     user_type user_type_enum NOT NULL, -- 'entrepreneur' or 'politician'
-    entrepreneur_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
     politician_id UUID REFERENCES politicians(id) ON DELETE CASCADE,
     countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
     newsletter_frequency TEXT NOT NULL DEFAULT 'none',
+    embedding_input TEXT NOT NULL,
     embedding VECTOR(1536) NOT NULL
 );
 

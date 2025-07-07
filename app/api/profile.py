@@ -28,18 +28,26 @@ def get_user_profile(user_id: str) -> JSONResponse:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
 
 
-async def create_embeddings(profile: dict):
+async def create_embeddings(user_id: str, embedding_input: str):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_ids,
     then upsert the record into Supabase.
     """
-    # Build input text for embedding
+    try:
+        logger.info("Requesting embedding from OpenAI for profile %s", user_id)
+        resp = openai.embeddings.create(input=[embedding_input], model=EMBED_MODEL)
+        embedding = resp.data[0].embedding
+        logger.info("Received embedding for profile %s", user_id)
+    except Exception as e:
+        logger.error("Embedding generation failed for profile %s: %s", user_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding generation failed"
+        ) from e
+    return embedding
 
-    topics = supabase.table("meeting_topics").select("id, topic").in_("id", profile["topic_ids"]).execute()
-    topics = [item["topic"] for item in topics.data] if topics.data else []
 
+def generate_user_interest_embedding_input(profile, topics):
     prompt = "Generate a concise and engaging text about this user’s interests based on their profile:"
-
     is_entrepreneur = profile["user_type"] == "entrepreneur"
     if is_entrepreneur:
         prompt += f"""
@@ -79,19 +87,7 @@ async def create_embeddings(profile: dict):
         """
 
     response = openai.responses.create(model="gpt-4o", input=prompt)
-
-    # Generate embedding
-    try:
-        logger.info("Requesting embedding from OpenAI for profile %s", profile["id"])
-        resp = openai.embeddings.create(input=[response.output_text], model=EMBED_MODEL)
-        embedding = resp.data[0].embedding
-        logger.info("Received embedding for profile %s", profile["id"])
-    except Exception as e:
-        logger.error("Embedding generation failed for profile %s: %s", profile["id"], e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding generation failed"
-        ) from e
-    return embedding
+    return response.output_text
 
 
 def link_topics_to_user(topic_ids: list[str], user_id: str):
@@ -114,20 +110,25 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
 async def create_profile(profile: ProfileCreate) -> JSONResponse:
     # Upsert into Supabase
     payload = profile.model_dump()
-    embedding = await create_embeddings(payload)
-
-    topic_ids = payload.pop("topic_ids")
 
     payload["id"] = str(payload["id"])
+    user_id = payload["id"]
+
+    topic_ids = payload.pop("topic_ids")
+    topics = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
+    topics = [item["topic"] for item in topics.data] if topics.data else []
+
+    embedding_input = generate_user_interest_embedding_input(payload, topics)
+    payload["embedding_input"] = embedding_input
+    embedding = await create_embeddings(user_id, embedding_input)
     payload["embedding"] = embedding
 
     company = payload.pop("company")
     politician = payload.pop("politician")
     is_entrepreneur = profile.user_type == "entrepreneur"
 
-    user_id = payload["id"]
 
-    # Create comp
+    # Create company or politician
     try:
         if is_entrepreneur:
             result = supabase.table("companies").upsert(company).execute()
@@ -209,7 +210,19 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
 
     # Update profile embedding
     if should_update_embeddings:
-        embedding_payload = {"embedding": await create_embeddings(get_profile(user_id))}
+        # Build input text for embedding
+        topics = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
+        topics = [item["topic"] for item in topics.data] if topics.data else []
+
+        existing_profile = supabase.table("v_profiles").select(payload).eq("id", user_id).execute()
+        existing_profile = existing_profile.data[0] if existing_profile.data else None
+        # This should never happen, but just in case
+        if existing_profile is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile notfound")
+
+        embedding_input = generate_user_interest_embedding_input(existing_profile, topics)
+        embedding = await create_embeddings(user_id, embedding_input)
+        embedding_payload = {"embedding_input": embedding_input, "embedding": embedding}
         result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
         if len(result.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")

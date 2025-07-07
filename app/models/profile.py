@@ -62,4 +62,5 @@ class ProfileUpdate(BaseModel):
 class ProfileReturn(ProfileCreate):
     company: Optional[CompanyReturn] = None
     politician: Optional[PoliticianReturn] = None
+    embedding_input: str
     embedding: list[float]

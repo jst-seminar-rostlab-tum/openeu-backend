@@ -6,6 +6,7 @@ SELECT
     p.user_type,
     p.countries,
     p.newsletter_frequency,
+    p.embedding_input,
     p.embedding,
 
     -- Company-related fields (for entrepreneurs)
@@ -15,7 +16,7 @@ SELECT
     row_to_json(pol) AS politician,
 
     -- Topics related to the profile
-    array_remove(array_agg(top.topic_id), NULL) AS topic_ids
+    array_remove(array_agg(DISTINCT top.topic_id), NULL) AS topic_ids
 FROM profiles p
 LEFT JOIN companies c ON p.company_id = c.id
 LEFT JOIN politicians pol ON p.politician_id = pol.id
@@ -27,6 +28,7 @@ GROUP BY
     p.user_type,
     p.countries,
     p.newsletter_frequency,
+    p.embedding_input,
     p.embedding,
     c.id,
     pol.id;
