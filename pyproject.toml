@@ -65,6 +65,8 @@ fastapi-cache2 = "0.2.2"
 cohere = "^5.15.0"
 pandas = "^2.3.0"
 openpyxl = "^3.1.5"
+langchain-community = "^0.3.27"
+pypdf = "^5.7.0"
 
 [tool.mypy]
 ignore_missing_imports = true
