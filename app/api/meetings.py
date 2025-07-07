@@ -1,9 +1,13 @@
 import logging
 from datetime import datetime, timezone
 from typing import Optional
+import os
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from app.core.openai_client import openai
+import cohere
+
 
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
@@ -81,22 +85,77 @@ def get_meetings(
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
+            
+# --- CORRECTED API CALL ---
+
+            try:
+                # 1. Use the correct Chat Completions endpoint
+                completion = openai.chat.completions.create(
+
+                    # 2. Use a valid, current model name (e.g., gpt-4o-mini)
+                    model="gpt-4o-mini", 
+
+                    # 3. Structure the input as a 'messages' list
+                    #    This is the most important change.
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that reformulates text for semantic search. Your task is to generate a meeting summary document based on the user's question. Use a formal tone, and try to vary the phrasing and details based on the query context. Keep the summary within three sentences, with a clear title and a brief description."
+                        },
+                        {"role": "user", "content": query}
+                    ],
+
+                    temperature=0,
+                    max_tokens=128,
+                )
+                
+
+                # 4. Access the response correctly via .message.content
+                reformulated_query = completion.choices[0].message.content.strip()
+                logger.info(f"Reformulated Query: {reformulated_query}")
+
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+
+
             neighbors = get_top_k_neighbors(
-                query=query,
+                query=reformulated_query,
                 allowed_sources=allowed_sources,  # empty dict -> allows every source
-                k=limit,
+                k=1000,
                 sources=["meeting_embeddings"],
             )
+            
+            
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
                 logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
+            
+            co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
+            docs = [n["content_text"] for n in neighbors]
+
+            rerank_resp = co.rerank(
+                model="rerank-v3.5",
+                query=reformulated_query,
+                documents=docs,
+                top_n=min(limit,len(docs)),
+            )
+
+            neighbors_re = []
+            # 2) unpack the (index, similarity) tuples
+            for result in rerank_resp.results:
+                idx = result.index
+                new_score = result.relevance_score
+                # overwrite the old vector-search score with the reranker’s score
+                neighbors[idx]["similarity"] = new_score
+                if new_score > 0.1:
+                    neighbors_re.append(neighbors[idx])
+                
+            neighbors = neighbors_re
 
             map_table_and_id_to_similarity = {
                 f"{n['source_table']}_{n['source_id']}": n["similarity"] for n in neighbors
             }
             source_ids = [n["source_id"] for n in neighbors]
-            neighbor_tables = [n["source_table"] for n in neighbors]  #
+            neighbor_tables = [n["source_table"] for n in neighbors] 
 
             if topics and len(topics) == 1 and "," in topics[0]:
                 topics = [t.strip() for t in topics[0].split(",") if t.strip()]
@@ -122,10 +181,10 @@ def get_meetings(
                     results.append(record)
 
             # ---------- 2b)  LOG NON-EMPTY / EMPTY RESPONSE (semantic path) ----------
-            logger.info(
-                "Response formed – %d result(s) from semantic query",
-                len(results[:limit]),
-            )
+            # logger.info(
+            #     "Response formed – %d result(s) from semantic query",
+            #     len(results[:limit]),
+            # )
             return JSONResponse(status_code=200, content={"data": results[:limit]})
 
         # --- DEFAULT QUERY CASE ---
