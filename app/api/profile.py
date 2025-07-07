@@ -210,12 +210,7 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
 
     # Update profile embedding
     if should_update_embeddings:
-        existing_profile = supabase.table("v_profiles").select(payload).eq("id", user_id).execute()
-        existing_profile = existing_profile.data[0] if existing_profile.data else None
-
-        # This should never happen, but just in case
-        if existing_profile is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile notfound")
+        existing_profile = get_profile(user_id)
 
         # Build input text for embedding
         topics = supabase.table("meeting_topics").select("id, topic").in_("id", existing_profile["topic_ids"]).execute()
