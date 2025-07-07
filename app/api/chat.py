@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request
+
+from fastapi import APIRouter, HTTPException, Body, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
@@ -12,6 +13,7 @@ from app.core.auth import check_request_user_id
 from app.core.supabase_client import supabase
 from app.core.table_metadata import get_table_description
 from app.core.vector_search import get_top_k_neighbors
+from app.core.legislation_utils import get_or_extract_legislation_text, trigger_legislation_embedding_async
 
 client = OpenAI()
 router = APIRouter(prefix="/chat")
@@ -205,3 +207,34 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
         raise HTTPException(503, "Failed to get chat sessions, try again later") from None
 
     return response.data
+
+
+@router.post("/legislation")
+def process_legislation(
+    legislation_id: str = Body(..., embed=True),
+    message: str = Body(..., embed=True),
+    session_id: str = Body(..., embed=True),
+    background_tasks: BackgroundTasks = None,
+):
+    """
+    Process a legislative procedure: extract PDF text and store in DB if not already present.
+    Returns the extracted text or info if no document is found, or raises an HTTPException on error.
+    Triggers async embedding after extraction.
+    """
+    try:
+        extracted_text = get_or_extract_legislation_text(legislation_id)
+        if extracted_text is None:
+            return {"extracted_text": None, "info": "No 'Legislative proposal' document found for this procedure."}
+        # Trigger async embedding
+        if background_tasks is not None:
+            background_tasks.add_task(trigger_legislation_embedding_async, legislation_id, extracted_text)
+        else:
+            # Fallback: run in thread (should not happen in FastAPI, but for direct calls)
+            trigger_legislation_embedding_async(legislation_id, extracted_text)
+        return {"extracted_text": extracted_text}
+    except APIError as e:
+        logging.error(f"Supabase APIError: {e}")        
+        raise HTTPException(503, "Failed to get legislative file, try again later") from None
+    except Exception as e:
+        logging.error(f"Unexpected error during select: {e}")
+        raise HTTPException(503, "Failed to get legislative file, try again later") from None
