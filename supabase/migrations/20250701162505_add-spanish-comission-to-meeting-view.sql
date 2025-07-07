@@ -1,8 +1,15 @@
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('spanish_commission_meetings',    'Spain',          'ES')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+
 CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings
     select
-        m.id || '_mep_meetings'      as meeting_id, 
+        m.id || '_mep_meetings'      as meeting_id,
         m.id                         as source_id,
         'mep_meetings'               as source_table,
         m.title                      as title,
@@ -14,20 +21,6 @@ with base as (
         null::text                   as status,
         null::text                   as source_url,
         null::text[]                 as tags,
-        (
-            SELECT row_to_json(p) FROM public.meps p
-            WHERE (
-                -- meps.label: Firstname LASTNAME; member_name: LASTNAME Firstname
-                (upper(p.family_name)|| ' ' || p.given_name ) = m.member_name
-            )
-            LIMIT 1
-        ) as member,
-        (
-            SELECT string_agg(attendees.name, ';')
-            FROM mep_meeting_attendee_mapping mapping
-            JOIN mep_meeting_attendees attendees ON mapping.attendee_id = attendees.id
-            WHERE mapping.meeting_id = m.id
-        ) as attendees,
         m.scraped_at                 as scraped_at
     from public.mep_meetings m
 
@@ -47,8 +40,6 @@ with base as (
         null::text                   as status,
         null::text                   as source_url,
         null::text[]                 as tags,
-        null::json                   as member,
-        null::text                   as attendees,
         e.scraped_at                 as scraped_at
     from public.ep_meetings e
 
@@ -68,8 +59,6 @@ with base as (
         null::text                     as status,
         null::text                     as source_url,
         null::text[]                   as tags,
-        null::json                     as member,
-        null::text                     as attendees,
         a.scraped_at                   as scraped_at
     from public.austrian_parliament_meetings a
 
@@ -89,8 +78,6 @@ with base as (
         null::text                  as status,
         null::text                  as source_url,
         i.tags                      as tags,
-        null::json                  as member,
-        null::text                  as attendees,
         i.scraped_at                as scraped_at
     from public.ipex_events i
 
@@ -110,8 +97,6 @@ with base as (
         null::text                      as status,
         null::text                      as source_url,
         null::text[]                    as tags,
-        null::json                      as member,
-        null::text                      as attendees,
         b.scraped_at                    as scraped_at
     from public.belgian_parliament_meetings b
 
@@ -132,8 +117,6 @@ with base as (
         null::text                        as status,
         null::text                        as source_url,
         null::text[]                      as tags,
-        null::json                        as member,
-        null::text                        as attendees,
         p.scraped_at                      as scraped_at
     from public.mec_prep_bodies_meeting p
 
@@ -153,8 +136,6 @@ with base as (
         null::text                              as status,
         null::text                              as source_url,
         null::text[]                            as tags,
-        null::json                              as member,
-        null::text                              as attendees,
         s.scraped_at                            as scraped_at
     from public.mec_summit_ministerial_meeting s
 
@@ -174,8 +155,6 @@ with base as (
         null::text                            as status,
         null::text                            as source_url,
         null::text[]                          as tags,
-        null::json                            as member,
-        null::text                            as attendees,
         p.scraped_at                          as scraped_at
     from public.polish_presidency_meeting p
 
@@ -212,7 +191,6 @@ with base as (
         NULL::text[]                               AS tags,
         s.scraped_at                               AS scraped_at
     from public.spanish_commission_meetings s
-
 
     union all
 
@@ -253,8 +231,6 @@ with base as (
         null::text                                   as status,
         null::text                                   as source_url,
         array[w.type]::text[]                        as tags,
-        null::json                                   as member,
-        null::text                                   as attendees,
         w.scraped_at                                 as scraped_at
     from public.weekly_agenda w
 

@@ -111,7 +111,7 @@ class ScraperBase(ABC):
                 )
 
     def store_entry(
-        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True
+        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True, assing_topic: bool = True
     ) -> Optional[ScraperResult]:
         try:
             # add/update scraped_at timestamp
@@ -121,20 +121,21 @@ class ScraperBase(ABC):
                 self.embedd_entries(response)
             self.lines_added += len(response.data) if response.data else 0
 
-            try:
-                meeting_data = response.data[0]
-                mapped = {
-                    "source_id": meeting_data["id"],
-                    "source_table": self.table_name,
-                    "meeting_start_datetime": meeting_data["datetime"],
-                    "title": meeting_data["title"],
-                    "meeting_id": meeting_data["id"],
-                }
-                meeting = Meeting(**mapped)
-                extractor = TopicExtractor()
-                extractor.assign_meeting_to_topic(meeting)
-            except Exception as e:
-                logger.info(f"Could not assign topic for meeting: {e}")
+            if assing_topic:
+                try:
+                    meeting_data = response.data[0]
+                    mapped = {
+                        "source_id": meeting_data["id"],
+                        "source_table": self.table_name,
+                        "meeting_start_datetime": meeting_data["datetime"],
+                        "title": meeting_data["title"],
+                        "meeting_id": meeting_data["id"],
+                    }
+                    meeting = Meeting(**mapped)
+                    extractor = TopicExtractor()
+                    extractor.assign_meeting_to_topic(meeting)
+                except Exception as e:
+                    logger.info(f"Could not assign topic for meeting: {e}")
 
             return None
         except Exception as e:

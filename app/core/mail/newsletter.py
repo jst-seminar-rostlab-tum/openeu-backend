@@ -135,6 +135,7 @@ class Newsletter:
             recipients=[user_mail],
         )
         try:
+            logger.info(f"Attempting to send email to {user_mail}...")
             Newsletter.email_client.send_email(mail)
             logger.info(f"Newsletter sent successfully to user_id={user_id}")
         except Exception as e:

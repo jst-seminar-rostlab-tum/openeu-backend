@@ -36,3 +36,20 @@ class RelevantMeetingsResponse(BaseModel):
 
 class MeetingSuggestionResponse(BaseModel):
     data: list[MeetingSuggestion]
+
+
+class LegislativeMeeting(BaseModel):
+    id: str
+    title: str
+    member_name: str
+    meeting_date: datetime
+    meeting_location: str
+    member_capacity: str
+    procedure_reference: Optional[str] = None
+    associated_committee_or_delegation_code: Optional[str] = None
+    associated_committee_or_delegation_name: Optional[str] = None
+    embedding_input: Optional[str] = None
+    scraped_at: datetime
+
+class LegislativeMeetingsResponse(BaseModel):
+    data: list[LegislativeMeeting]
