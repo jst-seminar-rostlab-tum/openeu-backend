@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     politician_id UUID REFERENCES politicians(id) ON DELETE CASCADE,
     countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
     newsletter_frequency TEXT NOT NULL DEFAULT 'none',
-    embedding_input TEXT NOT NULL,
+    embedding_input TEXT NOT NULL DEFAULT '',
     embedding VECTOR(1536) NOT NULL
 );
 

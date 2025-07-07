@@ -1,6 +1,6 @@
 drop view if exists "public"."v_profiles";
 
-alter table "public"."profiles" add column "embedding_input" text not null;
+alter table "public"."profiles" add column "embedding_input" text not null default '';
 
 create or replace view "public"."v_profiles" as  SELECT p.id,
     p.name,
