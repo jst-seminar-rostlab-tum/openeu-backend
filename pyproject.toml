@@ -61,6 +61,8 @@ schedule = "^1.2.2"
 python-jose = "3.5.0"
 langdetect = "^1.0.9"
 psycopg2-binary = "^2.9.10"
+langchain-community = "^0.3.27"
+pypdf = "^5.7.0"
 
 [tool.mypy]
 ignore_missing_imports = true
