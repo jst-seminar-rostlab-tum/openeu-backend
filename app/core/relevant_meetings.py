@@ -1,4 +1,5 @@
 import logging
+from pydoc_data.topics import topics
 from typing import Optional
 from datetime import datetime, time, timedelta
 
@@ -34,8 +35,8 @@ def fetch_relevant_meetings(
     # 1) load the stored profile embedding for `user_id`
     try:
         resp = (
-            supabase.table("profiles")
-            .select("embedding", "countries", "newsletter_frequency")
+            supabase.table("v_profiles")
+            .select("embedding", "countries", "newsletter_frequency", "topic_ids")
             .eq("id", user_id)
             .single()
             .execute()
@@ -43,8 +44,7 @@ def fetch_relevant_meetings(
         profile_embedding = resp.data["embedding"]
         allowed_countries = resp.data["countries"]
         newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
-        resp = supabase.table("profiles_to_topics").select("topic_id").eq("profile_id", user_id).execute()
-        allowed_topic_ids = [d["topic_id"] for d in resp.data] or None
+        allowed_topic_ids = resp.data["topic_ids"]
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
