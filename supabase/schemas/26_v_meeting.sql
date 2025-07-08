@@ -210,6 +210,8 @@ with base as (
         NULL::text                                 AS status,
         NULL::text                                 AS source_url,
         NULL::text[]                               AS tags,
+        null::json                                 AS member,
+        null::text                                 AS attendees,
         s.scraped_at                               AS scraped_at
     from public.spanish_commission_meetings s
 
@@ -257,6 +259,27 @@ with base as (
         null::text                                   as attendees,
         w.scraped_at                                 as scraped_at
     from public.weekly_agenda w
+
+    union all
+
+    -- EC Res Inno Meetings
+    select
+        r.id || '_ec_res_inno_meetings'             as meeting_id,
+        r.id                                         as source_id,
+        'ec_res_inno_meetings'                      as source_table,
+        r.title                                      as title,
+        r.start_date::timestamptz                    as meeting_start_datetime,
+        r.end_date::timestamptz                      as meeting_end_datetime,
+        r.location                                   as exact_location,
+        r.description                                as description,
+        r.meeting_url                                as meeting_url,
+        null::text                                   as status,
+        null::text                                   as source_url,
+        r.subjects                                   as tags,
+        null::json                                   as member,
+        null::text                                   as attendees,
+        r.scraped_at                                 as scraped_at
+    from public.ec_res_inno_meetings r
 
 ),
 base_with_location AS (

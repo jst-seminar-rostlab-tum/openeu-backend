@@ -915,6 +915,84 @@ VALUES
     'Workshop - Cybersecurity Best Practices - ITRE European Parliament, Brussels Technical workshop on implementing cybersecurity measures'
 );
 
+-- ==========================================
+-- Seed for ec_res_inno_meetings
+-- ==========================================
+INSERT INTO ec_res_inno_meetings (
+    id,
+    title,
+    meeting_url,
+    start_date,
+    end_date,
+    location,
+    event_type,
+    description,
+    subjects,
+    embedding_input
+)
+VALUES
+(
+    'ec_res_inno_001',
+    'European Research and Innovation Days',
+    'https://ec.europa.eu/research-and-innovation/en/events/upcoming-events/research-innovation-days',
+    '2025-09-25',
+    '2025-09-27',
+    'Brussels, Belgium',
+    'Conference',
+    'Annual flagship event bringing together policymakers, researchers, entrepreneurs and citizens to debate and shape the future of research and innovation in Europe.',
+    ARRAY['research policy', 'innovation', 'Horizon Europe'],
+    'European Research and Innovation Days 2025-09-25 2025-09-27 Brussels, Belgium Conference Annual flagship event bringing together policymakers, researchers, entrepreneurs and citizens to debate and shape the future of research and innovation in Europe'
+),
+(
+    'ec_res_inno_002',
+    'Digital Innovation Hubs Annual Forum',
+    'https://ec.europa.eu/research-and-innovation/en/events/upcoming-events/digital-innovation-hubs-forum',
+    '2025-10-12',
+    '2025-10-13',
+    'Porto, Portugal',
+    'Forum',
+    'European gathering of Digital Innovation Hubs to exchange best practices and discuss strategic developments in digital transformation support for SMEs.',
+    ARRAY['digital innovation', 'SMEs', 'Digital Europe Programme'],
+    'Digital Innovation Hubs Annual Forum 2025-10-12 2025-10-13 Porto, Portugal Forum European gathering of Digital Innovation Hubs to exchange best practices and discuss strategic developments in digital transformation support for SMEs'
+),
+(
+    'ec_res_inno_003',
+    'EU Green Tech Investment Summit',
+    'https://ec.europa.eu/research-and-innovation/en/events/upcoming-events/green-tech-summit',
+    '2025-11-05',
+    '2025-11-06',
+    'Vienna, Austria',
+    'Summit',
+    'High-level event bringing together investors, innovators and policymakers to accelerate investment in green technologies across Europe.',
+    ARRAY['green technologies', 'sustainable investment', 'climate neutrality'],
+    'EU Green Tech Investment Summit 2025-11-05 2025-11-06 Vienna, Austria Summit High-level event bringing together investors, innovators and policymakers to accelerate investment in green technologies across Europe'
+),
+(
+    'ec_res_inno_004',
+    'European AI Excellence Conference',
+    'https://ec.europa.eu/research-and-innovation/en/events/upcoming-events/ai-excellence-conference',
+    '2025-11-18',
+    '2025-11-19',
+    'Helsinki, Finland',
+    'Conference',
+    'Conference focusing on European excellence in artificial intelligence research, ethical AI development and regulatory frameworks.',
+    ARRAY['artificial intelligence', 'ethics', 'digital policy'],
+    'European AI Excellence Conference 2025-11-18 2025-11-19 Helsinki, Finland Conference Conference focusing on European excellence in artificial intelligence research, ethical AI development and regulatory frameworks'
+),
+(
+    'ec_res_inno_005',
+    'Horizon Europe Health Cluster Info Day',
+    'https://ec.europa.eu/research-and-innovation/en/events/upcoming-events/health-cluster-infoday',
+    '2025-12-03',
+    '2025-12-03',
+    'Online',
+    'Info Day',
+    'Information day on upcoming funding opportunities in the Horizon Europe Health Cluster, including calls, partnerships and missions.',
+    ARRAY['health research', 'Horizon Europe', 'funding'],
+    'Horizon Europe Health Cluster Info Day 2025-12-03 2025-12-03 Online Info Day Information day on upcoming funding opportunities in the Horizon Europe Health Cluster, including calls, partnerships and missions'
+);
+
+
 
 INSERT INTO meeting_embeddings (
     source_table,
