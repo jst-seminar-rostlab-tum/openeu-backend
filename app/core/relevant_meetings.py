@@ -1,5 +1,4 @@
 import logging
-from pydoc_data.topics import topics
 from typing import Optional
 from datetime import datetime, time, timedelta
 
