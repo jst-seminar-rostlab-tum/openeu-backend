@@ -31,7 +31,7 @@ def get_legislative_files(
     try:
         if query:
             try:
-            # 1. Use the correct Chat Completions endpoint
+                # 1. Use the correct Chat Completions endpoint
                 completion = openai.chat.completions.create(
                     # 2. Use a valid, current model name (e.g., gpt-4o-mini)
                     model="gpt-4o-mini",
@@ -56,9 +56,9 @@ def get_legislative_files(
 
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
-            
+
             neighbors = get_top_k_neighbors(
-                query=query,
+                query=reformulated_query,
                 allowed_sources={"legislative_files": "embedding_input"},
                 k=1000,
                 sources=["document_embeddings"],  # triggers match_filtered
@@ -88,7 +88,7 @@ def get_legislative_files(
                     neighbors_re.append(neighbors[idx])
 
             neighbors = neighbors_re
-            
+
             # Fetch matched rows
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
