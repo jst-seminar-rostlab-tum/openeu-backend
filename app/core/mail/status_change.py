@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.email import Email, EmailService
 from app.core.supabase_client import supabase
-from app.core.mail.newsletter import get_user_email, _load_base64_text_file
+from app.core.mail.newsletter import get_user_email, _load_base64_text_file, get_user_name
 
 logger = logging.getLogger(__name__)
 email_client = EmailService()
@@ -26,8 +26,7 @@ def build_email_body(user_id: str, legislation: dict, old_status: str) -> str:
     template = env.get_template(_TEMPLATE_NAME)
 
     context = {
-        # "recipient": get_user_name(user_id),
-        "recipient": "Dogay Asa",  # For testing purposes, replace with get_user_name(user_id),
+        "recipient": get_user_name(user_id),
         "title": legislation.get("title"),
         "link": legislation.get("details_link") or legislation.get("link"),
         "old_status": old_status,
@@ -41,8 +40,6 @@ def build_email_body(user_id: str, legislation: dict, old_status: str) -> str:
 
 def notify_status_change(user_id: str, legislation: dict, old_status: str) -> bool:
     user_email = get_user_email(user_id)
-    # test purposes doga
-    user_email = "dogayasa@gmail.com"
     if not user_email:
         logger.warning(f"No email found for user {user_id}; skipping")
         return False

@@ -17,8 +17,6 @@ from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
 from app.api.subscriber import router as api_subscriber
 
-# test purposes doga
-from app.api.test import router as api_test
 from app.core.auth import decode_supabase_jwt, User
 
 
@@ -50,8 +48,6 @@ app.include_router(api_legislative_files)
 app.include_router(notifications_router)
 app.include_router(api_alerts)
 app.include_router(api_subscriber)
-# test purposes doga
-app.include_router(api_test)
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
