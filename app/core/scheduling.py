@@ -2,11 +2,11 @@ import logging
 import multiprocessing
 import multiprocessing.synchronize
 import threading
+import typing
 from datetime import datetime, timedelta
 from typing import Callable
 
 import schedule
-import typing
 
 from app.core.mail.notify_job_failure import notify_job_failure
 from app.core.supabase_client import supabase
@@ -141,6 +141,23 @@ class JobScheduler:
         self.jobs: dict[str, ScheduledJob] = {}
         self.job_names: set[str] = set()
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._stop_event = threading.Event()
+        self._scheduler_thread = None
+
+    def start(self):
+        """Start the background scheduler thread."""
+        if self._scheduler_thread and self._scheduler_thread.is_alive():
+            return
+
+        self._stop_event.clear()
+        self._scheduler_thread = threading.Thread(target=self._run_scheduler, daemon=True, name="JobScheduler")
+        self._scheduler_thread.start()
+        self.logger.info("Started background scheduler thread")
+
+    def _run_scheduler(self):
+        """Background thread that runs pending jobs every minute."""
+        while not self._stop_event.wait(60):  # Run every 60 seconds
+            schedule.run_pending()
 
     def register(
         self,
@@ -159,9 +176,6 @@ class JobScheduler:
 
         job_schedule.do(job.execute)
         logging.info(f"Registered job '{name}' with schedule: {job_schedule}; and timeout: {timeout_minutes} minutes")
-
-    def tick(self):
-        schedule.run_pending()
 
     def run_job(self, name: str):
         if name not in self.jobs:
