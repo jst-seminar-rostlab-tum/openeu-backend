@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
-    user_type user_type_enum NOT NULL, -- 'entrepreneur' or 'politician'
+    user_type user_type_enum NOT NULL DEFAULT 'entrepreneur', -- 'entrepreneur' or 'politician'
     company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
     politician_id UUID REFERENCES politicians(id) ON DELETE CASCADE,
     countries  TEXT[] NOT NULL DEFAULT '{}'::text[],
