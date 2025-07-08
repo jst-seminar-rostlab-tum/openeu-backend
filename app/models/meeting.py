@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.models.person import Person
+
 
 class Meeting(BaseModel):
     meeting_id: str
@@ -19,6 +21,8 @@ class Meeting(BaseModel):
     description: Optional[str] = None
     tags: Optional[list[str]] = None
     similarity: Optional[float] = None
+    member: Optional[Person] = None
+    attendees: Optional[str] = None
 
 
 class MeetingSuggestion(BaseModel):
