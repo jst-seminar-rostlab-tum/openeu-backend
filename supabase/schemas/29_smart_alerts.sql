@@ -5,6 +5,7 @@ create table alerts (
   user_id              uuid references auth.users not null,
   description          text not null,
   embedding            vector(1536),
+  title                text not null default 'title placeholder',
   relevancy_threshold  real not null default 0.95,
   last_run_at          timestamptz,
   is_active            boolean not null default true,

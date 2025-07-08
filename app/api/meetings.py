@@ -72,8 +72,8 @@ def get_meetings(
             # tell the vector search which tables are allowed -- value can be any string
             if user_id:
                 resp = (
-                    supabase.table("profiles")
-                    .select("company_name,company_description")
+                    supabase.table("v_profiles")
+                    .select("embedding_input")
                     .eq("id", user_id)
                     .single()
                     .execute()

@@ -73,7 +73,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
                 meta={"main_entry": main_entry},
             )
 
-    def parse_details_page(self, response):
+    def parse_details_page(self, response) -> None:
         main_entry: LegislativeObservatory = response.meta["main_entry"]
 
         # --- Status ---
@@ -210,6 +210,9 @@ class LegislativeObservatorySpider(scrapy.Spider):
             + [d.get("document_type", "") for d in main_entry.documentation_gateway or []]
             + [d.get("reference", {}).get("text", "") for d in main_entry.documentation_gateway or []]
         )
+        if main_entry.embedding_input is None:
+            main_entry.embedding_input = ""
+
         main_entry.embedding_input += " " + " ".join(s for s in embedding_additional if s)
 
         # Check for status change
