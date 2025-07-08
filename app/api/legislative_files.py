@@ -30,7 +30,7 @@ def get_legislative_files(
             if user_id:
                 resp = (
                     supabase.table("profiles")
-                    .select("company_name,company_description")
+                    .select("embedding_input")
                     .eq("id", user_id)
                     .single()
                     .execute()

@@ -28,7 +28,7 @@ alter table "public"."profiles" add column "company_id" uuid;
 
 alter table "public"."profiles" add column "politician_id" uuid;
 
-alter table "public"."profiles" add column "user_type" user_type_enum not null;
+alter table "public"."profiles" add column "user_type" user_type_enum not null default 'entrepreneur';
 
 CREATE UNIQUE INDEX companies_pkey ON public.companies USING btree (id);
 
