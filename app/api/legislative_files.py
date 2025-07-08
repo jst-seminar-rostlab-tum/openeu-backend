@@ -52,8 +52,7 @@ def get_legislative_files(
                 )
 
                 # 4. Access the response correctly via .message.content
-                reformulated_query = completion.choices[0].message.content.strip()
-                logger.info(f"Reformulated Query: {reformulated_query}")
+                reformulated_query = (completion.choices[0].message.content or query).strip()
 
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
