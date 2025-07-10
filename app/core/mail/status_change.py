@@ -44,7 +44,7 @@ def notify_status_change(user_id: str, legislation: dict, old_status: str) -> bo
         logger.warning(f"No email found for user {user_id}; skipping")
         return False
 
-    subject = f"Status update on legislation: {legislation.get('recipient') or 'Unknown'}"
+    subject = f"Status update on legislation: {legislation.get('id') or 'Unknown'}"
     html_body = build_email_body(user_id, legislation, old_status)
 
     msg = Email(subject=subject, html_body=html_body, recipients=[user_email])
