@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi_cache.decorator import cache
 
 from app.core.extract_topics import TOPICS_TABLE
 from app.core.supabase_client import supabase
@@ -11,7 +12,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/topics", response_model=list[Topic])
+@router.get("/topics", response_model=dict[str, list[Topic]])
+@cache(namespace="topics", expire=3600)
 def get_topics():
     try:
         response = supabase.table(TOPICS_TABLE).select("*").execute()

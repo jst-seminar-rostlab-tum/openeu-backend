@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from fastapi_cache.decorator import cache
 
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
@@ -29,7 +30,8 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
     return dt
 
 
-@router.get("/meetings", response_model=list[Meeting])
+@router.get("/meetings", response_model=dict[str, list[Meeting]])
+@cache(namespace="meetings", expire=3600)
 def get_meetings(
     request: Request,  # new param: provides caller info
     limit: int = Query(500, gt=1),
@@ -71,13 +73,7 @@ def get_meetings(
         if query:
             # tell the vector search which tables are allowed -- value can be any string
             if user_id:
-                resp = (
-                    supabase.table("v_profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("v_profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
@@ -192,6 +188,7 @@ def get_meeting_suggestions(
 
 
 @router.get("/legislative-files/meetings", response_model=LegislativeMeetingsResponse)
+@cache(namespace="meetings", expire=3600)
 def get_meetings_by_legislative_id(
     legislative_id: str = Query(..., description="Legislative procedure reference ID to filter meetings"),
     limit: int = Query(500, gt=0, le=1000, description="Maximum number of meetings to return"),
