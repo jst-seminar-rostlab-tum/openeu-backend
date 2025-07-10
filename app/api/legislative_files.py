@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/legislative-files", response_model=LegislativeFilesResponse)
 def get_legislative_files(
-    limit: int = Query(100, gt=1),
+    limit: int = Query(500, gt=1),
     query: Optional[str] = Query(None, description="Semantic search query"),
     year: Optional[int] = Query(None, description="Filter by reference year (e.g. 2025)"),
     committee: Optional[str] = Query(None, description="Filter by committee name"),

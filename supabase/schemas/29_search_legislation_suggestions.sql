@@ -17,10 +17,13 @@ as $$
     select 
       id,
       title,
-      GREATEST(
-        similarity(title, search_text),
-        similarity(id, search_text)
-      ) as similarity_score
+      CASE 
+        WHEN search_text <> '' AND (title ILIKE search_text || '%' OR id ILIKE search_text || '%') THEN 1.0
+        ELSE GREATEST(
+          similarity(title, search_text),
+          similarity(id, search_text)
+        )
+    END AS similarity_score
     from legislative_files
     where (title is not null or id is not null)
   ) scored
