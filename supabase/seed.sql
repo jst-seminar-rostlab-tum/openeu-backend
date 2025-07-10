@@ -487,7 +487,7 @@ VALUES (
   'Chancellor',
   NULL,
   'CDU',
-  ['Money Maker $$$']
+  ARRAY['Money Maker $$$']
   );
 
 INSERT INTO profiles (
