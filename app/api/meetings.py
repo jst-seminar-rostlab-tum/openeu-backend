@@ -9,7 +9,7 @@ from fastapi_cache.decorator import cache
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
-from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeetingsResponse
+from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeeting
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ def get_meeting_suggestions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/legislative-files/meetings", response_model=LegislativeMeetingsResponse)
+@router.get("/legislative-files/meetings", response_model=dict[str, list[LegislativeMeeting]])
 @cache(namespace="meetings", expire=3600)
 def get_meetings_by_legislative_id(
     legislative_id: str = Query(..., description="Legislative procedure reference ID to filter meetings"),
