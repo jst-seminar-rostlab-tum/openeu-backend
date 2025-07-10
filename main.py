@@ -15,10 +15,13 @@ from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
+from app.api.subscriber import router as api_subscriber
+
 from app.core.auth import User, decode_supabase_jwt
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
 from app.core.scheduling import scheduler
+
 
 setup_scheduled_jobs()
 scheduler.start()
@@ -43,6 +46,7 @@ app.include_router(api_scheduler)
 app.include_router(api_chat)
 app.include_router(api_topics)
 app.include_router(api_legislative_files)
+app.include_router(api_subscriber)
 
 app.include_router(notifications_router)
 app.include_router(api_alerts)

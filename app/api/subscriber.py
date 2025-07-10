@@ -14,14 +14,7 @@ class SubscribeRequest(BaseModel):
 @router.post("/subscribe")
 def subscribe_to_legislation(req: SubscribeRequest):
     try:
-        response = (
-            supabase.table("subscriptions")
-            .insert({"user_id": req.user_id, "legislation_id": req.legislation_id})
-            .execute()
-        )
-
-        if response.error:
-            raise HTTPException(status_code=400, detail=str(response.error))
+        supabase.table("subscriptions").insert({"user_id": req.user_id, "legislation_id": req.legislation_id}).execute()
 
         return {"success": True, "message": "Subscribed successfully"}
     except Exception as e:
