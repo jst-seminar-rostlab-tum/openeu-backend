@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS companies (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     company_stage TEXT NOT NULL,
-    company_size INT NOT NULL,
+    company_size TEXT NOT NULL,
     industry TEXT NOT NULL
 );
 
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS politicians (
     role TEXT NOT NULL,
     further_information TEXT,
     institution TEXT NOT NULL,
-    area_of_expertise TEXT NOT NULL
+    area_of_expertise TEXT[] NOT NULL DEFAULT '{}'::text[]
 );
 
 CREATE TYPE user_type_enum AS ENUM ('entrepreneur', 'politician');

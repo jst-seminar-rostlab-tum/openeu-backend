@@ -63,7 +63,7 @@ def generate_user_interest_embedding_input(profile, topics):
         If politician:
         - Political Role: {profile["politician"]["role"]}
         - Institution: {profile["politician"]["institution"]}
-        - Area of Expertise: {profile["politician"]["area_of_expertise"]}
+        - Area of Expertise: {', '.join(profile["politician"]["area_of_expertise"])}
         - Further Information: {profile["politician"]["further_information"]}
         """
 
