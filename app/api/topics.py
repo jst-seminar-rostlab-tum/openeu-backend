@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 @router.get("/topics", response_model=dict[str, list[Topic]])
-@cache(namespace="topics", expire=3600)
+@cache(namespace="topics", expire=86400)
 def get_topics():
     try:
         response = supabase.table(TOPICS_TABLE).select("*").execute()
