@@ -28,13 +28,7 @@ def get_legislative_files(
     try:
         if query:
             if user_id:
-                resp = (
-                    supabase.table("profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             neighbors = get_top_k_neighbors(
@@ -121,4 +115,35 @@ def get_legislation_suggestions(
 
     except Exception as e:
         logger.error("INTERNAL ERROR: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/legislative-files/unique-values")
+def get_legislative_unique_values():
+    """Returns unique values for year, committee, and status from legislative files."""
+    try:
+        response = supabase.table("legislative_files").select("id, committee, status").execute()
+        data = response.data or []
+
+        years = set()
+        committees = set()
+        statuses = set()
+
+        for row in data:
+            if row.get("id"):
+                year_part = row["id"][:4]
+                if year_part.isdigit():
+                    years.add(year_part)
+            if row.get("committee"):
+                committees.add(row["committee"])
+            if row.get("status"):
+                statuses.add(row["status"])
+
+        return {
+            "years": sorted(list(years)),
+            "committees": sorted(list(committees)),
+            "statuses": sorted(list(statuses)),
+        }
+    except Exception as e:
+        logger.error("Something went wrong: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
