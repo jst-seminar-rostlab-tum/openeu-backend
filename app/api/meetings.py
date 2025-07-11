@@ -10,7 +10,6 @@ from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeetingsResponse
-from app.core.auth import check_request_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,6 @@ def get_meetings(
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
-    check_request_user_id(request, user_id)
     # ---------- 1)  LOG INCOMING REQUEST ----------
     caller_ip = request.headers.get(
         "X-Forwarded-For",

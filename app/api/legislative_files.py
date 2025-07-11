@@ -5,7 +5,6 @@ from typing import Optional
 
 from fastapi_cache.decorator import cache
 
-from app.core.auth import check_request_user_id
 from app.core.relevant_legislatives import fetch_relevant_legislative_files
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
@@ -22,7 +21,6 @@ router = APIRouter()
 @router.get("/legislative-files", response_model=LegislativeFilesResponse)
 @cache(namespace="legislative", expire=3600)
 def get_legislative_files(
-    request: Request,
     limit: int = Query(500, gt=1),
     query: Optional[str] = Query(None, description="Semantic search query"),
     year: Optional[int] = Query(None, description="Filter by reference year (e.g. 2025)"),
@@ -30,7 +28,6 @@ def get_legislative_files(
     rapporteur: Optional[str] = Query(None, description="Filter by rapporteur name"),
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
 ):
-    check_request_user_id(request, user_id)
     try:
         if query:
             if user_id:
