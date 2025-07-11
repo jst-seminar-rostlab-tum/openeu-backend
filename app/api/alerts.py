@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import json
 
+from app.core.auth import check_request_user_id
 from app.core.alerts import (
     create_alert,
     get_user_alerts,
@@ -71,6 +72,7 @@ def parse_meeting_embeddings(meeting) -> dict:
 
 @router.post("/alerts", response_model=AlertResponse, status_code=201)
 async def create_alert_endpoint(alert: CreateAlertRequest, request: Request):
+    check_request_user_id(request, alert.user_id)
     caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
     try:
         logger.info("POST /alerts | caller=%s | payload=%s", caller_ip, alert.dict())
@@ -90,6 +92,7 @@ async def get_alerts_endpoint(
     user_id: str = Query(..., description="User ID for retrieving alerts"),
     include_inactive: Optional[bool] = Query(False, description="Include inactive alerts"),
 ):
+    check_request_user_id(request, user_id)
     caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
     try:
         logger.info("GET /alerts | caller=%s | user_id=%s | include_inactive=%s", caller_ip, user_id, include_inactive)

@@ -1,13 +1,14 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
 from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
+from app.core.auth import check_request_user_id
 from app.core.supabase_client import supabase
 from app.core.table_metadata import get_table_description
 from app.core.vector_search import get_top_k_neighbors
@@ -158,7 +159,8 @@ async def get_chat_response(chat_message_item: ChatMessageItem):
 
 
 @router.post("/start", response_model=NewChatResponseModel)
-def create_new_session(new_session_item: NewSessionItem) -> dict[str, str]:
+def create_new_session(request: Request, new_session_item: NewSessionItem) -> dict[str, str]:
+    check_request_user_id(request, new_session_item.user_id)
     data = {
         "title": new_session_item.title,
         "user_id": new_session_item.user_id,
@@ -191,7 +193,8 @@ def get_all_messages(session_id: str) -> list:
 
 
 @router.get("/sessions", response_model=list[SessionsResponseModel])
-def get_user_sessions(user_id: str) -> list[dict[str, str]]:
+def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
+    check_request_user_id(request, user_id)
     try:
         response = supabase.table("chat_sessions").select("*").eq("user_id", user_id).execute()
     except APIError as e:
