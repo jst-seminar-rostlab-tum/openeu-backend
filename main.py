@@ -1,27 +1,31 @@
-from fastapi import FastAPI, Request, status, HTTPException
-from fastapi.responses import PlainTextResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 import logging
 import re
-from fastapi.responses import JSONResponse
+
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse, PlainTextResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from app.api import profile
+from app.api.alerts import router as api_alerts
 from app.api.chat import router as api_chat
 from app.api.crawler import router as api_crawler
-from app.api.meetings import router as api_meetings
 from app.api.legislative_files import router as api_legislative_files  # <- make sure this import is correct
+from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
-from app.api.alerts import router as api_alerts
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
-from app.core.auth import decode_supabase_jwt, User
+from app.api.subscriber import router as api_subscriber
 
-
+from app.core.auth import User, decode_supabase_jwt
 from app.core.config import Settings
 from app.core.jobs import setup_scheduled_jobs
+from app.core.scheduling import scheduler
+
 
 setup_scheduled_jobs()
+scheduler.start()
+
 settings = Settings()
 
 logging.basicConfig(
@@ -42,6 +46,7 @@ app.include_router(api_scheduler)
 app.include_router(api_chat)
 app.include_router(api_topics)
 app.include_router(api_legislative_files)
+app.include_router(api_subscriber)
 
 app.include_router(notifications_router)
 app.include_router(api_alerts)
@@ -57,7 +62,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/openapi.json$",
             r"^/scheduler/tick",
             r"^/topics",
-            r"^/profile",
         ]
 
     async def dispatch(self, request: Request, call_next):
@@ -134,7 +138,6 @@ if not settings.get_disable_auth():
     app.add_middleware(JWTMiddleware)
 
 app.add_middleware(CustomCORSMiddleware)
-
 
 
 @app.get("/")
