@@ -75,13 +75,7 @@ def get_meetings(
         if query:
             # tell the vector search which tables are allowed -- value can be any string
             if user_id:
-                resp = (
-                    supabase.table("v_profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("v_profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
@@ -205,8 +199,8 @@ def get_meetings(
                 data.append(m.model_dump(mode="json"))
             return JSONResponse(status_code=200, content={"data": data})
 
-        result = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
-        data = result.data
+        res = db_query.order("meeting_start_datetime", desc=True).limit(limit).execute()
+        data = res.data
 
         if not isinstance(data, list):
             raise ValueError("Expected list of records from Supabase")

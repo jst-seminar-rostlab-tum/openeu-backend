@@ -33,13 +33,7 @@ def get_legislative_files(
     try:
         if query:
             if user_id:
-                resp = (
-                    supabase.table("profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             try:
@@ -132,8 +126,8 @@ def get_legislative_files(
                     data.append(m.model_dump(mode="json"))
                 return JSONResponse(status_code=200, content={"data": data})
 
-            result = db_query.limit(limit).execute()
-            records = result.data or []
+            res = db_query.limit(limit).execute()
+            records = res.data or []
 
         return JSONResponse(status_code=200, content={"data": records[:limit]})
 
