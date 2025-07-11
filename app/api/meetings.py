@@ -189,7 +189,7 @@ def get_meeting_suggestions(
 
 
 @router.get("/legislative-files/meetings", response_model=LegislativeMeetingsResponse)
-@cache(namespace="meetings", expire=3600)
+@cache(namespace="meetings", expire=3600)  # type: ignore[arg-type]
 def get_meetings_by_legislative_id(
     legislative_id: str = Query(..., description="Legislative procedure reference ID to filter meetings"),
     limit: int = Query(500, gt=0, le=1000, description="Maximum number of meetings to return"),
