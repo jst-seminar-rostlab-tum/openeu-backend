@@ -32,11 +32,11 @@ class KeyEvent(BaseModel):
 
 class LegislativeFile(BaseModel):
     id: str
-    source_table: str
-    source_id: str
+    source_table: Optional[str] = None
+    source_id: Optional[str] = None
     link: Optional[str] = None
     title: str
-    lastpubdate: Optional[date] = None
+    lastpubdate: Optional[date | str] = None
     details_link: Optional[str] = None
     committee: Optional[str] = None
     rapporteur: Optional[str] = None
@@ -55,7 +55,7 @@ class LegislativeFileSuggestion(BaseModel):
 
 
 class LegislativeFilesResponse(BaseModel):
-    legislative_files: list[LegislativeFile]
+    data: list[LegislativeFile]
 
 
 class LegislativeFileResponse(BaseModel):

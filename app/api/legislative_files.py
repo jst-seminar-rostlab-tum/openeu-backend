@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
 
+from fastapi_cache.decorator import cache
+
 from app.core.relevant_legislatives import fetch_relevant_legislative_files
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
@@ -17,6 +19,7 @@ router = APIRouter()
 
 
 @router.get("/legislative-files", response_model=LegislativeFilesResponse)
+@cache(namespace="legislative", expire=3600)
 def get_legislative_files(
     limit: int = Query(500, gt=1),
     query: Optional[str] = Query(None, description="Semantic search query"),
@@ -28,13 +31,7 @@ def get_legislative_files(
     try:
         if query:
             if user_id:
-                resp = (
-                    supabase.table("profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             neighbors = get_top_k_neighbors(
@@ -88,6 +85,7 @@ def get_legislative_files(
 
 
 @router.get("/legislative-file", response_model=LegislativeFileResponse)
+@cache(namespace="legislative", expire=86400)
 def get_legislative_file(id: str = Query(..., description="Legislative file ID")):
     """Get a single legislative file by ID"""
     try:
@@ -106,6 +104,7 @@ def get_legislative_file(id: str = Query(..., description="Legislative file ID")
 
 
 @router.get("/legislative-files/suggestions", response_model=LegislativeFileSuggestionResponse)
+@cache(namespace="legislative", expire=3600)
 def get_legislation_suggestions(
     request: Request,
     query: str = Query(..., min_length=2, description="Fuzzy text to search legislation titles"),
