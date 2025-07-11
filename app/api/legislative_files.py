@@ -84,7 +84,7 @@ def get_legislative_files(
                 new_score = result.relevance_score
                 # overwrite the old vector-search score with the reranker’s score
                 neighbors[idx]["similarity"] = new_score
-                if new_score > 0.1:
+                if new_score > 0.15:
                     neighbors_re.append(neighbors[idx])
 
             neighbors = neighbors_re
