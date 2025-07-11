@@ -13,6 +13,7 @@ from app.core.alerts import (
     find_relevant_meetings_for_alert,
 )
 from app.core.supabase_client import supabase
+from app.core.auth import check_request_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -90,6 +91,7 @@ async def get_alerts_endpoint(
     user_id: str = Query(..., description="User ID for retrieving alerts"),
     include_inactive: Optional[bool] = Query(False, description="Include inactive alerts"),
 ):
+    check_request_user_id(request, user_id)
     caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
     try:
         logger.info("GET /alerts | caller=%s | user_id=%s | include_inactive=%s", caller_ip, user_id, include_inactive)

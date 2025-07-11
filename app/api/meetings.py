@@ -9,6 +9,7 @@ from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeetingsResponse
+from app.core.auth import check_request_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ def get_meetings(
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
+    check_request_user_id(request, user_id)
     # ---------- 1)  LOG INCOMING REQUEST ----------
     caller_ip = request.headers.get(
         "X-Forwarded-For",
@@ -71,13 +73,7 @@ def get_meetings(
         if query:
             # tell the vector search which tables are allowed -- value can be any string
             if user_id:
-                resp = (
-                    supabase.table("v_profiles")
-                    .select("embedding_input")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                resp = supabase.table("v_profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
