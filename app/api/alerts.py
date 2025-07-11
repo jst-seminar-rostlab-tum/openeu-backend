@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import json
 
+from app.core.auth import check_request_user_id
 from app.core.alerts import (
     create_alert,
     get_user_alerts,
@@ -13,7 +14,6 @@ from app.core.alerts import (
     find_relevant_meetings_for_alert,
 )
 from app.core.supabase_client import supabase
-from app.core.auth import check_request_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -72,6 +72,7 @@ def parse_meeting_embeddings(meeting) -> dict:
 
 @router.post("/alerts", response_model=AlertResponse, status_code=201)
 async def create_alert_endpoint(alert: CreateAlertRequest, request: Request):
+    check_request_user_id(request, alert.user_id)
     caller_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
     try:
         logger.info("POST /alerts | caller=%s | payload=%s", caller_ip, alert.dict())
