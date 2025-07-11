@@ -5,6 +5,7 @@ from datetime import datetime, time, timedelta
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
 from pydantic import BaseModel, ValidationError
+import cohere
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
@@ -35,12 +36,12 @@ def fetch_relevant_meetings(
     try:
         resp = (
             supabase.table("v_profiles")
-            .select("embedding", "countries", "newsletter_frequency", "topic_ids")
+            .select("embedding", "countries", "newsletter_frequency", "topic_ids", "embedding_input")
             .eq("id", user_id)
             .single()
             .execute()
         )
-        profile_embedding = resp.data["embedding"]
+        profile_embedding_input = resp.data["embedding_input"]
         allowed_countries = resp.data["countries"]
         newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         allowed_topic_ids = resp.data["topic_ids"]
@@ -52,13 +53,33 @@ def fetch_relevant_meetings(
     # 2) call `get_top_k_neighbors`
     try:
         neighbors = get_top_k_neighbors(
-            embedding=profile_embedding,
+            embedding=profile_embedding_input,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
             allowed_countries=allowed_countries,
-            k=k,
+            k=1000,
         )
-
+        
+        co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
+        docs = [n["content_text"] for n in neighbors]
+        
+        rerank_resp = co.rerank(
+            model="rerank-v3.5",
+            query=profile_embedding_input,
+            documents=docs,
+            top_n=min(10, len(docs)),
+        )
+        
+        neighbors_re = []
+        for result in rerank_resp.results:
+            idx = result.index
+            new_score = result.relevance_score
+            neighbors[idx]["similarity"] = new_score
+            if new_score > 0.1:
+                neighbors_re.append(neighbors[idx])
+                
+        neighbors_re = neighbors
+        
         if query_to_compare:
             match = query_to_compare.order("meeting_start_datetime", desc=True).execute()
 
