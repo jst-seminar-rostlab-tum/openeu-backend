@@ -83,9 +83,13 @@ def get_meetings(
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=limit,
                 sources=["meeting_embeddings"],
+                allowed_sources = allowed_sources,
+                allowed_topics = topics,
+                allowed_countries = country,
+                start_date = start.isoformat() if start is not None else None,
+                end_date = end.isoformat() if end is not None else None,
             )
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
