@@ -87,8 +87,8 @@ def get_meetings(
                 allowed_sources=allowed_sources,
                 allowed_topics=topics,
                 allowed_countries=country,
-                start_date=start.isoformat() if start is not None else None,
-                end_date=end.isoformat() if end is not None else None,
+                start_date=start if start is not None else None,
+                end_date=end if end is not None else None,
             )
 
             if not neighbors:

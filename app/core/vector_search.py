@@ -88,7 +88,4 @@ def get_top_k_neighbors(
     return resp.data
 
 
-
 get_top_k_neighbors(query="digital", allowed_countries=["European Union"])
-
-
