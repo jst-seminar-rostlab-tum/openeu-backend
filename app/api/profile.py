@@ -41,16 +41,6 @@ def get_user_profile(request: Request, user_id: str) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_200_OK, content=result_profile)
 
 
-@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
-def get_user_profile(request: Request, user_id: str) -> JSONResponse:
-    check_request_user_id(request, user_id)
-    try:
-        return JSONResponse(status_code=status.HTTP_200_OK, content=get_profile(user_id))
-    except Exception as e:
-        logger.error("Supabase select failed for profile %s: %s", user_id, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
-
-
 async def create_embeddings(user_id: str, embedding_input: str):
     """
     Create or update a user profile: compute embedding from company_name, company_description, and topic_ids,
