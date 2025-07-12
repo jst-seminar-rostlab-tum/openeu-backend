@@ -5,13 +5,10 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-<<<<<<< HEAD
 from app.core.openai_client import openai
 import cohere
 
-=======
 from fastapi_cache.decorator import cache
->>>>>>> main
 
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
