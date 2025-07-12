@@ -1,6 +1,6 @@
-from typing import Optional, Union
+from typing import Optional, Any
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
@@ -37,7 +37,7 @@ def get_top_k_neighbors(
     Returns:
         A list of dicts representing matching records.
     """
-    
+
     if (query is None and embedding is None) or (query and embedding):
         raise ValueError("Provide exactly one of `query` or `embedding`.")
 
@@ -49,7 +49,7 @@ def get_top_k_neighbors(
     tables = list(allowed_sources or {})
     cols = list((allowed_sources or {}).values())
 
-    rpc_args: dict[str, Union[list, int]] = {
+    rpc_args: dict[str, Any] = {
         "query_embedding": embedding,
         "match_count": k,
     }
