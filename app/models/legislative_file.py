@@ -30,13 +30,20 @@ class KeyEvent(BaseModel):
     reference: Optional[Reference] = None
 
 
+class DocumentationGateway(BaseModel):
+    date: Optional[str] = None
+    summary: Optional[str] = None
+    reference: Optional[Reference] = None
+    document_type: Optional[str] = None
+
+
 class LegislativeFile(BaseModel):
     id: str
-    source_table: str
-    source_id: str
+    source_table: Optional[str] = None
+    source_id: Optional[str] = None
     link: Optional[str] = None
     title: str
-    lastpubdate: Optional[date] = None
+    lastpubdate: Optional[date | str] = None
     details_link: Optional[str] = None
     committee: Optional[str] = None
     rapporteur: Optional[str] = None
@@ -44,7 +51,7 @@ class LegislativeFile(BaseModel):
     subjects: Optional[list[str]] = None
     key_players: Optional[list[KeyPlayer]] = None
     key_events: Optional[list[KeyEvent]] = None
-    documentation_gateway: Optional[list[dict]] = None
+    documentation_gateway: Optional[list[DocumentationGateway]] = None
     similarity: Optional[float] = None
 
 
@@ -55,7 +62,7 @@ class LegislativeFileSuggestion(BaseModel):
 
 
 class LegislativeFilesResponse(BaseModel):
-    legislative_files: list[LegislativeFile]
+    data: list[LegislativeFile]
 
 
 class LegislativeFileResponse(BaseModel):

@@ -7,7 +7,7 @@ class CompanyCreate(BaseModel):
     name: str
     description: Optional[str] = None
     company_stage: str
-    company_size: int
+    company_size: str
     industry: str
 
 class CompanyReturn(CompanyCreate):
@@ -18,14 +18,14 @@ class CompanyUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     company_stage: Optional[str] = None
-    company_size: Optional[int] = None
+    company_size: Optional[str] = None
     industry: Optional[str] = None
 
 class PoliticianCreate(BaseModel):
     role: str
     further_information: str
     institution: str
-    area_of_expertise: str
+    area_of_expertise: list[str]
 
 class PoliticianReturn(PoliticianCreate):
     id: UUID4
@@ -34,7 +34,7 @@ class PoliticianUpdate(BaseModel):
     role: Optional[str] = None
     further_information: Optional[str] = None
     institution: Optional[str] = None
-    area_of_expertise: Optional[str] = None
+    area_of_expertise: Optional[list[str]] = None
 
 class ProfileCreate(BaseModel):
     id: UUID4

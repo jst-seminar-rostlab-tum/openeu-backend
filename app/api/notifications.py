@@ -1,9 +1,10 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from app.core.auth import check_request_user_id
 from app.core.supabase_client import supabase
 from app.models.notifications import Notification
 
@@ -17,9 +18,11 @@ router = APIRouter(
 
 @router.get("/{user_id}", response_model=list[Notification])
 def get_notifications_for_user(
+    request: Request,
     user_id: UUID,
     limit: int = Query(100, gt=0),
 ):
+    check_request_user_id(request, str(user_id))
     """
     Retrieve all notifications for a specific user by their ID.
     """

@@ -471,7 +471,7 @@ VALUES (
   'BrightWave Technologies',
   'We develop AI-driven analytics for retail optimization.',
   'Growth stage',
-  42,
+  '1-10',
   'Technology'
   );
 
@@ -487,7 +487,7 @@ VALUES (
   'Chancellor',
   NULL,
   'CDU',
-  'Money Maker $$$'
+  ARRAY['Money Maker $$$']
   );
 
 INSERT INTO profiles (

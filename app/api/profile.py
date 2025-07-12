@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
+from app.core.auth import check_request_user_id
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 from app.models.profile import ProfileCreate, ProfileUpdate, ProfileReturn
@@ -20,7 +21,8 @@ def get_profile(user_id):
 
 
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
-def get_user_profile(user_id: str) -> JSONResponse:
+def get_user_profile(request: Request, user_id: str) -> JSONResponse:
+    check_request_user_id(request, user_id)
     try:
         return JSONResponse(status_code=status.HTTP_200_OK, content=get_profile(user_id))
     except Exception as e:
@@ -63,7 +65,7 @@ def generate_user_interest_embedding_input(profile, topics):
         If politician:
         - Political Role: {profile["politician"]["role"]}
         - Institution: {profile["politician"]["institution"]}
-        - Area of Expertise: {profile["politician"]["area_of_expertise"]}
+        - Area of Expertise: {', '.join(profile["politician"]["area_of_expertise"])}
         - Further Information: {profile["politician"]["further_information"]}
         """
 
@@ -96,9 +98,7 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
     topics_resp = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
     topics_data = topics_resp.data or []
     # Prepare records for linking table
-    link_records = [
-        {"profile_id": user_id, "topic_id": item["id"], "topic": item["topic"]} for item in topics_data
-    ]
+    link_records = [{"profile_id": user_id, "topic_id": item["id"], "topic": item["topic"]} for item in topics_data]
     if link_records:
         supabase.table("profiles_to_topics").insert(link_records).execute()
         logger.info("Linked profile %s to topics %s", user_id, [item["id"] for item in topics_data])
@@ -107,7 +107,8 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_profile(profile: ProfileCreate) -> JSONResponse:
+async def create_profile(request: Request, profile: ProfileCreate) -> JSONResponse:
+    check_request_user_id(request, profile.id)
     # Upsert into Supabase
     payload = profile.model_dump()
 
@@ -127,7 +128,6 @@ async def create_profile(profile: ProfileCreate) -> JSONResponse:
     politician = payload.pop("politician")
     is_entrepreneur = profile.user_type == "entrepreneur"
 
-
     # Create company or politician
     try:
         if is_entrepreneur:
@@ -135,10 +135,12 @@ async def create_profile(profile: ProfileCreate) -> JSONResponse:
         else:
             result = supabase.table("politicians").upsert(politician).execute()
     except Exception as e:
-        logger.error("Supabase upsert failed for %s %s: %s",
-                     "companies" if is_entrepreneur else "politicians",
-                     company if is_entrepreneur else politician,
-                     e)
+        logger.error(
+            "Supabase upsert failed for %s %s: %s",
+            "companies" if is_entrepreneur else "politicians",
+            company if is_entrepreneur else politician,
+            e,
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e
 
     # Link profile to company or politician
@@ -154,7 +156,6 @@ async def create_profile(profile: ProfileCreate) -> JSONResponse:
         logger.error("Supabase upsert failed for profile %s: %s", user_id, e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase upsert failed") from e
 
-
     try:
         link_topics_to_user(topic_ids, user_id)
     except Exception as e:
@@ -164,7 +165,8 @@ async def create_profile(profile: ProfileCreate) -> JSONResponse:
 
 
 @router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
-async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONResponse:
+async def update_user_profile(request: Request, user_id: str, profile: ProfileUpdate) -> JSONResponse:
+    check_request_user_id(request, user_id)
     # try:
     payload = profile.model_dump(exclude_unset=True)
 
@@ -184,10 +186,9 @@ async def update_user_profile(user_id: str, profile: ProfileUpdate) -> JSONRespo
 
     should_update_company = company is not None and existing_profile["user_type"] == "entrepreneur"
     should_update_politician = politician is not None and existing_profile["user_type"] == "politician"
-    should_update_embeddings = (should_update_company
-                                or should_update_politician
-                                or topic_ids is not None
-                                or "countries" in payload)
+    should_update_embeddings = (
+        should_update_company or should_update_politician or topic_ids is not None or "countries" in payload
+    )
 
     # Update company or politician information
     if should_update_company:
