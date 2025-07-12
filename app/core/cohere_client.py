@@ -1,4 +1,3 @@
-import os
 from app.core.config import Settings
 import cohere
 from cohere import ClientV2
