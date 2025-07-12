@@ -2,7 +2,7 @@ drop function if exists "public"."match_filtered_meetings"(query_embedding vecto
 
 set check_function_bodies = off;
 
-CREATE OR REPLACE FUNCTION public.match_filtered_meetings(query_embedding vector, match_count integer, src_tables text[] DEFAULT NULL::text[], content_columns text[] DEFAULT NULL::text[], allowed_topics text[] DEFAULT NULL::text[], allowed_topic_ids text[] DEFAULT NULL::text[], allowed_countries text[] DEFAULT NULL::text[], start_date text[] DEFAULT NULL::text[], end_date text[] DEFAULT NULL::text[])
+CREATE OR REPLACE FUNCTION public.match_filtered_meetings(query_embedding vector, match_count integer, src_tables text[] DEFAULT NULL::text[], content_columns text[] DEFAULT NULL::text[], allowed_topics text[] DEFAULT NULL::text[], allowed_topic_ids text[] DEFAULT NULL::text[], allowed_countries text[] DEFAULT NULL::text[], start_date timestamptz DEFAULT NULL::timestamptz, end_date timestamptz DEFAULT NULL::timestamptz)
  RETURNS TABLE(source_table text, source_id text, content_text text, similarity double precision)
  LANGUAGE plpgsql
 AS $function$

@@ -88,9 +88,10 @@ def get_meetings(
                 allowed_sources = allowed_sources,
                 allowed_topics = topics,
                 allowed_countries = country,
-                start_date = start.isoformat() if start is not None else None,
-                end_date = end.isoformat() if end is not None else None,
+                start_date=start.isoformat() if start is not None else None,
+                end_date=end.isoformat() if end   is not None else None,
             )
+            
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
                 logger.info("Response formed – empty list (no neighbours found)")
@@ -109,10 +110,6 @@ def get_meetings(
                 "source_tables": neighbor_tables,
                 "source_ids": source_ids,
                 "max_results": limit,
-                "start_date": start.isoformat() if start is not None else None,
-                "end_date": end.isoformat() if end is not None else None,
-                "country": country,
-                "topics": topics if topics else None,
             }
             match = supabase.rpc("get_meetings_by_filter", params=params).execute()
 

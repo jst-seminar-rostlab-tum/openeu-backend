@@ -30,8 +30,8 @@ create or replace function public.match_filtered_meetings(
   allowed_topics  text[]   DEFAULT NULL,
   allowed_topic_ids  text[]   DEFAULT NULL,
   allowed_countries  text[]   DEFAULT NULL,
-  start_date         text[]   DEFAULT NULL,
-  end_date           text[]   DEFAULT NULL
+  start_date         timestamptz   DEFAULT NULL,
+  end_date           timestamptz   DEFAULT NULL
 )
 returns table(
   source_table  text,

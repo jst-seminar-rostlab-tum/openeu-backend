@@ -1,5 +1,6 @@
 from typing import Optional, Union
 import logging
+from datetime import datetime, timezone
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
@@ -14,8 +15,8 @@ def get_top_k_neighbors(
     allowed_topics: Optional[list[str]] = None,
     allowed_topic_ids: Optional[list[str]] = None,
     allowed_countries: Optional[list[str]] = None,
-    start_date: Optional[list[str]] = None,
-    end_date: Optional[list[str]] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
 ) -> list[dict]:
@@ -36,7 +37,7 @@ def get_top_k_neighbors(
     Returns:
         A list of dicts representing matching records.
     """
-
+    
     if (query is None and embedding is None) or (query and embedding):
         raise ValueError("Provide exactly one of `query` or `embedding`.")
 
@@ -75,8 +76,8 @@ def get_top_k_neighbors(
             **({"allowed_topics": allowed_topics} if allowed_topics else {}),
             **({"allowed_topic_ids": allowed_topic_ids} if allowed_topic_ids else {}),
             **({"allowed_countries": allowed_countries} if allowed_countries else {}),
-            "start_date": start_date,
-            "end_date": end_date
+            "start_date": str(start_date) if start_date else None,
+            "end_date": str(end_date) if end_date else None,
         }
         # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
         rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
