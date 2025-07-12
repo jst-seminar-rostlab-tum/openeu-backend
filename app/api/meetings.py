@@ -39,7 +39,7 @@ def get_meetings(
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    country: Optional[list[str]] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
@@ -137,8 +137,17 @@ def get_meetings(
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
         if country:
-            db_query = db_query.ilike("location", country)
-
+            # normalize to lowercase (for readability; ILIKE is case‑insensitive anyway)
+            lower_countries = [c.lower() for c in country]
+    
+            # build something like:
+            #   or=(location.ilike.*germany*,location.ilike.*france*,location.ilike.*spain*)
+            or_clauses = ",".join(
+                f"location.ilike.*{c}*" for c in lower_countries
+            )
+    
+            db_query = db_query.or_(or_clauses)
+            
         # --- TOPIC FILTERING ---
         if topics:
             if len(topics) == 1 and "," in topics[0]:
