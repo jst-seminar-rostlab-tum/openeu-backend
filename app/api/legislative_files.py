@@ -2,12 +2,12 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
-import os
 
 from fastapi_cache.decorator import cache
 
 from app.core.relevant_legislatives import fetch_relevant_legislative_files
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.core.openai_client import openai
 from app.models.legislative_file import (
@@ -15,8 +15,6 @@ from app.models.legislative_file import (
     LegislativeFileResponse,
     LegislativeFileSuggestionResponse,
 )
-
-import cohere
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +74,6 @@ def get_legislative_files(
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
 
-            co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
             docs = [n["content_text"] for n in neighbors]
 
             rerank_resp = co.rerank(
@@ -143,7 +140,6 @@ def get_legislative_files(
 def get_legislative_file(id: str = Query(..., description="Legislative file ID")):
     """Get a single legislative file by ID"""
     try:
-        response = supabase.table("legislative_files").select("*").eq("id", id).execute()
         response = supabase.table("legislative_files").select("*").eq("id", id).execute()
 
         if not response.data:

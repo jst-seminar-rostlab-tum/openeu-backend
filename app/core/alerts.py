@@ -1,13 +1,12 @@
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-import os
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 
-import cohere
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -154,9 +153,6 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
         return []
 
     # Apply threshold early to reduce DB hits later.
-    sim_threshold = alert["relevancy_threshold"]
-    
-    co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
     docs = [n["content_text"] for n in neighbors]
     rerank_resp = co.rerank(
         model="rerank-v3.5",
@@ -169,10 +165,10 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
         idx = result.index
         new_score = result.relevance_score
         neighbors[idx]["similarity"] = new_score
-        if new_score > sim_threshold:
+        if new_score > RELEVANCY_THRESHOLD:
             neighbors_re.append(neighbors[idx])
-            
-    filtered = neighbors
+
+    filtered = neighbors_re
 
     meeting_ids = [n["source_id"] for n in filtered]
     if not meeting_ids:

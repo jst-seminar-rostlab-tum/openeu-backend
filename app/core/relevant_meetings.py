@@ -1,16 +1,15 @@
 import logging
 from typing import Optional
 from datetime import datetime, time, timedelta
-import os
 
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
 from pydantic import BaseModel, ValidationError
-import cohere
 
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
@@ -62,7 +61,6 @@ def fetch_relevant_meetings(
             k=1000,
         )
 
-        co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
         docs = [n["content_text"] for n in neighbors]
 
         rerank_resp = co.rerank(
@@ -80,7 +78,7 @@ def fetch_relevant_meetings(
             if new_score > 0.1:
                 neighbors_re.append(neighbors[idx])
 
-        neighbors_re = neighbors
+        neighbors = neighbors_re
 
         if query_to_compare:
             match = query_to_compare.order("meeting_start_datetime", desc=True).execute()

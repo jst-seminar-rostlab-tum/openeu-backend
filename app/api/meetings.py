@@ -1,17 +1,16 @@
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-import os
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from app.core.openai_client import openai
-import cohere
 
 from fastapi_cache.decorator import cache
 
 from app.core.relevant_meetings import fetch_relevant_meetings
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting, MeetingSuggestionResponse, LegislativeMeetingsResponse
 
@@ -101,6 +100,7 @@ def get_meetings(
                 reformulated_query = (completion.choices[0].message.content or query).strip()
 
             except Exception as e:
+                reformulated_query = query
                 logger.error(f"An error occurred: {e}")
 
             neighbors = get_top_k_neighbors(
@@ -115,7 +115,6 @@ def get_meetings(
                 logger.info("Response formed – empty list (no neighbours found)")
                 return JSONResponse(status_code=200, content={"data": []})
 
-            co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
             docs = [n["content_text"] for n in neighbors]
 
             rerank_resp = co.rerank(
