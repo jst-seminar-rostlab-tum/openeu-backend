@@ -7,12 +7,15 @@ from fastapi_cache.decorator import cache
 
 from app.core.relevant_legislatives import fetch_relevant_legislative_files
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
+from app.core.openai_client import openai
 from app.models.legislative_file import (
     LegislativeFilesResponse,
     LegislativeFileResponse,
     LegislativeFileSuggestionResponse,
 )
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -34,15 +37,63 @@ def get_legislative_files(
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
+            try:
+                # 1. Use the correct Chat Completions endpoint
+                completion = openai.chat.completions.create(
+                    # 2. Use a valid, current model name (e.g., gpt-4o-mini)
+                    model="gpt-4o-mini",
+                    # 3. Structure the input as a 'messages' list
+                    #    This is the most important change.
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a helpful assistant that reformulates text for semantic search."
+                            "Your task is to generate a meeting summary document based on the user's question. "
+                            + "Use a formal tone, and try to vary the phrasing and details based on the query context. "
+                            + "Keep the summary within three sentences, with a clear title and a brief description.",
+                        },
+                        {"role": "user", "content": query},
+                    ],
+                    temperature=0,
+                    max_tokens=128,
+                )
+
+                # 4. Access the response correctly via .message.content
+                reformulated_query = (completion.choices[0].message.content or query).strip()
+
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+
             neighbors = get_top_k_neighbors(
-                query=query,
+                query=reformulated_query,
                 allowed_sources={"legislative_files": "embedding_input"},
-                k=limit,
-                sources=["document_embeddings"],
+                k=1000,
+                sources=["document_embeddings"],  # triggers match_filtered
             )
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
+
+            docs = [n["content_text"] for n in neighbors]
+
+            rerank_resp = co.rerank(
+                model="rerank-v3.5",
+                query=reformulated_query,
+                documents=docs,
+                top_n=min(limit, len(docs)),
+            )
+
+            neighbors_re = []
+            # 2) unpack the (index, similarity) tuples
+            for result in rerank_resp.results:
+                idx = result.index
+                new_score = result.relevance_score
+                # overwrite the old vector-search score with the reranker’s score
+                neighbors[idx]["similarity"] = new_score
+                if new_score > 0.15:
+                    neighbors_re.append(neighbors[idx])
+
+            neighbors = neighbors_re
 
             # Fetch matched rows
             ids = [n["source_id"] for n in neighbors]
@@ -75,8 +126,8 @@ def get_legislative_files(
                     data.append(m.model_dump(mode="json"))
                 return JSONResponse(status_code=200, content={"data": data})
 
-            result = db_query.limit(limit).execute()
-            records = result.data or []
+            res = db_query.limit(limit).execute()
+            records = res.data or []
 
         return JSONResponse(status_code=200, content={"data": records[:limit]})
 
@@ -114,6 +165,7 @@ def get_legislation_suggestions(
     logger.info("GET /legislative-files/suggestions | caller=%s | query='%s' | limit=%s", caller_ip, query, limit)
 
     try:
+        result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
         result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
 
         return {"data": result.data[:limit]}

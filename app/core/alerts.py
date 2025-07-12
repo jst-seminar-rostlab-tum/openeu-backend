@@ -4,7 +4,9 @@ from typing import Optional
 
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -25,7 +27,7 @@ This file deliberately mirrors the API style already used in
 """
 
 
-RELEVANCY_THRESHOLD = 0.9  # global constant
+RELEVANCY_THRESHOLD = 0.15  # global constant
 
 
 # ================ Embeddings helpers ================
@@ -140,7 +142,7 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
     # Patch: match_filtered_meetings requires content_columns and src_tables as args!
     neighbors = get_top_k_neighbors(
         embedding=alert["embedding"],
-        k=50,
+        k=1000,
         sources=["meeting_embeddings"],
         allowed_sources=None,  # << Allow any table/column
         allowed_topics=None,
@@ -151,10 +153,22 @@ def find_relevant_meetings_for_alert(alert: dict, *, k: int = 50) -> list[dict]:
         return []
 
     # Apply threshold early to reduce DB hits later.
-    sim_threshold = alert["relevancy_threshold"]
-    filtered = [n for n in neighbors if n["similarity"] >= sim_threshold]
-    if not filtered:
-        return []
+    docs = [n["content_text"] for n in neighbors]
+    rerank_resp = co.rerank(
+        model="rerank-v3.5",
+        query=alert["description"],
+        documents=docs,
+        top_n=min(10, len(docs)),
+    )
+    neighbors_re = []
+    for result in rerank_resp.results:
+        idx = result.index
+        new_score = result.relevance_score
+        neighbors[idx]["similarity"] = new_score
+        if new_score > RELEVANCY_THRESHOLD:
+            neighbors_re.append(neighbors[idx])
+
+    filtered = neighbors_re
 
     meeting_ids = [n["source_id"] for n in filtered]
     if not meeting_ids:

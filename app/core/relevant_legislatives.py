@@ -8,6 +8,7 @@ from datetime import datetime
 from app.core.config import Settings
 from postgrest import SyncSelectRequestBuilder
 from app.core.supabase_client import supabase
+from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.models.legislative_file import LegislativeFile
 
@@ -33,12 +34,13 @@ def fetch_relevant_legislative_files(
     # 1) load the stored profile embedding for `user_id`
     try:
         resp = (
-            supabase.table("profiles")
-            .select("embedding", "countries", "newsletter_frequency")
+            supabase.table("v_profiles")
+            .select("embedding", "countries", "newsletter_frequency", "topic_ids", "embedding_input")
             .eq("id", user_id)
             .single()
             .execute()
         )
+        profile_embedding_input = resp.data["embedding_input"]
         profile_embedding = resp.data["embedding"]
 
     except Exception as e:
@@ -51,8 +53,26 @@ def fetch_relevant_legislative_files(
             embedding=profile_embedding,
             allowed_sources={"legislative_files": "embedding_input"},
             sources=["document_embeddings"],
-            k=k,
+            k=1000,
         )
+        docs = [n["content_text"] for n in neighbors]
+
+        rerank_resp = co.rerank(
+            model="rerank-v3.5",
+            query=profile_embedding_input,
+            documents=docs,
+            top_n=min(10, len(docs)),
+        )
+
+        neighbors_re = []
+        for result in rerank_resp.results:
+            idx = result.index
+            new_score = result.relevance_score
+            neighbors[idx]["similarity"] = new_score
+            if new_score > 0.1:
+                neighbors_re.append(neighbors[idx])
+
+        neighbors = neighbors_re
 
         if query_to_compare:
             match = query_to_compare.execute()

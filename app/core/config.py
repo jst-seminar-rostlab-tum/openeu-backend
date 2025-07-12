@@ -133,3 +133,9 @@ class Settings:
         :return: True if in production, False otherwise.
         """
         return os.getenv("ENVIRONMENT") != "development"
+
+    def get_cohere_api_key(self) -> str:
+        value = os.getenv("COHERE_API_KEY")
+        if value is None:
+            value = ""
+        return value
