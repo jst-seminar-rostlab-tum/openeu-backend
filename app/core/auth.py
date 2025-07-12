@@ -41,3 +41,15 @@ def get_current_user(request: Request) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def check_request_user_id(request: Request, user_id: str | None):
+    user = get_current_user(request)
+    
+    if not user or user.id != str(user_id):
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID does not match with authentication",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None

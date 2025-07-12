@@ -8,7 +8,7 @@ from scrapy.crawler import CrawlerProcess
 from app.core.supabase_client import supabase
 
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
-from app.models.legislative_file import KeyPlayer, KeyEvent, Rapporteur, Reference
+from app.models.legislative_file import KeyPlayer, KeyEvent, Rapporteur, Reference, DocumentationGateway
 from app.core.mail.status_change import notify_status_change
 
 
@@ -27,7 +27,7 @@ class LegislativeObservatory(BaseModel):
     subjects: list[str] | None = None
     key_players: list[KeyPlayer] | None = None
     key_events: list[KeyEvent] | None = None
-    documentation_gateway: list[dict] | None = None
+    documentation_gateway: list[DocumentationGateway] | None = None
     embedding_input: str | None = None
 
 
@@ -40,7 +40,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
     def __init__(self, result_callback: Callable[[LegislativeObservatory], None], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_urls = [
-            "https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML?fullText.mode=EXACT_WORD&year=2025"
+            "https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML"
         ]
         self.result_callback = result_callback
         self.entries: list[LegislativeObservatory] = []
@@ -186,15 +186,15 @@ class LegislativeObservatorySpider(scrapy.Spider):
             summary_link = response.urljoin(summary_link) if summary_link else None
 
             doc_gateway_entries.append(
-                {
-                    "document_type": document_type.strip() if document_type else None,
-                    "reference": {
-                        "text": reference_text.strip() if reference_text else None,
-                        "link": response.urljoin(reference_link) if reference_link else None,
-                    },
-                    "date": date.strip() if date else None,
-                    "summary": summary_link if summary_link else None,
-                }
+                DocumentationGateway(
+                    document_type=document_type.strip() if document_type else None,
+                    reference=Reference(
+                        text=reference_text.strip() if reference_text else None,
+                        link=response.urljoin(reference_link) if reference_link else None,
+                    ),
+                    date=date.strip() if date else None,
+                    summary=summary_link if summary_link else None,
+                )
             )
 
         main_entry.documentation_gateway = doc_gateway_entries if doc_gateway_entries else None
@@ -207,8 +207,8 @@ class LegislativeObservatorySpider(scrapy.Spider):
             + [r.name for p in main_entry.key_players or [] for r in (p.rapporteurs or [])]
             + [r.name for p in main_entry.key_players or [] for r in (p.shadow_rapporteurs or [])]
             + [e.event for e in main_entry.key_events or [] if e.event]
-            + [d.get("document_type", "") for d in main_entry.documentation_gateway or []]
-            + [d.get("reference", {}).get("text", "") for d in main_entry.documentation_gateway or []]
+            + [d.document_type for d in main_entry.documentation_gateway or [] if d.document_type]
+            + [d.reference.text for d in main_entry.documentation_gateway or [] if d.reference and d.reference.text]
         )
         if main_entry.embedding_input is None:
             main_entry.embedding_input = ""
