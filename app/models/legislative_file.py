@@ -30,6 +30,13 @@ class KeyEvent(BaseModel):
     reference: Optional[Reference] = None
 
 
+class DocumentationGateway(BaseModel):
+    date: Optional[str] = None
+    summary: Optional[str] = None
+    reference: Optional[Reference] = None
+    document_type: Optional[str] = None
+
+
 class LegislativeFile(BaseModel):
     id: str
     source_table: Optional[str] = None
@@ -44,7 +51,7 @@ class LegislativeFile(BaseModel):
     subjects: Optional[list[str]] = None
     key_players: Optional[list[KeyPlayer]] = None
     key_events: Optional[list[KeyEvent]] = None
-    documentation_gateway: Optional[list[dict]] = None
+    documentation_gateway: Optional[list[DocumentationGateway]] = None
     similarity: Optional[float] = None
 
 
