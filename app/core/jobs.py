@@ -35,6 +35,7 @@ from app.core.mail.alert_email import SmartAlertMailer
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 # ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
 def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     """
@@ -56,8 +57,9 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
             continue
 
         logger.info(
-            "About to call SmartAlertMailer.send_alert_email for user_id=%s, " \
-            "alert_id=%s", alert["user_id"], alert["id"]
+            "About to call SmartAlertMailer.send_alert_email for user_id=%s, " "alert_id=%s",
+            alert["user_id"],
+            alert["id"],
         )
         email_sent = SmartAlertMailer.send_alert_email(
             user_id=alert["user_id"],

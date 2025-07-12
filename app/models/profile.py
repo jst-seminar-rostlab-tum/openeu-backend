@@ -2,6 +2,7 @@ from typing import Literal, Optional
 
 from pydantic import UUID4, BaseModel
 
+
 class CompanyCreate(BaseModel):
     role: str
     name: str
@@ -10,8 +11,10 @@ class CompanyCreate(BaseModel):
     company_size: str
     industry: str
 
+
 class CompanyReturn(CompanyCreate):
     id: UUID4
+
 
 class CompanyUpdate(BaseModel):
     role: Optional[str] = None
@@ -21,20 +24,24 @@ class CompanyUpdate(BaseModel):
     company_size: Optional[str] = None
     industry: Optional[str] = None
 
+
 class PoliticianCreate(BaseModel):
     role: str
     further_information: str
     institution: str
     area_of_expertise: list[str]
 
+
 class PoliticianReturn(PoliticianCreate):
     id: UUID4
+
 
 class PoliticianUpdate(BaseModel):
     role: Optional[str] = None
     further_information: Optional[str] = None
     institution: Optional[str] = None
     area_of_expertise: Optional[list[str]] = None
+
 
 class ProfileCreate(BaseModel):
     id: UUID4

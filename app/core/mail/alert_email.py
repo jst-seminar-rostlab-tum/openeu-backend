@@ -20,8 +20,6 @@ maintainers can rely on a consistent mental model.
 """
 
 
-
-
 # ================ Subject line generation (GPT) ================
 _SUBJECT_PROMPT_TMPL = (
     "You are an email subject generator for EU startup founders. "
@@ -30,6 +28,7 @@ _SUBJECT_PROMPT_TMPL = (
     "Alert: {alert}\n"
     "Meetings: {titles}"
 )
+
 
 def _generate_subject(alert: dict, meetings: list[dict]) -> str:
     """Return a catchy subject line via GPT; fall back to static if error."""
@@ -46,7 +45,6 @@ def _generate_subject(alert: dict, meetings: list[dict]) -> str:
         logger.error("GPT subject generation failed – %s; falling back", exc)
         # graceful degradation
         return f"New meetings for your alert – {datetime.now().date()}"
-
 
 
 # ================ Email body rendering ================
@@ -88,11 +86,10 @@ def _build_email_body(*, alert: dict, meetings: list[dict], user_id: str) -> tup
     return rendered_html, mean_similarity
 
 
-
-
 # ================ Public mailer facade ================
 class SmartAlertMailer:
     email_client = EmailService()
+
     @staticmethod
     def send_alert_email(*, user_id: str, alert: dict, meetings: list[dict]):
         user_mail = get_user_email(user_id=user_id)
@@ -109,13 +106,15 @@ class SmartAlertMailer:
             logger.info("Smart alert email sent to user_id=%s (alert=%s)", user_id, alert["id"])
             # Write to notifications table instead of alert_notifications
             max_similarity = max((m.get("similarity", 0.0) for m in meetings), default=None)
-            supabase.table("notifications").insert({
-                "user_id": alert["user_id"],
-                "sent_at": datetime.utcnow().isoformat(),
-                "type": "smart_alert",
-                "message": mail_body,   # Save the HTML email here
-                "relevance_score": max_similarity,
-            }).execute()
+            supabase.table("notifications").insert(
+                {
+                    "user_id": alert["user_id"],
+                    "sent_at": datetime.utcnow().isoformat(),
+                    "type": "smart_alert",
+                    "message": mail_body,  # Save the HTML email here
+                    "relevance_score": max_similarity,
+                }
+            ).execute()
             mark_alert_ran(alert["id"])
             set_alert_active(alert["id"], active=False)
             return True  # <--- Success!

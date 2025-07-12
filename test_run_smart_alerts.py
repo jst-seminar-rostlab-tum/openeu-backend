@@ -7,17 +7,19 @@ from email.mime.text import MIMEText
 from app.core.jobs import send_smart_alerts
 from app.core.mail.newsletter import get_user_email
 from app.core.supabase_client import supabase
-from app.core.alerts import create_alert, get_user_alerts, build_embedding
+from app.core.alerts import create_alert, get_user_alerts
 
-os.environ.update({
-    "EMAIL_BACKEND": "local_dev_only_smtp",
-    "EMAIL_HOST": "localhost",
-    "EMAIL_PORT": "1025",
-    "EMAIL_USER": "",
-    "EMAIL_PASS": "",
-    "EMAIL_USE_TLS": "false",   # or "0"
-    "ENVIRONMENT": "development",
-})
+os.environ.update(
+    {
+        "EMAIL_BACKEND": "local_dev_only_smtp",
+        "EMAIL_HOST": "localhost",
+        "EMAIL_PORT": "1025",
+        "EMAIL_USER": "",
+        "EMAIL_PASS": "",
+        "EMAIL_USE_TLS": "false",  # or "0"
+        "ENVIRONMENT": "development",
+    }
+)
 
 logging.basicConfig(
     level=logging.INFO,  # or logging.DEBUG for more detail

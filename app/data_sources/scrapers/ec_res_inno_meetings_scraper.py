@@ -312,9 +312,7 @@ class EcResInnoMeetingsSpider(scrapy.Spider):
             end_date_month = month.split(separator)[1].strip() if separator in month else start_date_month
             end_date_year = year.split(separator)[1].strip() if separator in year else start_date_year
             end_date = (
-                date(int(end_date_year), month_to_number(end_date_month), int(end_date_day))
-                if end_date_day
-                else None
+                date(int(end_date_year), month_to_number(end_date_month), int(end_date_day)) if end_date_day else None
             )
 
         return start_date, end_date

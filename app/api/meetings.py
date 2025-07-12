@@ -22,7 +22,10 @@ _TOPICS = Query(None, description="List of topic names (repeat or comma-separate
 _SOURCE_TABLES = Query(
     None, alias="source_table", description="Filter by source table(s) (repeat or comma-separated)"
 )  # URL param stays singular: ?source_table=…
-
+_COUNTRY = Query(
+    None,
+    description="Filter by country (e.g., 'Austria', 'European Union')",
+)
 
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt and dt.tzinfo is None:
@@ -39,7 +42,7 @@ def get_meetings(
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
     topics: Optional[list[str]] = _TOPICS,
-    country: Optional[str] = Query(None, description="Filter by country (e.g., 'Austria', 'European Union')"),
+    country: Optional[list[str]] = _COUNTRY,
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
     source_tables: Optional[list[str]] = _SOURCE_TABLES,
 ):
@@ -79,10 +82,15 @@ def get_meetings(
             allowed_sources: dict[str, str] = {t: "embedding_input" for t in source_tables} if source_tables else {}
             neighbors = get_top_k_neighbors(
                 query=query,
-                allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=limit,
                 sources=["meeting_embeddings"],
+                allowed_sources=allowed_sources,
+                allowed_topics=topics,
+                allowed_countries=country,
+                start_date=start if start is not None else None,
+                end_date=end if end is not None else None,
             )
+
             if not neighbors:
                 # ---------- 2a)  LOG EMPTY RESPONSE (semantic path, no neighbours) ----------
                 logger.info("Response formed – empty list (no neighbours found)")
@@ -101,10 +109,6 @@ def get_meetings(
                 "source_tables": neighbor_tables,
                 "source_ids": source_ids,
                 "max_results": limit,
-                "start_date": start.isoformat() if start is not None else None,
-                "end_date": end.isoformat() if end is not None else None,
-                "country": country,
-                "topics": topics if topics else None,
             }
             match = supabase.rpc("get_meetings_by_filter", params=params).execute()
 
@@ -136,7 +140,14 @@ def get_meetings(
             db_query = db_query.lte("meeting_start_datetime", end.isoformat())
 
         if country:
-            db_query = db_query.ilike("location", country)
+            # normalize to lowercase (for readability; ILIKE is case‑insensitive anyway)
+            lower_countries = [c.lower() for c in country]
+
+            # build something like:
+            #   or=(location.ilike.*germany*,location.ilike.*france*,location.ilike.*spain*)
+            or_clauses = ",".join(f"location.ilike.*{c}*" for c in lower_countries)
+
+            db_query = db_query.or_(or_clauses)
 
         # --- TOPIC FILTERING ---
         if topics:
