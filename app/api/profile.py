@@ -13,11 +13,32 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
 
 
-def get_profile(user_id):
-    result_profile = supabase.table("v_profiles").select("*").eq("id", user_id).single().execute()
-    if not result_profile.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Profile with id '{user_id}' not found")
-    return result_profile.data
+def get_profile(user_id: str) -> ProfileReturn | None:
+    result = supabase.table("v_profiles").select("*").eq("id", user_id).execute().data
+    if result and len(result) == 1:
+        return result[0]
+    else:
+        return None
+
+@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
+def get_user_profile(request: Request, user_id: str) -> JSONResponse:
+    check_request_user_id(request, user_id)
+
+    try:
+        result_profile = get_profile(user_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Supabase select failed: " + str(e),
+        ) from e
+
+    if not result_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profile with id '{user_id}' not found"
+        )
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result_profile)
 
 
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
