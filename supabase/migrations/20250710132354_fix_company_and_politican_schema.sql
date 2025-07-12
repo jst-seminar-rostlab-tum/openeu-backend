@@ -4,6 +4,7 @@ alter table "public"."companies" alter column "company_size" set data type text 
 
 alter table "public"."politicians" alter column "area_of_expertise" set default '{}'::text[];
 
+
 alter table "public"."politicians" alter column "area_of_expertise" set data type text[] using "area_of_expertise"::text[];
 
 create or replace view "public"."v_profiles" as  SELECT p.id,
