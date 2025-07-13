@@ -127,7 +127,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         origin = request.headers.get("origin")
         is_allowed_origin = origin and (
             origin.startswith("http://localhost")
-            or origin.endswith("openeu.netlify.app")
+            or origin.endswith("netlify.app")
             or origin.endswith("openeu.csee.tech")
         )
 
