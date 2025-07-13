@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
-from app.core.auth import check_request_user_id
+from app.core.auth import check_request_user_id, get_user_metadata
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 from app.models.profile import ProfileCreate, ProfileUpdate, ProfileReturn
@@ -120,8 +120,13 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_profile(request: Request, profile: ProfileCreate) -> JSONResponse:
     check_request_user_id(request, profile.id)
+    user_metadata = get_user_metadata(str(profile.id))
+    if user_metadata is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # Upsert into Supabase
     payload = profile.model_dump()
+    payload['name'] = user_metadata.get("first_name", "")
+    payload['surname'] = user_metadata.get("last_name", "")
 
     payload["id"] = str(payload["id"])
     user_id = payload["id"]
