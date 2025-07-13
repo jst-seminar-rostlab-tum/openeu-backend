@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 from fastapi import HTTPException, status, Request
 from fastapi.security import HTTPBearer
@@ -63,5 +63,5 @@ def check_request_user_id(request: Request, user_id: str | None):
 def get_user_metadata(user_id: str) -> Optional[dict]:
     try:
         return supabase.auth.admin.get_user_by_id(user_id).user.user_metadata
-    except SupabaseException as e:
+    except SupabaseException as _:
         return None
