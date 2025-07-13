@@ -1,9 +1,13 @@
+from typing import Tuple, Optional
+
 from fastapi import HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from pydantic import BaseModel
+from supabase import SupabaseException
 
 from app.core.config import Settings
+from app.core.supabase_client import supabase
 
 oauth2_scheme = HTTPBearer()
 settings = Settings()
@@ -55,3 +59,9 @@ def check_request_user_id(request: Request, user_id: str | None):
             detail="User ID does not match with authentication",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
+def get_user_metadata(user_id: str) -> Optional[dict]:
+    try:
+        return supabase.auth.admin.get_user_by_id(user_id).user.user_metadata
+    except SupabaseException as e:
+        return None
