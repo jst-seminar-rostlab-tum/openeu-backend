@@ -167,7 +167,6 @@ def get_legislation_suggestions(
 
     try:
         result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
-        result = supabase.rpc("search_legislation_suggestions", {"search_text": query}).execute()
 
         return {"data": result.data[:limit]}
 
