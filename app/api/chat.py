@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 
-from fastapi import APIRouter, HTTPException, Body, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
@@ -47,19 +47,20 @@ class SessionsResponseModel(BaseModel):
     title: str
 
 
-def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> str:
+def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, context_text: str = "") -> str:
     messages_text = ""
     for message in messages:
         messages_text += f"{message['author']}: {message['content']}\n"
 
-    context = get_top_k_neighbors(
-        query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
-    )
-    context_text = ""
-    for element in context:
-        source_table = element.get("source_table")
-        table_desc = get_table_description(source_table) if source_table else "Unspecified data"
-        context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
+    if not context_text:
+        context = get_top_k_neighbors(
+            query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
+        )
+        context_text = ""
+        for element in context:
+            source_table = element.get("source_table")
+            table_desc = get_table_description(source_table) if source_table else "Unspecified data"
+            context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
 
     timestamp = datetime.now(timezone.utc).isoformat(timespec="minutes")
 
@@ -86,7 +87,7 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str) -> st
     return assistant_system_prompt
 
 
-def get_response(prompt: str, session_id: str):
+def get_response(prompt: str, session_id: str, context_text: str = ""):
     try:
         database_messages = (
             supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
@@ -117,7 +118,9 @@ def get_response(prompt: str, session_id: str):
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
-                ChatCompletionAssistantMessageParam(content=build_system_prompt(messages, prompt), role="assistant"),
+                ChatCompletionAssistantMessageParam(
+                    content=build_system_prompt(messages, prompt, context_text), role="assistant"
+                ),
                 ChatCompletionUserMessageParam(
                     content=f"Please answer the following question regarding OpenEU: {prompt}", role="user"
                 ),
@@ -209,19 +212,49 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
     return response.data
 
 
-@router.post("/legislation")
+@router.post("/legislation/{legislation_id}", response_model=StreamingResponse)
 def process_legislation(
-    legislation_id: str = Body(..., embed=True),
-    message: str = Body(..., embed=True),
-    session_id: str = Body(..., embed=True),
-    background_tasks: BackgroundTasks = None,
+    legislation_id: str,
+    message: str,
+    session_id: str,
+    background_tasks: BackgroundTasks | None = None,
 ):
     """
-    Process a legislative procedure: extract PDF text and store in DB if not already present.
-    Returns the extracted text or info if no document is found, or raises an HTTPException on error.
+    Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
+    Returns a streaming LLM response or extracted text/info if no document is found, or raises an HTTPException on error
     Triggers async embedding after extraction.
     """
     try:
+        # 1. Check for existing embeddings for this legislative_id
+        emb_response = (
+            supabase.table("documents_embeddings").select("*").eq("source_id", legislation_id).limit(1).execute()
+        )
+        if emb_response.data and len(emb_response.data) > 0:
+            # RAG flow
+            try:
+                neighbors = get_top_k_neighbors(
+                    query=message,
+                    sources=["document_embeddings"],
+                    source_id=legislation_id,
+                    k=10,
+                )
+                if not neighbors or len(neighbors) == 0:
+                    return {"info": "No relevant context found for this legislative procedure. Please try again later."}
+                context_text = ""
+                for element in neighbors:
+                    source_table = element.get("source_table")
+                    table_desc = get_table_description(source_table) if source_table else "Unspecified data"
+                    context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
+                # Use the main chat streaming response with injected context
+                return StreamingResponse(
+                    get_response(message, session_id, context_text=context_text), media_type="text/event-stream"
+                )
+            except Exception as e:
+                logging.error(f"RAG/LLM error for legislation_id={legislation_id}: {e}")
+                raise HTTPException(
+                    503, "Failed to generate answer for this legislative procedure, try again later"
+                ) from None
+        # 2. Fallback: extract and embed as before
         extracted_text = get_or_extract_legislation_text(legislation_id)
         if extracted_text is None:
             return {"extracted_text": None, "info": "No 'Legislative proposal' document found for this procedure."}
@@ -233,8 +266,8 @@ def process_legislation(
             trigger_legislation_embedding_async(legislation_id, extracted_text)
         return {"extracted_text": extracted_text}
     except APIError as e:
-        logging.error(f"Supabase APIError: {e}")        
+        logging.error(f"Supabase APIError: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
     except Exception as e:
-        logging.error(f"Unexpected error during select: {e}")
+        logging.error(f"Unexpected error during legislation processing: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None

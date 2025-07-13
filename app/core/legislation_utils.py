@@ -41,7 +41,7 @@ def _extract_and_store_legislation_text(legislation_id: str, pdf_url: str) -> st
     temp_pdf_path = _download_pdf(pdf_url)
     try:
         extracted_text = extract_text_from_pdf(temp_pdf_path)
-    except Exception as e:
+    except Exception:
         raise HTTPException(500, "Failed to extract text from PDF, try again later") from None
     finally:
         if temp_pdf_path and os.path.exists(temp_pdf_path):
@@ -73,7 +73,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> str:
             supabase.table("legislative_procedure_files").select("extracted_text").eq("id", legislation_id).execute()
         )
         if existing.data and len(existing.data) > 0:
-            return existing.data[0]
+            return existing.data[0]["extracted_text"]
     except APIError as e:
         logging.error(f"APIError: {e}")
         raise HTTPException(503, "DB lookup failed, try again later") from None
@@ -106,7 +106,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> str:
                 logging.error(f"Failed to parse documentation_gateway: {e}")
                 link = None
         if not link:
-            return None
+            return ""
     except APIError as e:
         logging.error(f"APIError: {e}")
         raise HTTPException(503, "Failed to fetch documents_gateway, try again later") from None
@@ -124,7 +124,7 @@ def trigger_legislation_embedding_async(legislation_id: str, extracted_text: str
     """
     def embed():
         try:
-            eg = EmbeddingGenerator()
+            eg = EmbeddingGenerator(max_tokens=2000, overlap=200)
             eg.embed_row(
                 source_table="legislative_procedure_files",
                 row_id=legislation_id,
@@ -145,19 +145,14 @@ def trigger_legislation_embedding_async(legislation_id: str, extracted_text: str
 # TESTING - DELETE LATER #
 ##########################
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python legislation_utils.py <legislation_id>")
-        sys.exit(1)
-    legislation_id = sys.argv[1]
+    legislation_id = "2025/0039(COD)"
     print(f"Extracting and embedding for legislation_id: {legislation_id}")
     text = get_or_extract_legislation_text(legislation_id)
     if text is None:
         print("No 'Legislative proposal' document found for this procedure.")
-        sys.exit(0)
     print("Text extracted. Running embedding synchronously...")
     
-    eg = EmbeddingGenerator()
+    eg = EmbeddingGenerator(max_tokens=2000, overlap=200)
     eg.embed_row(
         source_table="legislative_procedure_files",
         row_id=legislation_id,
