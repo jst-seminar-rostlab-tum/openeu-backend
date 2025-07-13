@@ -125,8 +125,8 @@ async def create_profile(request: Request, profile: ProfileCreate) -> JSONRespon
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # Upsert into Supabase
     payload = profile.model_dump()
-    payload['name'] = user_metadata['first_name']
-    payload['surname'] = user_metadata['last_name']
+    payload['name'] = user_metadata.get("first_name", "")
+    payload['surname'] = user_metadata.get("last_name", "")
 
     payload["id"] = str(payload["id"])
     user_id = payload["id"]
