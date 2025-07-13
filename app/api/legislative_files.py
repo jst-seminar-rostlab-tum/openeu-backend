@@ -14,6 +14,7 @@ from app.models.legislative_file import (
     LegislativeFilesResponse,
     LegislativeFileResponse,
     LegislativeFileSuggestionResponse,
+    LegislativeFileUniqueValuesResponse,
 )
 
 
@@ -175,8 +176,8 @@ def get_legislation_suggestions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/legislative-files/unique-values")
-def get_legislative_unique_values():
+@router.get("/legislative-files/unique-values", response_model=LegislativeFileUniqueValuesResponse)
+def get_legislative_unique_values() -> LegislativeFileUniqueValuesResponse:
     """Returns unique values for year, committee, and status from legislative files."""
     try:
         response = supabase.table("legislative_files").select("id, committee, status").execute()
@@ -196,11 +197,11 @@ def get_legislative_unique_values():
             if row.get("status"):
                 statuses.add(row["status"])
 
-        return {
-            "years": sorted(list(years)),
-            "committees": sorted(list(committees)),
-            "statuses": sorted(list(statuses)),
-        }
+        return LegislativeFileUniqueValuesResponse(
+            years=sorted(list(years)),
+            committees=sorted(list(committees)),
+            statuses=sorted(list(statuses)),
+        )
     except Exception as e:
         logger.error("Something went wrong: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
