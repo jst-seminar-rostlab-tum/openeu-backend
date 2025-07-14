@@ -25,6 +25,32 @@ EMBED_MODEL = "text-embedding-ada-002"
 logger = logging.getLogger(__name__)
 
 
+def deduplicate_neighbors(neighbors: list[dict]) -> list[dict]:
+    """
+    Remove duplicate neighbors based on source_id, keeping the one with highest similarity.
+
+    Args:
+        neighbors: List of neighbor dictionaries from vector search
+
+    Returns:
+        List of unique neighbors with duplicates removed
+    """
+    seen_source_ids: dict[str, float] = {}
+    unique_neighbors: list[dict] = []
+
+    for neighbor in neighbors:
+        source_id = neighbor["source_id"]
+        similarity = neighbor.get("similarity", 0)
+
+        if source_id not in seen_source_ids or similarity > seen_source_ids[source_id]:
+            seen_source_ids[source_id] = similarity
+            if source_id in seen_source_ids:
+                unique_neighbors = [n for n in unique_neighbors if n["source_id"] != source_id]
+            unique_neighbors.append(neighbor)
+
+    return unique_neighbors
+
+
 def fetch_relevant_legislative_files(
     user_id: str,
     k: int,
@@ -55,6 +81,9 @@ def fetch_relevant_legislative_files(
             sources=["document_embeddings"],
             k=1000,
         )
+
+        # Remove duplicates
+        neighbors = deduplicate_neighbors(neighbors)
         docs = [n["content_text"] for n in neighbors]
 
         rerank_resp = co.rerank(
@@ -69,7 +98,7 @@ def fetch_relevant_legislative_files(
             idx = result.index
             new_score = result.relevance_score
             neighbors[idx]["similarity"] = new_score
-            if new_score > 0.1:
+            if new_score > 0.05:
                 neighbors_re.append(neighbors[idx])
 
         neighbors = neighbors_re
