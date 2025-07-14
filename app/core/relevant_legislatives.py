@@ -98,7 +98,8 @@ def fetch_relevant_legislative_files(
             idx = result.index
             new_score = result.relevance_score
             neighbors[idx]["similarity"] = new_score
-            neighbors_re.append(neighbors[idx])
+            if new_score > 0.05:
+                neighbors_re.append(neighbors[idx])
 
         neighbors = neighbors_re
 
