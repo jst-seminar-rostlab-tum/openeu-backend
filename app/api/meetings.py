@@ -30,6 +30,7 @@ _COUNTRY = Query(
     description="Filter by country (e.g., 'Austria', 'European Union')",
 )
 
+
 def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
@@ -108,7 +109,6 @@ def get_meetings(
 
             neighbors = get_top_k_neighbors(
                 query=reformulated_query,
-                allowed_sources=allowed_sources,  # empty dict -> allows every source
                 k=1000,
                 sources=["meeting_embeddings"],
                 allowed_sources=allowed_sources,

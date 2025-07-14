@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-
 # ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
 def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     """
