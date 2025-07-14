@@ -62,6 +62,17 @@ def check_request_user_id(request: Request, user_id: str | None):
 
 def get_user_metadata(user_id: str) -> Optional[dict]:
     try:
-        return supabase.auth.admin.get_user_by_id(user_id).user.user_metadata
-    except SupabaseException as _:
+        metadata = supabase.auth.admin.get_user_by_id(user_id).user.user_metadata
+        if 'first_name' in metadata and 'last_name' in metadata:
+            return metadata
+        if 'name' in metadata:
+            name_parts = metadata.get('name').split()
+            first_name = name_parts[0] if name_parts else ""
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+            return {
+                'first_name': first_name,
+                'last_name': last_name,
+            }
+        return None
+    except Exception:
         return None
