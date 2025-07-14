@@ -39,9 +39,7 @@ class LegislativeObservatorySpider(scrapy.Spider):
 
     def __init__(self, result_callback: Callable[[LegislativeObservatory], None], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.start_urls = [
-            "https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML"
-        ]
+        self.start_urls = ["https://oeil.secure.europarl.europa.eu/oeil/en/search/export/XML"]
         self.result_callback = result_callback
         self.entries: list[LegislativeObservatory] = []
 

@@ -51,5 +51,6 @@ class LegislativeMeeting(BaseModel):
     embedding_input: Optional[str] = None
     scraped_at: datetime
 
+
 class LegislativeMeetingsResponse(BaseModel):
     data: list[LegislativeMeeting]

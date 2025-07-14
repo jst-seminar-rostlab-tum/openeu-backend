@@ -17,6 +17,10 @@ create index on meeting_embeddings using ivfflat(embedding vector_l2_ops) with (
 -- content_columns: corresponding list of column names
 -- query_embedding: the vector
 -- match_count: 5
+-- "start_date": start.isoformat() if start is not None else None,
+--                 "end_date": end.isoformat() if end is not None else None,
+--                 "country": country,
+--                 "topics": topics if topics else None,
 
 create or replace function public.match_filtered_meetings(
   query_embedding    vector,
@@ -25,7 +29,9 @@ create or replace function public.match_filtered_meetings(
   content_columns    text[]   DEFAULT NULL,
   allowed_topics  text[]   DEFAULT NULL,
   allowed_topic_ids  text[]   DEFAULT NULL,
-  allowed_countries  text[]   DEFAULT NULL
+  allowed_countries  text[]   DEFAULT NULL,
+  start_date         timestamptz   DEFAULT NULL,
+  end_date           timestamptz   DEFAULT NULL
 )
 returns table(
   source_table  text,
@@ -88,6 +94,23 @@ begin
         SELECT LOWER(country) FROM unnest(allowed_countries) AS country
       )
     )
+
+    AND (end_date IS NULL OR (
+        SELECT vm.meeting_start_datetime::date
+        FROM public.v_meetings vm
+         WHERE vm.source_table = e.source_table
+           AND vm.source_id   = e.source_id
+        LIMIT 1
+    ) <= end_date::date)
+
+    AND (start_date IS NULL OR (
+        SELECT COALESCE(vm.meeting_end_datetime, vm.meeting_start_datetime)::date
+        FROM public.v_meetings vm
+         WHERE vm.source_table = e.source_table
+           AND vm.source_id   = e.source_id
+        LIMIT 1
+    ) >= start_date::date)
+    
     order by e.embedding <#> query_embedding
     limit match_count;
 end;

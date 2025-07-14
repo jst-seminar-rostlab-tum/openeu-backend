@@ -20,6 +20,7 @@ def get_profile(user_id: str) -> ProfileReturn | None:
     else:
         return None
 
+
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
 def get_user_profile(request: Request, user_id: str) -> JSONResponse:
     check_request_user_id(request, user_id)
@@ -33,10 +34,7 @@ def get_user_profile(request: Request, user_id: str) -> JSONResponse:
         ) from e
 
     if not result_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Profile with id '{user_id}' not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Profile with id '{user_id}' not found")
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=result_profile)
 
@@ -125,8 +123,8 @@ async def create_profile(request: Request, profile: ProfileCreate) -> JSONRespon
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # Upsert into Supabase
     payload = profile.model_dump()
-    payload['name'] = user_metadata.get("first_name", "")
-    payload['surname'] = user_metadata.get("last_name", "")
+    payload["name"] = user_metadata.get("first_name", "")
+    payload["surname"] = user_metadata.get("last_name", "")
 
     payload["id"] = str(payload["id"])
     user_id = payload["id"]
