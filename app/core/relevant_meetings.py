@@ -88,7 +88,8 @@ def fetch_relevant_meetings(
             idx = result.index
             new_score = result.relevance_score
             neighbors[idx]["similarity"] = new_score
-            neighbors_re.append(neighbors[idx])
+            if new_score > 0.05:
+                neighbors_re.append(neighbors[idx])
 
         neighbors = neighbors_re
 
@@ -150,7 +151,3 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
-
-
-
-fetch_relevant_meetings(user_id="189282fc-1c57-4ba1-bfb9-36a2d8079afb", k=10)
