@@ -471,6 +471,7 @@ class WeeklyAgendaScraper(ScraperBase):
             process = CrawlerProcess(settings={"LOG_LEVEL": "INFO"})
             process.crawl(
                 WeeklyAgendaSpider,
+                stop_event=self.stop_event,
                 start_date=self.start_date,
                 end_date=self.end_date,
                 result_callback=self._collect_entry,
