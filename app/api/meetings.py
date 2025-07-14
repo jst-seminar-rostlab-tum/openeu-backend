@@ -40,7 +40,7 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 @router.get("/meetings", response_model=dict[str, list[Meeting]])
 def get_meetings(
     request: Request,  # new param: provides caller info
-    limit: int = Query(500, gt=1),
+    limit: int = Query(800, gt=1),
     start: Optional[datetime] = _START,
     end: Optional[datetime] = _END,
     query: Optional[str] = Query(None, description="Search query using semantic similarity"),
