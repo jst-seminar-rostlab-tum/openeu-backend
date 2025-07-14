@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
-from app.core.auth import check_request_user_id
+from app.core.auth import check_request_user_id, get_name_fields
 from app.core.openai_client import EMBED_MODEL, openai
 from app.core.supabase_client import supabase
 from app.models.profile import ProfileCreate, ProfileUpdate, ProfileReturn
@@ -13,21 +13,32 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
 
 
-def get_profile(user_id):
-    result_profile = supabase.table("v_profiles").select("*").eq("id", user_id).single().execute()
-    if not result_profile.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Profile with id '{user_id}' not found")
-    return result_profile.data
-
+def get_profile(user_id: str) -> ProfileReturn | None:
+    result = supabase.table("v_profiles").select("*").eq("id", user_id).execute().data
+    if result and len(result) == 1:
+        return result[0]
+    else:
+        return None
 
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=ProfileReturn)
 def get_user_profile(request: Request, user_id: str) -> JSONResponse:
     check_request_user_id(request, user_id)
+
     try:
-        return JSONResponse(status_code=status.HTTP_200_OK, content=get_profile(user_id))
+        result_profile = get_profile(user_id)
     except Exception as e:
-        logger.error("Supabase select failed for profile %s: %s", user_id, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase select failed") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Supabase select failed: " + str(e),
+        ) from e
+
+    if not result_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profile with id '{user_id}' not found"
+        )
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result_profile)
 
 
 async def create_embeddings(user_id: str, embedding_input: str):
@@ -109,8 +120,13 @@ def link_topics_to_user(topic_ids: list[str], user_id: str):
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_profile(request: Request, profile: ProfileCreate) -> JSONResponse:
     check_request_user_id(request, profile.id)
+    user_metadata = get_name_fields(str(profile.id))
+    if user_metadata is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # Upsert into Supabase
     payload = profile.model_dump()
+    payload['name'] = user_metadata.get("first_name", "")
+    payload['surname'] = user_metadata.get("last_name", "")
 
     payload["id"] = str(payload["id"])
     user_id = payload["id"]

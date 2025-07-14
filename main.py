@@ -71,7 +71,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/docs$",
             r"^/redoc$",
             r"^/openapi.json$",
-            r"^/scheduler/tick",
             r"^/topics",
         ]
 
@@ -127,7 +126,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         origin = request.headers.get("origin")
         is_allowed_origin = origin and (
             origin.startswith("http://localhost")
-            or origin.endswith("openeu.netlify.app")
+            or origin.endswith("netlify.app")
             or origin.endswith("openeu.csee.tech")
         )
 

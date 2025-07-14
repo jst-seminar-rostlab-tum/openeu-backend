@@ -4,6 +4,11 @@ from datetime import datetime, timedelta
 
 import schedule
 
+from app.core.alerts import (
+    fetch_due_alerts,
+    process_alert,
+)
+from app.core.mail.alert_email import SmartAlertMailer
 from app.core.mail.newsletter import Newsletter
 from app.core.scheduling import scheduler
 from app.core.supabase_client import supabase
@@ -13,6 +18,7 @@ from app.data_sources.scraper_base import ScraperResult
 from app.data_sources.scrapers.belgian_parliament_scraper import run_scraper as run_belgian_parliament_scraper
 from app.data_sources.scrapers.bundestag_drucksachen_scraper import BundestagDrucksachenScraper
 from app.data_sources.scrapers.bundestag_plenarprotocol_scaper import BundestagPlenarprotokolleScraper
+from app.data_sources.scrapers.ec_res_inno_meetings_scraper import EcResInnoMeetingsScraper
 from app.data_sources.scrapers.ipex_calender_scraper import run_scraper as run_ipex_calendar_scraper
 from app.data_sources.scrapers.lawtracker_topic_scraper import LawTrackerSpider
 from app.data_sources.scrapers.legislative_observatory_scraper import LegislativeObservatoryScraper
@@ -21,19 +27,16 @@ from app.data_sources.scrapers.mec_sum_minist_meetings_scraper import MECSumMini
 from app.data_sources.scrapers.meeting_calendar_scraper import EPMeetingCalendarScraper
 from app.data_sources.scrapers.mep_meetings_scraper import MEPMeetingsScraper
 from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishPresidencyMeetingsScraper
-from app.data_sources.scrapers.ec_res_inno_meetings_scraper import EcResInnoMeetingsScraper
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
-from app.core.alerts import (
-    fetch_due_alerts,
-    process_alert,
-)
-from app.core.mail.alert_email import SmartAlertMailer
+
+LOOKAHEAD_DAYS = 7  # Number of days in future to scrape data for
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 
 # ─── SMART-ALERT SENDER JOB - please do not touch, speak with Julius ───────────────────────────────────────────────
@@ -57,9 +60,7 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
             continue
 
         logger.info(
-            "About to call SmartAlertMailer.send_alert_email for user_id=%s, " "alert_id=%s",
-            alert["user_id"],
-            alert["id"],
+            "About to call SmartAlertMailer.send_alert_email for user_id=%s, alert_id=%s", alert["user_id"], alert["id"]
         )
         email_sent = SmartAlertMailer.send_alert_email(
             user_id=alert["user_id"],
@@ -80,25 +81,28 @@ def scrape_eu_laws_by_topic(stop_event: multiprocessing.synchronize.Event):
 
 def scrape_ipex_calendar(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    return run_ipex_calendar_scraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    return run_ipex_calendar_scraper(start_date=today, end_date=end_date, stop_event=stop_event)
 
 
-def scrape_meeting_calendar_for_current_day(stop_event: multiprocessing.synchronize.Event):
-    now = datetime.now()
-    ep_meeting_scraper = EPMeetingCalendarScraper(now, now, stop_event=stop_event)
+def scrape_meeting_calendar(stop_event: multiprocessing.synchronize.Event):
+    today = datetime.now().date()
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    ep_meeting_scraper = EPMeetingCalendarScraper(today, end_date, stop_event=stop_event)
     return ep_meeting_scraper.scrape()
 
 
 def scrape_mep_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    scraper = MEPMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    scraper = MEPMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
 def scrape_mec_sum_minist_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
     end_date = today + timedelta(
-        days=3
+        days=LOOKAHEAD_DAYS
     )  # also scrape meetings for the next 3 days to capture meetings spanning multiple days
     scraper = MECSumMinistMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
@@ -106,7 +110,8 @@ def scrape_mec_sum_minist_meetings(stop_event: multiprocessing.synchronize.Event
 
 def scrape_belgian_parliament_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    return run_belgian_parliament_scraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    return run_belgian_parliament_scraper(start_date=today, end_date=end_date, stop_event=stop_event)
 
 
 def _send_newsletter(frequency: str, stop_event: multiprocessing.synchronize.Event):
@@ -138,7 +143,7 @@ def send_weekly_newsletter(stop_event: multiprocessing.synchronize.Event):
 def scrape_mec_prep_bodies_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
     end_date = today + timedelta(
-        days=3
+        days=LOOKAHEAD_DAYS
     )  # also scrape meetings for the next 3 days to capture meetings spanning multiple days
     scraper = MECPrepBodiesMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
@@ -146,18 +151,21 @@ def scrape_mec_prep_bodies_meetings(stop_event: multiprocessing.synchronize.Even
 
 def scrape_weekly_agenda(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    scraper = WeeklyAgendaScraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    scraper = WeeklyAgendaScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
 def scrape_austrian_parliament_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    return run_scraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    return run_scraper(start_date=today, end_date=end_date, stop_event=stop_event)
 
 
 def scrape_polish_presidency_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    scraper = PolishPresidencyMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
@@ -176,14 +184,16 @@ def scrape_spanish_commission_meetings(stop_event: multiprocessing.synchronize.E
 
 def scrape_bundestag_plenary_protocols(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
     scraper = BundestagPlenarprotokolleScraper(stop_event=stop_event)
-    return scraper.scrape(start_date=today, end_date=today)
+    return scraper.scrape(start_date=today, end_date=end_date)
 
 
 def scrape_bundestag_drucksachen(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
     scraper = BundestagDrucksachenScraper(stop_event=stop_event)
-    return scraper.scrape(start_date=today, end_date=today)
+    return scraper.scrape(start_date=today, end_date=end_date)
 
 
 def scrape_tweets(stop_event: multiprocessing.synchronize.Event):
@@ -211,8 +221,8 @@ def setup_scheduled_jobs():
         "fetch_and_store_current_meps", fetch_and_store_current_meps, schedule.every().monday.at("02:00")
     )
     scheduler.register(
-        "scrape_meeting_calendar_for_current_day",
-        scrape_meeting_calendar_for_current_day,
+        "scrape_meeting_calendar",
+        scrape_meeting_calendar,
         schedule.every().day.at("02:10"),
     )
     scheduler.register(

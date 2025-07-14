@@ -45,8 +45,6 @@ class PoliticianUpdate(BaseModel):
 
 class ProfileCreate(BaseModel):
     id: UUID4
-    name: str
-    surname: str
     user_type: Literal["entrepreneur", "politician"]
     company: Optional[CompanyCreate] = None
     politician: Optional[PoliticianCreate] = None
@@ -67,6 +65,8 @@ class ProfileUpdate(BaseModel):
 
 
 class ProfileReturn(ProfileCreate):
+    name: str
+    surname: str
     company: Optional[CompanyReturn] = None
     politician: Optional[PoliticianReturn] = None
     embedding_input: str

@@ -71,3 +71,9 @@ class LegislativeFileResponse(BaseModel):
 
 class LegislativeFileSuggestionResponse(BaseModel):
     data: list[LegislativeFileSuggestion]
+
+
+class LegislativeFileUniqueValuesResponse(BaseModel):
+    years: list[str]
+    committees: list[str]
+    statuses: list[str]
