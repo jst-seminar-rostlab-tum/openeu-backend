@@ -4,7 +4,6 @@ from fastapi import HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from pydantic import BaseModel
-from supabase import SupabaseException
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
