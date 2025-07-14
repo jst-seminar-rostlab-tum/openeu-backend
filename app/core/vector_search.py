@@ -86,6 +86,3 @@ def get_top_k_neighbors(
     logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
 
     return resp.data
-
-
-get_top_k_neighbors(query="digital", allowed_countries=["European Union"])
