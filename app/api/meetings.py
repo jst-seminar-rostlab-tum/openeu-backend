@@ -38,7 +38,6 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 
 
 @router.get("/meetings", response_model=dict[str, list[Meeting]])
-@cache(namespace="meetings", expire=3600)
 def get_meetings(
     request: Request,  # new param: provides caller info
     limit: int = Query(500, gt=1),
