@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi_cache.decorator import cache
 
-from app.core.relevant_legislatives import fetch_relevant_legislative_files
+from app.core.relevant_legislatives import fetch_relevant_legislative_files, deduplicate_neighbors
 from app.core.supabase_client import supabase
 from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
@@ -73,6 +73,9 @@ def get_legislative_files(
 
             if not neighbors:
                 return JSONResponse(status_code=200, content={"data": []})
+
+            # Remove duplicates
+            neighbors = deduplicate_neighbors(neighbors)
 
             docs = [n["content_text"] for n in neighbors]
 
