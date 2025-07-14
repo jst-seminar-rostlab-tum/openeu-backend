@@ -32,7 +32,7 @@ from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
-LOOKAHEAD_DAYS = 3  # Number of days in future to scrape data for
+LOOKAHEAD_DAYS = 7  # Number of days in future to scrape data for
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
