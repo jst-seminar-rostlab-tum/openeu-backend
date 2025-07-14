@@ -71,7 +71,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/docs$",
             r"^/redoc$",
             r"^/openapi.json$",
-            r"^/scheduler/tick",
             r"^/topics",
         ]
 

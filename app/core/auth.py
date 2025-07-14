@@ -50,27 +50,27 @@ def check_request_user_id(request: Request, user_id: str | None):
     if settings.get_disable_auth():
         return
     user = get_current_user(request)
-    
-    if not user or user.id != str(user_id):
 
+    if not user or user.id != str(user_id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User ID does not match with authentication",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
+
 def get_name_fields(user_id: str) -> Optional[dict]:
     try:
         metadata = supabase.auth.admin.get_user_by_id(user_id).user.user_metadata
-        if 'first_name' in metadata and 'last_name' in metadata:
+        if "first_name" in metadata and "last_name" in metadata:
             return metadata
-        if 'name' in metadata:
-            name_parts = metadata.get('name', '').split()
+        if "name" in metadata:
+            name_parts = metadata.get("name", "").split()
             first_name = name_parts[0] if name_parts else ""
             last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
             return {
-                'first_name': first_name,
-                'last_name': last_name,
+                "first_name": first_name,
+                "last_name": last_name,
             }
         return None
     except Exception:
