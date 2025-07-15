@@ -165,7 +165,7 @@ class EPMeetingCalendarScraper(ScraperBase):
 
         if batch:
             for item in batch:
-                self.store_entry(item)
+                self.store_entry(item, on_conflict="title")
         else:
             logger.info("No meetings found on this page")
 
