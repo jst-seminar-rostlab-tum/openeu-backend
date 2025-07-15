@@ -53,11 +53,24 @@ def fetch_relevant_meetings(
 
     # 2) call `get_top_k_neighbors`
     try:
+        
+        if consider_frequency:
+            # Get today's date range
+            today = datetime.now().date()
+            start_date = datetime.combine(today, time.min)
+            # Adjust end_date based on newsletter_frequency
+            if newsletter_frequency == "weekly":
+                end_date = datetime.combine(today + timedelta(days=7), time.max)
+            else:
+                end_date = datetime.combine(today, time.max)
+ 
         neighbors = get_top_k_neighbors(
             query=profile_embedding_input,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
             allowed_countries=allowed_countries,
+            start_date = start_date,
+            end_date = end_date,
             k=1000,
         )
 
@@ -67,7 +80,7 @@ def fetch_relevant_meetings(
             model="rerank-v3.5",
             query=profile_embedding_input,
             documents=docs,
-            top_n=min(10, len(docs)),
+            top_n=min(k, len(docs)),
         )
 
         neighbors_re = []
@@ -75,7 +88,7 @@ def fetch_relevant_meetings(
             idx = result.index
             new_score = result.relevance_score
             neighbors[idx]["similarity"] = new_score
-            if new_score > 0.1:
+            if new_score > 0.05:
                 neighbors_re.append(neighbors[idx])
 
         neighbors = neighbors_re
@@ -104,18 +117,6 @@ def fetch_relevant_meetings(
         "source_ids": source_ids,
         "max_results": k,
     }
-
-    if consider_frequency:
-        # Get today's date range
-        today = datetime.now().date()
-        start_date = datetime.combine(today, time.min)
-        # Adjust end_date based on newsletter_frequency
-        if newsletter_frequency == "weekly":
-            end_date = datetime.combine(today + timedelta(days=7), time.max)
-        else:
-            end_date = datetime.combine(today, time.max)
-        rpc_params["start_date"] = start_date.isoformat()
-        rpc_params["end_date"] = end_date.isoformat()
 
     try:
         rows = (
