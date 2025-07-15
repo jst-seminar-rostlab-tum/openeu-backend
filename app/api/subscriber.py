@@ -11,6 +11,13 @@ class SubscribeRequest(BaseModel):
     legislation_id: str
 
 
+class Subscription(BaseModel):
+    id: str
+    user_id: str
+    legislation_id: str
+    created_at: str
+
+
 @router.post("/subscribe")
 def subscribe_to_legislation(request: Request, req: SubscribeRequest):
     user = get_current_user(request)
@@ -45,11 +52,11 @@ def unsubscribe_from_legislation(request: Request, req: SubscribeRequest):
 
 
 @router.get("/subscriptions")
-def get_user_subscriptions(request: Request):
+def get_user_subscriptions(request: Request) -> list[Subscription]:
     user = get_current_user(request)
     try:
         result = supabase.table("subscriptions").select().eq("user_id", user.id).execute()
 
-        return {"success": True, "subscriptions": result.data}
+        return [Subscription(**item) for item in result.data]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
