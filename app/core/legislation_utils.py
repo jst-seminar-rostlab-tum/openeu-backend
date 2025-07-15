@@ -8,6 +8,11 @@ from app.core.supabase_client import supabase
 import logging
 import json
 from scripts.embedding_generator import EmbeddingGenerator
+from app.core.chat_utils import get_response
+from app.core.table_metadata import get_table_description
+from app.core.vector_search import get_top_k_neighbors
+from app.core.cohere_client import co
+from app.models.chat import ChatMessageItem
 
 
 def _download_pdf(url: str) -> str:
@@ -62,7 +67,7 @@ def _extract_and_store_legislation_text(legislation_id: str, pdf_url: str) -> st
     return extracted_text
 
 
-def get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, str | None]:
+def _get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, str | None]:
     """
     Get extracted text and proposal file link for a legislation_id, or extract and store if not present.
     Returns (extracted_text, proposal_link). If not found, both may be None.
@@ -121,7 +126,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, st
     return extracted_text, link
 
 
-def embed_legislation_text_sync(legislation_id: str, extracted_text: str) -> bool:
+def _embed_legislation_text_sync(legislation_id: str, extracted_text: str) -> bool:
     """
     Synchronously embeds the extracted text for a legislative file and stores it in the DB.
     Returns True on success, False on failure.
@@ -140,3 +145,144 @@ def embed_legislation_text_sync(legislation_id: str, extracted_text: str) -> boo
     except Exception as e:
         logging.error(f"[SYNC] Embedding failed for legislation_id={legislation_id}: {e}")
         return False
+
+
+def _build_legislation_context_message(main_message: str, proposal_link: str | None = None) -> str:
+    """
+    Helper to build a user-facing context message for legislation responses.
+    If a proposal_link is provided, appends a markdown link to the message.
+    """
+    if proposal_link:
+        return f"{main_message} You can read the proposal document directly: [Proposal Document]({proposal_link})"
+    return main_message
+
+
+def process_legislation(legislation_request: ChatMessageItem):
+    """
+    Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
+    Returns a streaming LLM response with appropriate context (including errors or missing files).
+    Always informs the user.
+    """
+    try:
+        extracted_text, proposal_link = _get_or_extract_legislation_text(legislation_request.legislation_id)
+        # 1. Check for existing embeddings for this legislative_id
+        emb_response = (
+            supabase.table("documents_embeddings")
+            .select("*")
+            .eq("source_id", legislation_request.legislation_id)
+            .limit(1)
+            .execute()
+        )
+        if not (emb_response.data and len(emb_response.data) > 0):
+            # Embedding does not exist, extract and embed synchronously
+            if not extracted_text:
+                context_text = _build_legislation_context_message(
+                    "No legislative proposal document was found for this procedure.", proposal_link
+                )
+                yield from get_response(
+                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                )
+                return
+            success = _embed_legislation_text_sync(legislation_request.legislation_id, extracted_text)
+            if not success:
+                context_text = _build_legislation_context_message(
+                    "I'm having trouble processing this legislative procedure right now.\
+                    Please try again in a few moments.",
+                    proposal_link,
+                )
+                yield from get_response(
+                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                )
+                return
+            # After embedding, check again for embedding (should exist now)
+            emb_response = (
+                supabase.table("documents_embeddings")
+                .select("*")
+                .eq("source_id", legislation_request.legislation_id)
+                .limit(1)
+                .execute()
+            )
+            if not (emb_response.data and len(emb_response.data) > 0):
+                context_text = _build_legislation_context_message(
+                    "I'm having trouble processing this legislative procedure right now.\
+                    Please try again in a few moments.",
+                    proposal_link,
+                )
+                yield from get_response(
+                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                )
+                return
+        # RAG flow (embedding exists)
+        try:
+            neighbors = get_top_k_neighbors(
+                query=legislation_request.message,
+                sources=["document_embeddings"],
+                source_id=legislation_request.legislation_id,
+                k=35,
+            )
+            if not neighbors or len(neighbors) == 0:
+                # No relevant context found, but provide the proposal link if available
+                context_text = _build_legislation_context_message(
+                    "I couldn't find specific information to answer your question about this legislative procedure.\
+                    Please try again with a different question.",
+                    proposal_link,
+                )
+                yield from get_response(
+                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                )
+                return
+            # Rerank neighbors using co.rerank
+            docs = [n["content_text"] for n in neighbors]
+            rerank_resp = co.rerank(
+                model="rerank-v3.5",
+                query=legislation_request.message,
+                documents=docs,
+                top_n=min(5, len(docs)),
+            )
+            neighbors_re = []
+            for result in rerank_resp.results:
+                idx = result.index
+                new_score = result.relevance_score
+                neighbors[idx]["similarity"] = new_score
+                if new_score > 0.1:
+                    neighbors_re.append(neighbors[idx])
+            neighbors = neighbors_re
+            if not neighbors or len(neighbors) == 0:
+                context_text = _build_legislation_context_message(
+                    "I couldn't find specific information to answer your question about this legislative procedure.\
+                    Please try again with a different question.",
+                    proposal_link,
+                )
+                yield from get_response(
+                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                )
+                return
+            context_text = ""
+            for element in neighbors:
+                source_table = element.get("source_table")
+                table_desc = get_table_description(source_table) if source_table else "Unspecified data"
+                context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
+            if proposal_link:
+                context_text += f"\nFor the complete document, see: [Full Proposal Document]({proposal_link})"
+            yield from get_response(
+                legislation_request.message, legislation_request.session_id, context_text=context_text
+            )
+            return
+        except Exception as e:
+            logging.error(f"RAG/LLM error for legislation_id={legislation_request.legislation_id}: {e}")
+            context_text = _build_legislation_context_message(
+                "I'm experiencing technical difficulties and can't provide an answer right now.\
+                Please try again in a few moments.",
+                proposal_link,
+            )
+            yield from get_response(
+                legislation_request.message, legislation_request.session_id, context_text=context_text
+            )
+            return
+    except APIError as e:
+        logging.error(f"Supabase APIError: {e}")
+        raise HTTPException(503, "Failed to get legislative file, try again later") from None
+    except Exception as e:
+        logging.error(f"Unexpected error during legislation processing: {e}")
+        raise HTTPException(503, "Failed to get legislative file, try again later") from None
+

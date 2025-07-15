@@ -1,32 +1,24 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from openai import OpenAI
-from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
 from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
 from app.core.auth import check_request_user_id
 from app.core.supabase_client import supabase
-from app.core.table_metadata import get_table_description
-from app.core.vector_search import get_top_k_neighbors
-from app.core.legislation_utils import get_or_extract_legislation_text, embed_legislation_text_sync
+from app.core.legislation_utils import process_legislation
+from app.models.chat import ChatMessageItem
+from app.core.chat_utils import get_response
 
-client = OpenAI()
 router = APIRouter(prefix="/chat")
 
 
 class NewSessionItem(BaseModel):
     title: str
     user_id: str
-
-
-class ChatMessageItem(BaseModel):
-    session_id: str
-    message: str
 
 
 class NewChatResponseModel(BaseModel):
@@ -47,133 +39,10 @@ class SessionsResponseModel(BaseModel):
     title: str
 
 
-class LegislationRequest(BaseModel):
-    legislation_id: str
-    session_id: str
-    message: str
-
-
-def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, context_text: str = "") -> str:
-    messages_text = ""
-    for message in messages:
-        messages_text += f"{message['author']}: {message['content']}\n"
-
-    if not context_text:
-        context = get_top_k_neighbors(
-            query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
-        )
-        context_text = ""
-        for element in context:
-            source_table = element.get("source_table")
-            table_desc = get_table_description(source_table) if source_table else "Unspecified data"
-            context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
-
-    timestamp = datetime.now(timezone.utc).isoformat(timespec="minutes")
-
-    assistant_system_prompt = f"""
-    You are a helpful assistant working for Project Europe. Current time: {timestamp}.
-    Your task is to answer questions on OpenEU, a platform for screening EU legal processes.
-    You will get a question and a prior conversation if there is any and your task 
-    is to use your knowledge and the knowledge of OpenEU to answer the question. Do not answer any questions outside 
-    the scope of OpenEU.\n\n
-    *** BEGIN PREVIOUS CONVERSATION ***
-    {messages_text}
-    *** END PREVIOUS CONVERSATION ***\n\n
-    You will not apologize for previous responses, but instead will indicated new information was gained.
-    You will take into account any CONTEXT BLOCK that is provided in a conversation.
-    You will say that you can't help on this topic if the CONTEXT BLOCK is empty.
-    You will not invent anything that is not drawn directly from the context.
-    You will not answer questions that are not related to the context.
-    More information on how OpenEU works is between ***START CONTEXT BLOCK*** and ***END CONTEXT BLOCK***
-    ***START CONTEXT BLOCK***
-    {context_text}
-    ***END CONTEXT BLOCK***`,
-    """
-
-    return assistant_system_prompt
-
-
-def get_response(prompt: str, session_id: str, context_text: str = ""):
-    try:
-        database_messages = (
-            supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
-        )
-        messages = database_messages.data
-        messages.sort(key=lambda message: message["id"])
-
-        supabase.table("chat_messages").upsert(
-            {
-                "chat_session": session_id,
-                "content": prompt,
-                "author": "user",
-                "date": datetime.now(timezone.utc).isoformat(),
-            }
-        ).execute()
-        message_response = (
-            supabase.table("chat_messages")
-            .upsert(
-                {
-                    "chat_session": session_id,
-                    "content": "",
-                    "author": "assistant",
-                }
-            )
-            .execute()
-        )
-
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                ChatCompletionAssistantMessageParam(
-                    content=build_system_prompt(messages, prompt, context_text), role="assistant"
-                ),
-                ChatCompletionUserMessageParam(
-                    content=f"Please answer the following question regarding OpenEU: {prompt}", role="user"
-                ),
-            ],
-            temperature=0.3,
-            stream=True,
-        )
-    except Exception as e:
-        logging.error("Error in getting response from OpenAI: %s", e)
-        fallback_text = (
-            "Sorry, I'm currently experiencing technical difficulties and cannot provide an answer. "
-            "Please try again in a few moments."
-        )
-
-        yield f"id: {session_id}\ndata: {fallback_text}\n\n"
-        return  # Stop the generator
-    try:
-        full_response = ""
-        for chunk in response:
-            current_content = chunk.choices[0].delta.content
-            if current_content is not None and len(current_content) > 0:
-                full_response += current_content
-                supabase.table("chat_messages").update(
-                    {
-                        "content": full_response,
-                        "date": datetime.now(timezone.utc).isoformat(),
-                    }
-                ).eq("id", message_response.data[0].get("id")).eq("chat_session", session_id).execute()
-
-                yield f"id: {session_id}\ndata: {current_content}\n\n"
-    except Exception as e:
-        logging.error("OpenAI response Error: " + str(e))
-        raise HTTPException(503, "OpenAI server is busy, try again later") from None
-
-
-def _build_legislation_context_message(main_message: str, proposal_link: str | None = None) -> str:
-    """
-    Helper to build a user-facing context message for legislation responses.
-    If a proposal_link is provided, appends a markdown link to the message.
-    """
-    if proposal_link:
-        return f"{main_message} You can read the proposal document directly: [Proposal Document]({proposal_link})"
-    return main_message
-
-
 @router.post("/")
 async def get_chat_response(chat_message_item: ChatMessageItem):
+    if chat_message_item.legislation_id:
+        return StreamingResponse(process_legislation(chat_message_item), media_type="text/event-stream")
     return StreamingResponse(
         get_response(chat_message_item.message, chat_message_item.session_id), media_type="text/event-stream"
     )
@@ -226,116 +95,3 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
         raise HTTPException(503, "Failed to get chat sessions, try again later") from None
 
     return response.data
-
-
-@router.post("/legislation/")
-def process_legislation(legislation_request: LegislationRequest):
-    """
-    Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
-    Returns a streaming LLM response with appropriate context (including errors or missing files).
-    Always informs the user.
-    """
-    try:
-        extracted_text, proposal_link = get_or_extract_legislation_text(legislation_request.legislation_id)
-        # 1. Check for existing embeddings for this legislative_id
-        emb_response = (
-            supabase.table("documents_embeddings")
-            .select("*")
-            .eq("source_id", legislation_request.legislation_id)
-            .limit(1)
-            .execute()
-        )
-        if not (emb_response.data and len(emb_response.data) > 0):
-            # Embedding does not exist, extract and embed synchronously
-            if not extracted_text:
-                context_text = _build_legislation_context_message(
-                    "No legislative proposal document was found for this procedure.", proposal_link
-                )
-                return StreamingResponse(
-                    get_response(
-                        legislation_request.message, legislation_request.session_id, context_text=context_text
-                    ),
-                    media_type="text/event-stream",
-                )
-            success = embed_legislation_text_sync(legislation_request.legislation_id, extracted_text)
-            if not success:
-                context_text = _build_legislation_context_message(
-                    "I'm having trouble processing this legislative procedure right now.\
-                    Please try again in a few moments.",
-                    proposal_link,
-                )
-                return StreamingResponse(
-                    get_response(
-                        legislation_request.message, legislation_request.session_id, context_text=context_text
-                    ),
-                    media_type="text/event-stream",
-                )
-            # After embedding, check again for embedding (should exist now)
-            emb_response = (
-                supabase.table("documents_embeddings")
-                .select("*")
-                .eq("source_id", legislation_request.legislation_id)
-                .limit(1)
-                .execute()
-            )
-            if not (emb_response.data and len(emb_response.data) > 0):
-                context_text = _build_legislation_context_message(
-                    "I'm having trouble processing this legislative procedure right now.\
-                    Please try again in a few moments.",
-                    proposal_link,
-                )
-                return StreamingResponse(
-                    get_response(
-                        legislation_request.message, legislation_request.session_id, context_text=context_text
-                    ),
-                    media_type="text/event-stream",
-                )
-        # RAG flow (embedding exists)
-        try:
-            neighbors = get_top_k_neighbors(
-                query=legislation_request.message,
-                sources=["document_embeddings"],
-                source_id=legislation_request.legislation_id,
-                k=5,
-            )
-            if not neighbors or len(neighbors) == 0:
-                # No relevant context found, but provide the proposal link if available
-                context_text = _build_legislation_context_message(
-                    "I couldn't find specific information to answer your question about this legislative procedure.\
-                    Please try again with a different question.",
-                    proposal_link,
-                )
-                return StreamingResponse(
-                    get_response(
-                        legislation_request.message, legislation_request.session_id, context_text=context_text
-                    ),
-                    media_type="text/event-stream",
-                )
-            context_text = ""
-            for element in neighbors:
-                source_table = element.get("source_table")
-                table_desc = get_table_description(source_table) if source_table else "Unspecified data"
-                context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
-            if proposal_link:
-                context_text += f"\nFor the complete document, see: [Full Proposal Document]({proposal_link})"
-            return StreamingResponse(
-                get_response(legislation_request.message, legislation_request.session_id, context_text=context_text),
-                media_type="text/event-stream",
-            )
-        except Exception as e:
-            logging.error(f"RAG/LLM error for legislation_id={legislation_request.legislation_id}: {e}")
-            context_text = _build_legislation_context_message(
-                "I'm experiencing technical difficulties and can't provide an answer right now.\
-                Please try again in a few moments.",
-                proposal_link,
-            )
-            return StreamingResponse(
-                get_response(legislation_request.message, legislation_request.session_id, context_text=context_text),
-                media_type="text/event-stream",
-            )
-    except APIError as e:
-        logging.error(f"Supabase APIError: {e}")
-        raise HTTPException(503, "Failed to get legislative file, try again later") from None
-    except Exception as e:
-        logging.error(f"Unexpected error during legislation processing: {e}")
-        raise HTTPException(503, "Failed to get legislative file, try again later") from None
