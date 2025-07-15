@@ -47,6 +47,12 @@ class SessionsResponseModel(BaseModel):
     title: str
 
 
+class LegislationRequest(BaseModel):
+    legislation_id: str
+    session_id: str
+    message: str
+
+
 def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, context_text: str = "") -> str:
     messages_text = ""
     for message in messages:
@@ -212,30 +218,29 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
     return response.data
 
 
-@router.post("/legislation/{legislation_id}", response_model=StreamingResponse)
-def process_legislation(
-    legislation_id: str,
-    message: str,
-    session_id: str,
-    background_tasks: BackgroundTasks | None = None,
-):
+@router.post("/legislation/")
+def process_legislation(legislation_request: LegislationRequest):
     """
     Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
     Returns a streaming LLM response or extracted text/info if no document is found, or raises an HTTPException on error
-    Triggers async embedding after extraction.
+    Triggers embedding after extraction.
     """
     try:
         # 1. Check for existing embeddings for this legislative_id
         emb_response = (
-            supabase.table("documents_embeddings").select("*").eq("source_id", legislation_id).limit(1).execute()
+            supabase.table("documents_embeddings")
+            .select("*")
+            .eq("source_id", legislation_request.legislation_id)
+            .limit(1)
+            .execute()
         )
         if emb_response.data and len(emb_response.data) > 0:
             # RAG flow
             try:
                 neighbors = get_top_k_neighbors(
-                    query=message,
+                    query=legislation_request.message,
                     sources=["document_embeddings"],
-                    source_id=legislation_id,
+                    source_id=legislation_request.legislation_id,
                     k=10,
                 )
                 if not neighbors or len(neighbors) == 0:
@@ -247,23 +252,22 @@ def process_legislation(
                     context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
                 # Use the main chat streaming response with injected context
                 return StreamingResponse(
-                    get_response(message, session_id, context_text=context_text), media_type="text/event-stream"
+                    get_response(
+                        legislation_request.message, legislation_request.session_id, context_text=context_text
+                    ),
+                    media_type="text/event-stream",
                 )
             except Exception as e:
-                logging.error(f"RAG/LLM error for legislation_id={legislation_id}: {e}")
+                logging.error(f"RAG/LLM error for legislation_id={legislation_request.legislation_id}: {e}")
                 raise HTTPException(
                     503, "Failed to generate answer for this legislative procedure, try again later"
                 ) from None
         # 2. Fallback: extract and embed as before
-        extracted_text = get_or_extract_legislation_text(legislation_id)
+        extracted_text = get_or_extract_legislation_text(legislation_request.legislation_id)
         if extracted_text is None:
             return {"extracted_text": None, "info": "No 'Legislative proposal' document found for this procedure."}
-        # Trigger async embedding
-        if background_tasks is not None:
-            background_tasks.add_task(trigger_legislation_embedding_async, legislation_id, extracted_text)
-        else:
-            # Fallback: run in thread (should not happen in FastAPI, but for direct calls)
-            trigger_legislation_embedding_async(legislation_id, extracted_text)
+        # Always trigger embedding synchronously
+        trigger_legislation_embedding_async(legislation_request.legislation_id, extracted_text)
         return {"extracted_text": extracted_text}
     except APIError as e:
         logging.error(f"Supabase APIError: {e}")
@@ -271,3 +275,13 @@ def process_legislation(
     except Exception as e:
         logging.error(f"Unexpected error during legislation processing: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
+
+
+if __name__ == "__main__":
+    legislation_request = LegislationRequest(
+        legislation_id="2025/0039(COD)",
+        session_id="585f0e4e-b68d-423e-b278-78fd5085dd33",
+        message="What is the proposal for?",
+    )
+    result = process_legislation(legislation_request)
+    print(result)
