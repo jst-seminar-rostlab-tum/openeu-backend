@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
