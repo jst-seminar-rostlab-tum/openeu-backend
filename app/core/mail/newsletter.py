@@ -128,9 +128,10 @@ class Newsletter:
     def send_newsletter_to_user(user_id):
         user_mail = get_user_email(user_id=user_id)
         mail_body, mean_sim = build_email_for_user(user_id=user_id)
+        subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
 
         mail = Email(
-            subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
+            subject=subject,
             html_body=mail_body,
             recipients=[user_mail],
         )
@@ -146,5 +147,6 @@ class Newsletter:
             "type": "newsletter",
             "message": str(mail_body),
             "relevance_score": mean_sim,
+            "message_subject": subject,
         }
         supabase.table("notifications").insert(notification_payload).execute()
