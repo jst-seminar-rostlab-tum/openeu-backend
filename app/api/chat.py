@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam
@@ -232,7 +232,8 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
 def process_legislation(legislation_request: LegislationRequest):
     """
     Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
-    Returns a streaming LLM response with appropriate context (including errors or missing files), always informing the user.
+    Returns a streaming LLM response with appropriate context (including errors or missing files).
+    Always informs the user.
     """
     try:
         extracted_text, proposal_link = get_or_extract_legislation_text(legislation_request.legislation_id)

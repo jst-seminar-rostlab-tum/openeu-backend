@@ -7,7 +7,6 @@ from app.core.pdf_extractor import extract_text_from_pdf
 from app.core.supabase_client import supabase
 import logging
 import json
-import threading
 from scripts.embedding_generator import EmbeddingGenerator
 
 
@@ -71,7 +70,10 @@ def get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, st
     # 1. Check if already present in legislative_procedure_files
     try:
         existing = (
-            supabase.table("legislative_procedure_files").select("extracted_text, link").eq("id", legislation_id).execute()
+            supabase.table("legislative_procedure_files")
+            .select("extracted_text, link")
+            .eq("id", legislation_id)
+            .execute()
         )
         if existing.data and len(existing.data) > 0:
             return existing.data[0]["extracted_text"], existing.data[0].get("link")
@@ -117,6 +119,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, st
     # 3. Download, extract, and store
     extracted_text = _extract_and_store_legislation_text(legislation_id, link)
     return extracted_text, link
+
 
 def embed_legislation_text_sync(legislation_id: str, extracted_text: str) -> bool:
     """
