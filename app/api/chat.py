@@ -13,7 +13,7 @@ from app.core.auth import check_request_user_id
 from app.core.supabase_client import supabase
 from app.core.table_metadata import get_table_description
 from app.core.vector_search import get_top_k_neighbors
-from app.core.legislation_utils import get_or_extract_legislation_text, trigger_legislation_embedding_async
+from app.core.legislation_utils import get_or_extract_legislation_text, embed_legislation_text_sync
 
 client = OpenAI()
 router = APIRouter(prefix="/chat")
@@ -162,6 +162,16 @@ def get_response(prompt: str, session_id: str, context_text: str = ""):
         raise HTTPException(503, "OpenAI server is busy, try again later") from None
 
 
+def _build_legislation_context_message(main_message: str, proposal_link: str | None = None) -> str:
+    """
+    Helper to build a user-facing context message for legislation responses.
+    If a proposal_link is provided, appends a markdown link to the message.
+    """
+    if proposal_link:
+        return f"{main_message} You can read the proposal document directly: [Proposal Document]({proposal_link})"
+    return main_message
+
+
 @router.post("/")
 async def get_chat_response(chat_message_item: ChatMessageItem):
     return StreamingResponse(
@@ -222,10 +232,10 @@ def get_user_sessions(request: Request, user_id: str) -> list[dict[str, str]]:
 def process_legislation(legislation_request: LegislationRequest):
     """
     Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
-    Returns a streaming LLM response or extracted text/info if no document is found, or raises an HTTPException on error
-    Triggers embedding after extraction.
+    Returns a streaming LLM response with appropriate context (including errors or missing files), always informing the user.
     """
     try:
+        extracted_text, proposal_link = get_or_extract_legislation_text(legislation_request.legislation_id)
         # 1. Check for existing embeddings for this legislative_id
         emb_response = (
             supabase.table("documents_embeddings")
@@ -234,54 +244,97 @@ def process_legislation(legislation_request: LegislationRequest):
             .limit(1)
             .execute()
         )
-        if emb_response.data and len(emb_response.data) > 0:
-            # RAG flow
-            try:
-                neighbors = get_top_k_neighbors(
-                    query=legislation_request.message,
-                    sources=["document_embeddings"],
-                    source_id=legislation_request.legislation_id,
-                    k=10,
+        if not (emb_response.data and len(emb_response.data) > 0):
+            # Embedding does not exist, extract and embed synchronously
+            if not extracted_text:
+                context_text = _build_legislation_context_message(
+                    "No legislative proposal document was found for this procedure.", proposal_link
                 )
-                if not neighbors or len(neighbors) == 0:
-                    return {"info": "No relevant context found for this legislative procedure. Please try again later."}
-                context_text = ""
-                for element in neighbors:
-                    source_table = element.get("source_table")
-                    table_desc = get_table_description(source_table) if source_table else "Unspecified data"
-                    context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
-                # Use the main chat streaming response with injected context
                 return StreamingResponse(
                     get_response(
                         legislation_request.message, legislation_request.session_id, context_text=context_text
                     ),
                     media_type="text/event-stream",
                 )
-            except Exception as e:
-                logging.error(f"RAG/LLM error for legislation_id={legislation_request.legislation_id}: {e}")
-                raise HTTPException(
-                    503, "Failed to generate answer for this legislative procedure, try again later"
-                ) from None
-        # 2. Fallback: extract and embed as before
-        extracted_text = get_or_extract_legislation_text(legislation_request.legislation_id)
-        if extracted_text is None:
-            return {"extracted_text": None, "info": "No 'Legislative proposal' document found for this procedure."}
-        # Always trigger embedding synchronously
-        trigger_legislation_embedding_async(legislation_request.legislation_id, extracted_text)
-        return {"extracted_text": extracted_text}
+            success = embed_legislation_text_sync(legislation_request.legislation_id, extracted_text)
+            if not success:
+                context_text = _build_legislation_context_message(
+                    "I'm having trouble processing this legislative procedure right now.\
+                    Please try again in a few moments.",
+                    proposal_link,
+                )
+                return StreamingResponse(
+                    get_response(
+                        legislation_request.message, legislation_request.session_id, context_text=context_text
+                    ),
+                    media_type="text/event-stream",
+                )
+            # After embedding, check again for embedding (should exist now)
+            emb_response = (
+                supabase.table("documents_embeddings")
+                .select("*")
+                .eq("source_id", legislation_request.legislation_id)
+                .limit(1)
+                .execute()
+            )
+            if not (emb_response.data and len(emb_response.data) > 0):
+                context_text = _build_legislation_context_message(
+                    "I'm having trouble processing this legislative procedure right now.\
+                    Please try again in a few moments.",
+                    proposal_link,
+                )
+                return StreamingResponse(
+                    get_response(
+                        legislation_request.message, legislation_request.session_id, context_text=context_text
+                    ),
+                    media_type="text/event-stream",
+                )
+        # RAG flow (embedding exists)
+        try:
+            neighbors = get_top_k_neighbors(
+                query=legislation_request.message,
+                sources=["document_embeddings"],
+                source_id=legislation_request.legislation_id,
+                k=5,
+            )
+            if not neighbors or len(neighbors) == 0:
+                # No relevant context found, but provide the proposal link if available
+                context_text = _build_legislation_context_message(
+                    "I couldn't find specific information to answer your question about this legislative procedure.\
+                    Please try again with a different question.",
+                    proposal_link,
+                )
+                return StreamingResponse(
+                    get_response(
+                        legislation_request.message, legislation_request.session_id, context_text=context_text
+                    ),
+                    media_type="text/event-stream",
+                )
+            context_text = ""
+            for element in neighbors:
+                source_table = element.get("source_table")
+                table_desc = get_table_description(source_table) if source_table else "Unspecified data"
+                context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
+            if proposal_link:
+                context_text += f"\nFor the complete document, see: [Full Proposal Document]({proposal_link})"
+            return StreamingResponse(
+                get_response(legislation_request.message, legislation_request.session_id, context_text=context_text),
+                media_type="text/event-stream",
+            )
+        except Exception as e:
+            logging.error(f"RAG/LLM error for legislation_id={legislation_request.legislation_id}: {e}")
+            context_text = _build_legislation_context_message(
+                "I'm experiencing technical difficulties and can't provide an answer right now.\
+                Please try again in a few moments.",
+                proposal_link,
+            )
+            return StreamingResponse(
+                get_response(legislation_request.message, legislation_request.session_id, context_text=context_text),
+                media_type="text/event-stream",
+            )
     except APIError as e:
         logging.error(f"Supabase APIError: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
     except Exception as e:
         logging.error(f"Unexpected error during legislation processing: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
-
-
-if __name__ == "__main__":
-    legislation_request = LegislationRequest(
-        legislation_id="2025/0039(COD)",
-        session_id="585f0e4e-b68d-423e-b278-78fd5085dd33",
-        message="What is the proposal for?",
-    )
-    result = process_legislation(legislation_request)
-    print(result)

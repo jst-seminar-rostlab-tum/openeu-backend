@@ -63,17 +63,18 @@ def _extract_and_store_legislation_text(legislation_id: str, pdf_url: str) -> st
     return extracted_text
 
 
-def get_or_extract_legislation_text(legislation_id: str) -> str:
+def get_or_extract_legislation_text(legislation_id: str) -> tuple[str | None, str | None]:
     """
-    Get extracted text for a legislation_id, or extract and store if not present.
+    Get extracted text and proposal file link for a legislation_id, or extract and store if not present.
+    Returns (extracted_text, proposal_link). If not found, both may be None.
     """
     # 1. Check if already present in legislative_procedure_files
     try:
         existing = (
-            supabase.table("legislative_procedure_files").select("extracted_text").eq("id", legislation_id).execute()
+            supabase.table("legislative_procedure_files").select("extracted_text, link").eq("id", legislation_id).execute()
         )
         if existing.data and len(existing.data) > 0:
-            return existing.data[0]["extracted_text"]
+            return existing.data[0]["extracted_text"], existing.data[0].get("link")
     except APIError as e:
         logging.error(f"APIError: {e}")
         raise HTTPException(503, "DB lookup failed, try again later") from None
@@ -84,7 +85,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> str:
     try:
         result = supabase.table("legislative_files").select("documentation_gateway").eq("id", legislation_id).execute()
         if not result.data or len(result.data) == 0:
-            raise HTTPException(404, f"No documentation_gateway found for legislation_id '{legislation_id}'")
+            return None, None
         documentation_gateway = result.data[0].get("documentation_gateway")
         link = None
         if documentation_gateway:
@@ -106,7 +107,7 @@ def get_or_extract_legislation_text(legislation_id: str) -> str:
                 logging.error(f"Failed to parse documentation_gateway: {e}")
                 link = None
         if not link:
-            return ""
+            return None, None
     except APIError as e:
         logging.error(f"APIError: {e}")
         raise HTTPException(503, "Failed to fetch documents_gateway, try again later") from None
@@ -114,50 +115,25 @@ def get_or_extract_legislation_text(legislation_id: str) -> str:
         logging.error(f"Exception: {e}")
         raise HTTPException(500, "Unexpected error during documents_gateway fetch, try again later") from None
     # 3. Download, extract, and store
-    return _extract_and_store_legislation_text(legislation_id, link)
+    extracted_text = _extract_and_store_legislation_text(legislation_id, link)
+    return extracted_text, link
 
-
-def trigger_legislation_embedding_async(legislation_id: str, extracted_text: str):
+def embed_legislation_text_sync(legislation_id: str, extracted_text: str) -> bool:
     """
-    Triggers async embedding for a legislative file after extraction.
-    Meant to be called from the API layer using FastAPI BackgroundTasks.
+    Synchronously embeds the extracted text for a legislative file and stores it in the DB.
+    Returns True on success, False on failure.
     """
-    def embed():
-        try:
-            eg = EmbeddingGenerator(max_tokens=2000, overlap=200)
-            eg.embed_row(
-                source_table="legislative_procedure_files",
-                row_id=legislation_id,
-                content_column="extracted_text",
-                content_text=str(extracted_text),
-                destination_table="documents_embeddings",
-            )
-            logging.info(f"Embedding completed for legislation_id={legislation_id}")
-        except Exception as e:
-            logging.error(f"Embedding failed for legislation_id={legislation_id}: {e}")
-
-    # Run in a background thread (non-blocking)
-    thread = threading.Thread(target=embed)
-    thread.start()
-
-
-##########################
-# TESTING - DELETE LATER #
-##########################
-if __name__ == "__main__":
-    legislation_id = "2025/0039(COD)"
-    print(f"Extracting and embedding for legislation_id: {legislation_id}")
-    text = get_or_extract_legislation_text(legislation_id)
-    if text is None:
-        print("No 'Legislative proposal' document found for this procedure.")
-    print("Text extracted. Running embedding synchronously...")
-    
-    eg = EmbeddingGenerator(max_tokens=2000, overlap=200)
-    eg.embed_row(
-        source_table="legislative_procedure_files",
-        row_id=legislation_id,
-        content_column="extracted_text",
-        content_text=str(text),
-        destination_table="documents_embeddings",
-    )
-    print("Embedding complete.")
+    try:
+        eg = EmbeddingGenerator(max_tokens=2000, overlap=200)
+        eg.embed_row(
+            source_table="legislative_procedure_files",
+            row_id=legislation_id,
+            content_column="extracted_text",
+            content_text=str(extracted_text),
+            destination_table="documents_embeddings",
+        )
+        logging.info(f"[SYNC] Embedding completed for legislation_id={legislation_id}")
+        return True
+    except Exception as e:
+        logging.error(f"[SYNC] Embedding failed for legislation_id={legislation_id}: {e}")
+        return False
