@@ -76,7 +76,13 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
 
 def scrape_netherlands_twka_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
+    #end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    #scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
+
+    # For testing: scrape a broader date range to find meetings
+    start_date = today - timedelta(days=30)  # Look back 30 days
+    end_date = today + timedelta(days=30)  # Look forward 30 days
+    scraper = NetherlandsTwkaMeetingsScraper(start_date=start_date, end_date=end_date, stop_event=stop_event)
     return scraper.scrape()
 
 
@@ -292,5 +298,6 @@ def setup_scheduled_jobs():
     scheduler.register(
         "scrape_netherlands_twka_meetings",
         scrape_netherlands_twka_meetings,
-        schedule.every().day.at("03:10"),
+        schedule.every().day.at("05:00"),
+        run_in_process=True,
     )

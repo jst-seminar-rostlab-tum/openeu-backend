@@ -1,3 +1,13 @@
+-- 1. Add source table -> location mapping to country_map_meetings (spanish_commission_meetings, weeky_agenda)
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('nl_twka_meetings',               'Netherlands',    'NL')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 2. Rebuild the view with the new schema (adding: spanish_commission_meetings, weeky_agenda)
+drop view if exists public.v_meetings cascade;
+
 CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings

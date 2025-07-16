@@ -15,7 +15,8 @@ insert into public.country_map_meetings (source_table, country, iso2) values
   ('polish_presidency_meeting',      'Poland',         'PL'),
   ('spanish_commission_meetings',    'Spain',          'ES'),
   ('weekly_agenda',                  'European Union', 'EU'),
-  ('ec_res_inno_meetings',           'European Union', 'EU')
+  ('ec_res_inno_meetings',           'European Union', 'EU'),
+  ('nl_twka_meetings',               'Netherlands',    'NL')
 on conflict (source_table) do update
   set country = excluded.country,
       iso2    = excluded.iso2;

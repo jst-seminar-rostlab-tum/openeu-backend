@@ -10,8 +10,8 @@ from w3lib.html import remove_tags
 
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.data_sources.translator.translator import Translator
 
-# from app.core.deepl_translator import translate_text
 from scripts.embedding_generator import EmbeddingGenerator
 
 
@@ -28,11 +28,17 @@ class MeetingModel(BaseModel):
     agenda: Optional[list[str]] = []
     ministers: Optional[list[str]] = []
     attendees: Optional[list[str]] = []
-    original_content: str
-    translated_content: str
+    original_title: str
+    translated_title: str
     embedding_input: Optional[str] = None
     start_time: str
     end_time: str
+
+
+
+_TITLE_TRANSLATION_OVERRIDES = {
+    "procedurevergadering": "Procedural meeting",
+}
 
 
 def extract_title(response) -> str:
@@ -94,6 +100,9 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     # Base URL for agenda (+ later append “?date=YYYY-MM-DD”)
     BASE_AGENDA_URL = "https://www.tweedekamer.nl/debat_en_vergadering"
 
+    # Class-level reference to module-level constant (_ name to avoid shadowing confusion)
+    TITLE_TRANSLATION_OVERRIDES = _TITLE_TRANSLATION_OVERRIDES
+
     def __init__(
         self, start_date: date, end_date: date, stop_event: multiprocessing.synchronize.Event, *args, **kwargs
     ):
@@ -106,6 +115,9 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
         # Initialize the embedding generator
         self.embedding_generator = EmbeddingGenerator()
+        
+        # Initialize the translator
+        self.translator = Translator(prod=True)
 
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
         """
@@ -239,6 +251,29 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         # 1.1 title fall-back: grab whatever is in <h1>
         if not title:
             title = response.xpath("normalize-space(//h1)").get(default="").strip()
+        
+
+        # ── 1.1) Store original title and translate it to english
+        original_title = title  # Store original Dutch title
+        translated_title = None
+
+        if original_title:
+            norm_title = original_title.strip().casefold()  # case-insensitive compare
+            override = self.TITLE_TRANSLATION_OVERRIDES.get(norm_title)
+            if override is not None:
+                translated_title = override
+                self.logger.info(
+                    f"Applied title translation override for meeting {meeting_id}: "
+                    f"{original_title!r} -> {translated_title!r}"
+                )
+            else:
+                try:
+                    translated_title = (self.translator.translate(original_title) or "").strip() or None
+                    self.logger.info(f"Translated title for meeting {meeting_id}")
+                except Exception as e:
+                    self.logger.error(f"Title translation failed for ID={meeting_id}: {e}")
+                    translated_title = None  # Fallback to None if translation fails (to make this clear and catchable in frontend)
+
 
         # ── 2) Build both start_datetime and end_datetime
         try:
@@ -384,21 +419,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                 if parts:
                     attendees.append(", ".join(parts))
 
-        # ── 6) Original content (Dutch transcript)
-        original_paras = response.css("div.meeting-content p::text").getall()
-        original_content_text = "\n\n".join([p.strip() for p in original_paras if p.strip()])
-
-        # ── 7) Translate via DeepL
-        translated_content_text = ""
-        if original_content_text:
-            try:
-                # translated_content_text = translate_text(original_content_text, target_lang="EN")
-                pass
-            except Exception as e:
-                self.logger.error(f"DeepL translation failed for ID={meeting_id}: {e}")
-                translated_content_text = ""
-
-        # Prepare a dict mapping for the embedding_input → value (use "n/a" if str is empty)
+        # ── 6) Transition from parsed HTML to embedding payload: map each meeting field to a string value
+        # Prepare a dict mapping for the embedding_input -> value (use "n/a" if str is empty)
         embedding_map: dict[str, str] = {
             "id": meeting_id,
             "type": meeting_type or "n/a",
@@ -407,7 +429,6 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             "agenda": "; ".join(agenda_items) if agenda_items else "n/a",
             "ministers": "; ".join(ministers) if ministers else "n/a",
             "attendees": "; ".join(attendees) if attendees else "n/a",
-            "content": original_content_text or "n/a",
         }
         embedding_input = ", ".join(f"{label}: {val}" for label, val in embedding_map.items())
 
@@ -425,8 +446,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             "agenda": agenda_items,
             "ministers": ministers,
             "attendees": attendees,
-            "original_content": original_content_text,
-            "translated_content": translated_content_text,
+            "original_title": original_title,
+            "translated_title": translated_title,
             "embedding_input": embedding_input,
             "start_time": start_time,
             "end_time": end_time,
@@ -462,8 +483,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             "agenda": item.agenda,
             "ministers": item.ministers,
             "attendees": item.attendees,
-            "original_content": item.original_content,
-            "translated_content": item.translated_content,
+            "original_title": item.original_title,
+            "translated_title": item.translated_title,
             "embedding_input": item.embedding_input,
             "start_time": item.start_time,
             "end_time": item.end_time,
@@ -475,7 +496,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             .select(
                 "title, meeting_type, start_datetime, end_datetime, location, link, "
                 "attachments_url, commission, agenda, ministers, attendees, "
-                "original_content, translated_content, embedding_input, start_time, end_time"
+                "original_title, translated_title, embedding_input, start_time, end_time"
             )
             .eq("id", item.id)
             .limit(1)
@@ -496,7 +517,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                 self.logger.error(f"Embedding generation failed for id={item.id}: {e}")
             return
 
-        # 3b) Row exists → compare every relevant field in one shot
+        # 3b) Row exists -> compare every relevant field in one shot
         existing: dict[str, Any] = resp.data[0]
 
         # Helper to guard .strip() on an Optional[str]
@@ -521,8 +542,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                 (sorted(existing.get("agenda") or []) != sorted(data["agenda"] or [])),
                 (sorted(existing.get("ministers") or []) != sorted(data["ministers"] or [])),
                 (sorted(existing.get("attendees") or []) != sorted(data["attendees"] or [])),
-                _as_str(existing.get("original_content")) != _as_str(item.original_content),
-                _as_str(existing.get("translated_content")) != _as_str(item.translated_content),
+                _as_str(existing.get("original_title")) != _as_str(item.original_title),
+                _as_str(existing.get("translated_title")) != _as_str(item.translated_title),
             ]
         )
 
@@ -557,7 +578,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         settings = get_project_settings()
         settings.set("LOG_LEVEL", "INFO")
         settings.set("ROBOTSTXT_OBEY", False)
-        settings.set("USER_AGENT", "OpenEU Bot (+https://openeu.app)")
+        settings.set("USER_AGENT", "OpenEU")
 
         # Run this spider properly inside its own Scrapy process
         process = CrawlerProcess(settings=settings)
