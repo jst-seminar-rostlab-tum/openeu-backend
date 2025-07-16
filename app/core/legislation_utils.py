@@ -175,7 +175,7 @@ def process_legislation(legislation_request: ChatMessageItem):
         )
         if not (emb_response.data and len(emb_response.data) > 0):
             # Embedding does not exist, extract and embed synchronously
-            if not proposal_link:
+            if not proposal_link or not extracted_text:
                 # Fetch the legislative_files DB row
                 legislative_row_resp = (
                     supabase.table("legislative_files")
