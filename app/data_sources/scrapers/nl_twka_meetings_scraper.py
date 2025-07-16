@@ -35,10 +35,6 @@ class MeetingModel(BaseModel):
     end_time: str
 
 
-
-import re
-
-
 def extract_title(response) -> str:
     """
     Extract the best title/subject line from a Tweede Kamer detail page.
@@ -50,7 +46,7 @@ def extract_title(response) -> str:
     3. Direct text nodes that are *immediate* children of `<h1>`.
     4. Whole `<h1>` element, normalised.
 
-    The first non-empty result is trimmed and returned.  
+    The first non-empty result is trimmed and returned.
     If all look-ups fail the fallback value is the literal string
     `"(title missing)"`.
     """
@@ -87,10 +83,6 @@ def extract_title(response) -> str:
     return "(title missing)"
 
 
-
-
-
-
 class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     """
     “Plain” Scrapy spider (no Playwright) to scrape https://www.tweedekamer.nl/debat_en_vergadering by date.
@@ -102,14 +94,16 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
     # Base URL for agenda (+ later append “?date=YYYY-MM-DD”)
     BASE_AGENDA_URL = "https://www.tweedekamer.nl/debat_en_vergadering"
 
-    def __init__(self, start_date: date, end_date: date, stop_event: multiprocessing.synchronize.Event, *args, **kwargs):
+    def __init__(
+        self, start_date: date, end_date: date, stop_event: multiprocessing.synchronize.Event, *args, **kwargs
+    ):
         scrapy.Spider.__init__(self, *args, **kwargs)
         ScraperBase.__init__(self, table_name="nl_twka_meetings", stop_event=stop_event)
 
         # store the date‐range to scrape
         self.start_date = start_date
         self.end_date = end_date
-        
+
         # Initialize the embedding generator
         self.embedding_generator = EmbeddingGenerator()
 
@@ -152,7 +146,6 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
             )
             current += timedelta(days=1)
         return ScraperResult(success=True, last_entry=None)
-
 
     def parse_agenda(self, response: scrapy.http.Response, agenda_date: date):
         """
@@ -496,7 +489,9 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
             # Generate embedding for the new row
             try:
-                self.embedding_generator.embed_row(self.table_name, item.id, "embedding_input", item.embedding_input or "")
+                self.embedding_generator.embed_row(
+                    self.table_name, item.id, "embedding_input", item.embedding_input or ""
+                )
             except Exception as e:
                 self.logger.error(f"Embedding generation failed for id={item.id}: {e}")
             return
