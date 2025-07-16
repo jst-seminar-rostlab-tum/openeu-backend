@@ -35,7 +35,6 @@ class MeetingModel(BaseModel):
     end_time: str
 
 
-
 _TITLE_TRANSLATION_OVERRIDES = {
     "procedurevergadering": "Procedural meeting",
 }
@@ -115,7 +114,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
 
         # Initialize the embedding generator
         self.embedding_generator = EmbeddingGenerator()
-        
+
         # Initialize the translator
         self.translator = Translator(prod=True)
 
@@ -251,7 +250,6 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         # 1.1 title fall-back: grab whatever is in <h1>
         if not title:
             title = response.xpath("normalize-space(//h1)").get(default="").strip()
-        
 
         # ── 1.1) Store original title and translate it to english
         original_title = title  # Store original Dutch title
@@ -272,8 +270,8 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
                     self.logger.info(f"Translated title for meeting {meeting_id}")
                 except Exception as e:
                     self.logger.error(f"Title translation failed for ID={meeting_id}: {e}")
-                    translated_title = None  # Fallback to None if translation fails (to make this clear and catchable in frontend)
-
+                    translated_title = None  # Fallback to None if translation fails
+                    # Fallback logic: makes the failure clear and catchable in the frontend
 
         # ── 2) Build both start_datetime and end_datetime
         try:
