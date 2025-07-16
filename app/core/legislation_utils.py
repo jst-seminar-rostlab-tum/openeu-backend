@@ -175,10 +175,26 @@ def process_legislation(legislation_request: ChatMessageItem):
         )
         if not (emb_response.data and len(emb_response.data) > 0):
             # Embedding does not exist, extract and embed synchronously
-            if not extracted_text:
-                context_text = _build_legislation_context_message(
-                    "No legislative proposal document was found for this procedure.", proposal_link
+            if not proposal_link:
+                # Fetch the legislative_files DB row
+                legislative_row_resp = (
+                    supabase.table("legislative_files")
+                    .select("*")
+                    .eq("id", legislation_request.legislation_id)
+                    .execute()
                 )
+                if legislative_row_resp.data and len(legislative_row_resp.data) > 0:
+                    legislative_row = legislative_row_resp.data[0]
+                    # Format the row as readable context
+                    context_lines = [f"{k}: {v}" for k, v in legislative_row.items() if v is not None]
+                    context_text = (
+                        f"No legislative proposal document was found for this procedure. \
+                        However, here is all available information from the database for this legislative procedure: \
+                        {'\n'.join(context_lines)} \
+                        Further details will be available as soon as the official legislative proposal is published."
+                    )
+                else:
+                    context_text = "No legislative proposal document was found for this procedure."
                 yield from get_response(
                     legislation_request.message, legislation_request.session_id, context_text=context_text
                 )
@@ -223,8 +239,7 @@ def process_legislation(legislation_request: ChatMessageItem):
             if not neighbors or len(neighbors) == 0:
                 # No relevant context found, but provide the proposal link if available
                 context_text = _build_legislation_context_message(
-                    "I couldn't find specific information to answer your question about this legislative procedure.\
-                    Please try again with a different question.",
+                    f"Extracted text from the legislative proposal document: {extracted_text}",
                     proposal_link,
                 )
                 yield from get_response(
@@ -285,4 +300,3 @@ def process_legislation(legislation_request: ChatMessageItem):
     except Exception as e:
         logging.error(f"Unexpected error during legislation processing: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
-
