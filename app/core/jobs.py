@@ -76,13 +76,7 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
 
 def scrape_netherlands_twka_meetings(stop_event: multiprocessing.synchronize.Event):
     today = datetime.now().date()
-    # today = date(2025, 7, 3)  # Test date: July 03, 2025
-    # scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
-
-    # For testing: scrape a broader date range to find meetings
-    start_date = today - timedelta(days=30)  # Look back 30 days
-    end_date = today + timedelta(days=30)  # Look forward 30 days
-    scraper = NetherlandsTwkaMeetingsScraper(start_date=start_date, end_date=end_date, stop_event=stop_event)
+    scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=today, stop_event=stop_event)
     return scraper.scrape()
 
 
