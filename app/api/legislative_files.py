@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi_cache.decorator import cache
 
+from app.core.auth import check_request_user_id
 from app.core.relevant_legislatives import fetch_relevant_legislative_files, deduplicate_neighbors
 from app.core.supabase_client import supabase
 from app.core.cohere_client import co
@@ -141,7 +142,11 @@ def get_legislative_files(
 
 @router.get("/legislative-file", response_model=LegislativeFileResponse)
 @cache(namespace="legislative", expire=86400)
-def get_legislative_file(id: str = Query(..., description="Legislative file ID")):
+def get_legislative_file(
+    request: Request,
+    id: str = Query(..., description="Legislative file ID"),
+    user_id: Optional[str] = Query(None, description="User ID to check subscription status")
+):
     """Get a single legislative file by ID"""
     try:
         response = supabase.table("legislative_files").select("*").eq("id", id).execute()
@@ -149,7 +154,23 @@ def get_legislative_file(id: str = Query(..., description="Legislative file ID")
         if not response.data:
             raise HTTPException(status_code=404, detail=f"Legislative file with ID '{id}' not found")
 
-        return JSONResponse(status_code=200, content={"legislative_file": response.data[0]})
+        legislative_file = response.data[0]
+        
+        # Check subscription status if user_id is provided
+        if user_id:
+            check_request_user_id(request, user_id)
+            subscription_response = (
+                supabase.table("subscriptions")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("legislation_id", id)
+                .execute()
+            )
+            legislative_file["subscribed"] = len(subscription_response.data) > 0
+        else:
+            legislative_file["subscribed"] = None
+
+        return JSONResponse(status_code=200, content={"legislative_file": legislative_file})
 
     except HTTPException:
         raise
