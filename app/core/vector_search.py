@@ -19,6 +19,7 @@ def get_top_k_neighbors(
     end_date: Optional[datetime] = None,
     k: int = 5,
     sources: Optional[list[str]] = None,
+    source_id: Optional[str] = None,
 ) -> list[dict]:
     """
     Fetch the top-k nearest neighbors for a text query or a given embedding.
@@ -32,7 +33,8 @@ def get_top_k_neighbors(
         * ["document_embeddings"]
         * ["meeting_embeddings"]
         * None or other: combined embeddings
-    -allowed_topics/allowed countries only viable for meetings
+    - allowed_topics/allowed countries only viable for meetings
+    - source_id: filter for a specific source_id (for legislative RAG)
 
     Returns:
         A list of dicts representing matching records.
@@ -57,17 +59,12 @@ def get_top_k_neighbors(
     # Determine which RPC to call based on sources
     if sources == ["document_embeddings"]:
         rpc_name = "match_filtered"
-
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
+        if source_id is not None:
+            rpc_args["source_id_param"] = source_id
     elif sources == ["meeting_embeddings"] or allowed_topic_ids or allowed_topics or allowed_countries:
         rpc_name = "match_filtered_meetings"
-    else:
-        rpc_name = "match_combined_filtered_embeddings"
-
-    if tables:
-        rpc_args.update({"src_tables": tables, "content_columns": cols})
-
-    logger.info(f"Calling {rpc_name} with: query_embedding={embedding[:5]}, match_count={k}, (len={len(embedding)})")
-    if rpc_name == "match_filtered_meetings":
         rpc_args = {
             "query_embedding": embedding,
             "match_count": k,
@@ -81,8 +78,16 @@ def get_top_k_neighbors(
         }
         # Optionally: Only include keys that are not None to avoid passing nulls unnecessarily
         rpc_args = {k: v for k, v in rpc_args.items() if v is not None}
+    else:
+        rpc_name = "match_combined_filtered_embeddings"
+        if tables:
+            rpc_args.update({"src_tables": tables, "content_columns": cols})
 
-    resp = supabase.rpc(rpc_name, rpc_args).execute()
-    logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
-
-    return resp.data
+    logger.info(f"Calling {rpc_name} with: query_embedding={embedding[:5]}, match_count={k}, (len={len(embedding)})")
+    try:
+        resp = supabase.rpc(rpc_name, rpc_args).execute()
+        logger.info(f"Result: {resp.data}, Error: {getattr(resp, 'error', None)}")
+        return resp.data
+    except Exception as e:
+        logger.error(f"Error in get_top_k_neighbors: {e}")
+        return []

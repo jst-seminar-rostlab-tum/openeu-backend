@@ -1,7 +1,5 @@
 import logging
 import multiprocessing
-from typing import List
-
 from pydantic import BaseModel
 
 from app.core.supabase_client import supabase
@@ -23,7 +21,7 @@ EMBEDDING_TABLE_NAME = "documents_embeddings"
 BATCH_SIZE = 500
 
 
-def fetch_embeddings_batch(offset: int) -> List[EmbeddingEntry]:
+def fetch_embeddings_batch(offset: int) -> list[EmbeddingEntry]:
     """
     Fetch a batch of embedding records from the database.
     """
