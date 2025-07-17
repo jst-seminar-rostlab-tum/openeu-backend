@@ -192,18 +192,19 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 f"{title} {date.isoformat()} {time_text or ''} {global_location or ''} {description}".strip()
             )
 
-            entries.append(
-                AgendaEntry(
-                    type=event_type,
-                    date=date.isoformat(),
-                    time=time_text,
-                    title=title,
-                    committee=None,
-                    location=global_location,
-                    description=description,
-                    embedding_input=embedding_input,
+            if title != "Untitled":
+                entries.append(
+                    AgendaEntry(
+                        type=event_type,
+                        date=date.isoformat(),
+                        time=time_text,
+                        title=title,
+                        committee=None,
+                        location=global_location,
+                        description=description,
+                        embedding_input=embedding_input,
+                    )
                 )
-            )
 
         return entries
 
@@ -224,18 +225,19 @@ class WeeklyAgendaSpider(scrapy.Spider):
 
             embedding_input = f"{text} {date.isoformat()} {time or ''}".strip()
 
-            entries.append(
-                AgendaEntry(
-                    type=event_type,
-                    date=date.isoformat(),
-                    time=time,
-                    title=text,
-                    committee=None,
-                    location=None,
-                    description=None,
-                    embedding_input=embedding_input,
+            if text and text.strip() != "Untitled":
+                entries.append(
+                    AgendaEntry(
+                        type=event_type,
+                        date=date.isoformat(),
+                        time=time,
+                        title=text,
+                        committee=None,
+                        location=None,
+                        description=None,
+                        embedding_input=embedding_input,
+                    )
                 )
-            )
 
         return entries
 
@@ -270,7 +272,8 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 description=description,
                 embedding_input=embedding_input,
             )
-            entries.append(entry)
+            if title != "Untitled":
+                entries.append(entry)
 
         return entries
 
@@ -315,7 +318,8 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 embedding_input=embedding_input,
             )
 
-            entries.append(entry)
+            if title != "Untitled":
+                entries.append(entry)
 
         return entries
 
@@ -408,7 +412,8 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 description=description,
                 embedding_input=embedding_input,
             )
-            entries.append(entry)
+            if title != "Untitled":
+                entries.append(entry)
 
         return entries
 
@@ -437,7 +442,7 @@ class WeeklyAgendaSpider(scrapy.Spider):
                 type=event_type,
                 date=date.isoformat(),
                 time=time.strip() if time else None,
-                title=title.strip() if title else "Untitled",
+                title=title.strip() if title else "Default Event",
                 committee=committee.strip() if committee else None,
                 location=location.strip() if location else None,
                 description=desc.strip() if desc else None,

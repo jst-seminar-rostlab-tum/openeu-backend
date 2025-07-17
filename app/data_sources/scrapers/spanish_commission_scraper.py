@@ -107,6 +107,7 @@ class SpanishCommissionSpider(scrapy.Spider):
                     if title in cleaned_text:
                         cleaned_text.remove(title)
                     description_text = " ".join(cleaned_text).strip()
+                    description_en = self.translator.translate(description_text) if description_text else ""
 
                 else:
                     # No link at start — treat all text as description
@@ -115,9 +116,11 @@ class SpanishCommissionSpider(scrapy.Spider):
                     if cleaned_text:
                         title = " ".join(cleaned_text)  # take all cleaned text as title
                         description_text = ""  # no separate description
+                        description_en = ""
                     else:
                         title = "Untitled"
                         description_text = ""
+                        description_en = ""
 
                     # collect any <a> tags just for links
                     for a in a_tags:
@@ -130,10 +133,10 @@ class SpanishCommissionSpider(scrapy.Spider):
                             else:
                                 links[label] = full_url
 
-            # title_en = self.translator.translate(title) if title else "Untitled"
+            title_en = self.translator.translate(title) if title else "Untitled"
 
             location = (location_div.css("::text").get() or "").strip() if location_div else None
-            # location_en = self.translator.translate(location) if location else None
+            location_en = self.translator.translate(location) if location else None
 
             embedding_input = (
                 f"{title} {self.date.isoformat()} {time} {location or ''} {description_text or ''}".strip()
@@ -143,17 +146,18 @@ class SpanishCommissionSpider(scrapy.Spider):
                 date=self.date.isoformat(),
                 time=time,
                 title=title.strip(),
-                title_en=title.strip(),  # TODO: replace with translation
+                title_en=title_en.strip(),
                 location=location,
-                # location_en=location_en,
+                location_en=location_en,
                 description=description_text,
-                description_en=description_text,  # TODO: replace with translation
+                description_en=description_en,
                 url=primary_url,
                 embedding_input=embedding_input,
                 links=links or None,
             )
 
-            self.entries.append(entry)
+            if title != "Untitled":
+                self.entries.append(entry)
 
 
 # ------------------------------
@@ -236,7 +240,7 @@ def scrape_agenda(date: datetime.date) -> list[CommissionAgendaEntry]:
 
 if __name__ == "__main__":
     print("Scraping Spanish Commision Agenda...")
-    date = datetime.date(2025, 6, 5)
+    date = datetime.date(2025, 7, 14)
 
     """
     entries = scrape_agenda(date)
