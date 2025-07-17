@@ -53,6 +53,7 @@ class LegislativeFile(BaseModel):
     key_events: Optional[list[KeyEvent]] = None
     documentation_gateway: Optional[list[DocumentationGateway]] = None
     similarity: Optional[float] = None
+    subscribed: Optional[bool] = None
 
 
 class LegislativeFileSuggestion(BaseModel):
