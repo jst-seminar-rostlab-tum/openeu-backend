@@ -187,12 +187,10 @@ def process_legislation(legislation_request: ChatMessageItem):
                     legislative_row = legislative_row_resp.data[0]
                     # Format the row as readable context
                     context_lines = [f"{k}: {v}" for k, v in legislative_row.items() if v is not None]
-                    context_text = (
-                        f"No legislative proposal document was found for this procedure. \
+                    context_text = f"No legislative proposal document was found for this procedure. \
                         However, here is all available information from the database for this legislative procedure: \
                         {'\n'.join(context_lines)} \
                         Further details will be available as soon as the official legislative proposal is published."
-                    )
                 else:
                     context_text = "No legislative proposal document was found for this procedure."
                 yield from get_response(
@@ -236,36 +234,27 @@ def process_legislation(legislation_request: ChatMessageItem):
                 source_id=legislation_request.legislation_id,
                 k=35,
             )
+            if neighbors and len(neighbors) > 0:
+                # Rerank neighbors
+                docs = [n["content_text"] for n in neighbors]
+                rerank_resp = co.rerank(
+                    model="rerank-v3.5",
+                    query=legislation_request.message,
+                    documents=docs,
+                    top_n=min(5, len(docs)),
+                )
+                neighbors_re = []
+                for result in rerank_resp.results:
+                    idx = result.index
+                    new_score = result.relevance_score
+                    neighbors[idx]["similarity"] = new_score
+                    if new_score > 0.1:
+                        neighbors_re.append(neighbors[idx])
+                neighbors = neighbors_re
             if not neighbors or len(neighbors) == 0:
-                # No relevant context found, but provide the proposal link if available
+                # fallback logic
                 context_text = _build_legislation_context_message(
                     f"Extracted text from the legislative proposal document: {extracted_text}",
-                    proposal_link,
-                )
-                yield from get_response(
-                    legislation_request.message, legislation_request.session_id, context_text=context_text
-                )
-                return
-            # Rerank neighbors using co.rerank
-            docs = [n["content_text"] for n in neighbors]
-            rerank_resp = co.rerank(
-                model="rerank-v3.5",
-                query=legislation_request.message,
-                documents=docs,
-                top_n=min(5, len(docs)),
-            )
-            neighbors_re = []
-            for result in rerank_resp.results:
-                idx = result.index
-                new_score = result.relevance_score
-                neighbors[idx]["similarity"] = new_score
-                if new_score > 0.1:
-                    neighbors_re.append(neighbors[idx])
-            neighbors = neighbors_re
-            if not neighbors or len(neighbors) == 0:
-                context_text = _build_legislation_context_message(
-                    "I couldn't find specific information to answer your question about this legislative procedure.\
-                    Please try again with a different question.",
                     proposal_link,
                 )
                 yield from get_response(
