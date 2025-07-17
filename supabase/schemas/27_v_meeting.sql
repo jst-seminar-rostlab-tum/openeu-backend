@@ -313,8 +313,7 @@ with base as (
                  ]) as t(tag_txt)
             where tag_txt is not null
         )                                                                  as tags,
-        /* null::text[]                                                       as tags, */
-        n.ministers::json                                                   as member,
+        n.ministers::json                                                  as member,
 
         /* flatten attendees JSONB (array of objs or strings) to semicolon-sep names */
         (
