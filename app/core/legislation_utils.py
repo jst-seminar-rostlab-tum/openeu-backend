@@ -253,7 +253,7 @@ def process_legislation(legislation_request: ChatMessageItem):
                 neighbors = neighbors_re
             if not neighbors or len(neighbors) == 0:
                 # fallback logic
-                context_text = extracted_text
+                context_text = str(extracted_text)
                 yield from get_response(
                     legislation_request.message, legislation_request.session_id, context_text=context_text
                 )
