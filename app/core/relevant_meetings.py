@@ -9,7 +9,6 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
-from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
@@ -53,45 +52,34 @@ def fetch_relevant_meetings(
 
     # 2) call `get_top_k_neighbors`
     try:
+        start_date_time = None
+        end_date_time = None
         
         if consider_frequency:
-            # Get today's date range
             today = datetime.now().date()
-            start_date = datetime.combine(today, time.min)
-            # Adjust end_date based on newsletter_frequency
+
             if newsletter_frequency == "weekly":
-                end_date = datetime.combine(today + timedelta(days=7), time.max)
+                # Start from Monday of the current week
+                start_date = today - timedelta(days=today.weekday())
+                start_date_time = datetime.combine(start_date, time.min)
+                end_date = start_date + timedelta(days=6)
+                end_date_time = datetime.combine(end_date, time.max)
             else:
-                end_date = datetime.combine(today, time.max)
+                # Start and end are just today
+                start_date_time = datetime.combine(today, time.min)
+                end_date_time = datetime.combine(today, time.max)
  
         neighbors = get_top_k_neighbors(
             query=profile_embedding_input,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
             allowed_countries=allowed_countries,
-            start_date = start_date,
-            end_date = end_date,
+            start_date = start_date_time,
+            end_date = end_date_time,
             k=1000,
         )
 
-        docs = [n["content_text"] for n in neighbors]
-
-        rerank_resp = co.rerank(
-            model="rerank-v3.5",
-            query=profile_embedding_input,
-            documents=docs,
-            top_n=min(k, len(docs)),
-        )
-
-        neighbors_re = []
-        for result in rerank_resp.results:
-            idx = result.index
-            new_score = result.relevance_score
-            neighbors[idx]["similarity"] = new_score
-            if new_score > 0.05:
-                neighbors_re.append(neighbors[idx])
-
-        neighbors = neighbors_re
+        sorted_neighbors = sorted(neighbors, key=lambda n: n["similarity"], reverse=True)[:k]
 
         if query_to_compare:
             match = query_to_compare.order("meeting_start_datetime", desc=True).execute()
@@ -99,7 +87,7 @@ def fetch_relevant_meetings(
             if match.data:
                 allowed_keys = {(r["source_table"], r["source_id"]) for r in match.data}
 
-                neighbors = [n for n in neighbors if (n["source_table"], n["source_id"]) in allowed_keys]
+                neighbors = [n for n in sorted_neighbors if (n["source_table"], n["source_id"]) in allowed_keys]
 
     except Exception as e:
         logger.error("Similarity search failed: %s", e)
