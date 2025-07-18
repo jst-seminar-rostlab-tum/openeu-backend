@@ -9,7 +9,6 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
-from app.core.cohere_client import co
 from app.core.vector_search import get_top_k_neighbors
 from app.models.meeting import Meeting
 
