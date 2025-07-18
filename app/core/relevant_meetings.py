@@ -42,7 +42,6 @@ def fetch_relevant_meetings(
             .execute()
         )
         profile_embedding_input = resp.data["embedding_input"]
-        allowed_countries = resp.data["countries"]
         newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         allowed_topic_ids = resp.data["topic_ids"]
 
@@ -73,7 +72,7 @@ def fetch_relevant_meetings(
             query=profile_embedding_input,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
-            allowed_countries=allowed_countries,
+            allowed_countries=[],
             start_date = start_date_time,
             end_date = end_date_time,
             k=1000,
