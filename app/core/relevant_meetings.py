@@ -42,7 +42,6 @@ def fetch_relevant_meetings(
             .execute()
         )
         profile_embedding_input = resp.data["embedding_input"]
-        allowed_countries = resp.data["countries"]
         newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         allowed_topic_ids = resp.data["topic_ids"]
 
