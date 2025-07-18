@@ -203,7 +203,7 @@ def get_meetings(
             # --- USER RELEVANT MEETINGS CASE ---
         if user_id:
             relevant = fetch_relevant_meetings(
-                user_id=user_id, k=limit, query_to_compare=db_query, consider_frequency=False
+                user_id=user_id, k=20, query_to_compare=db_query, consider_frequency=False
             )
             data = []
             for m in relevant.meetings:

@@ -56,6 +56,12 @@ async def create_embeddings(user_id: str, embedding_input: str):
         ) from e
     return embedding
 
+def get_basic_embedding_input(profile) -> str:
+    is_entrepreneur = profile["user_type"] == "entrepreneur"
+    if is_entrepreneur:
+        return profile["company"]["description"]
+    else:
+        return profile["politician"]["further_information"]
 
 def generate_user_interest_embedding_input(profile, topics):
     prompt = "Generate a concise and engaging text about this user’s interests based on their profile:"
@@ -130,10 +136,8 @@ async def create_profile(request: Request, profile: ProfileCreate) -> JSONRespon
     user_id = payload["id"]
 
     topic_ids = payload.pop("topic_ids")
-    topics = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
-    topics = [item["topic"] for item in topics.data] if topics.data else []
 
-    embedding_input = generate_user_interest_embedding_input(payload, topics)
+    embedding_input = get_basic_embedding_input(payload)
     payload["embedding_input"] = embedding_input
     embedding = await create_embeddings(user_id, embedding_input)
     payload["embedding"] = embedding
@@ -231,7 +235,7 @@ async def update_user_profile(request: Request, user_id: str, profile: ProfileUp
         topics = supabase.table("meeting_topics").select("id, topic").in_("id", existing_profile["topic_ids"]).execute()
         topics = [item["topic"] for item in topics.data] if topics.data else []
 
-        embedding_input = generate_user_interest_embedding_input(existing_profile, topics)
+        embedding_input = get_basic_embedding_input(existing_profile)
         embedding = await create_embeddings(user_id, embedding_input)
         embedding_payload = {"embedding_input": embedding_input, "embedding": embedding}
         result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
