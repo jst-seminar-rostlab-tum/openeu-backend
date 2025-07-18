@@ -30,6 +30,7 @@ from app.data_sources.scrapers.polish_presidency_meetings_scraper import PolishP
 from app.data_sources.scrapers.spanish_commission_scraper import SpanishCommissionScraper
 from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
+from app.data_sources.scrapers.nl_twka_meetings_scraper import NetherlandsTwkaMeetingsScraper
 from scripts.embedding_cleanup import embedding_cleanup
 
 LOOKAHEAD_DAYS = 7  # Number of days in future to scrape data for
@@ -71,6 +72,13 @@ def send_smart_alerts(stop_event: multiprocessing.synchronize.Event):
     return ScraperResult(
         success=emails_sent == len(due_alerts),
     )
+
+
+def scrape_netherlands_twka_meetings(stop_event: multiprocessing.synchronize.Event):
+    today = datetime.now().date()
+    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    scraper = NetherlandsTwkaMeetingsScraper(start_date=today, end_date=end_date, stop_event=stop_event)
+    return scraper.scrape()
 
 
 def scrape_eu_laws_by_topic(stop_event: multiprocessing.synchronize.Event):
@@ -281,4 +289,10 @@ def setup_scheduled_jobs():
         "send_smart_alerts",
         send_smart_alerts,
         schedule.every().hour.at(":15"),  # hourly
+    )
+    scheduler.register(
+        "scrape_netherlands_twka_meetings",
+        scrape_netherlands_twka_meetings,
+        schedule.every().day.at("05:00"),
+        run_in_process=True,
     )

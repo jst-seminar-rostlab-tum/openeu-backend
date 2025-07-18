@@ -1,0 +1,20 @@
+CREATE TABLE public.nl_twka_meetings (
+  id                TEXT         PRIMARY KEY,
+  title             TEXT,
+  start_datetime    TIMESTAMPTZ,
+  end_datetime      TIMESTAMPTZ,
+  location          TEXT,
+  attachments_url   JSONB,
+  original_title     TEXT,
+  translated_title  TEXT,
+  link              TEXT,
+  meeting_type      TEXT,
+  commission        TEXT,
+  start_time        TIME,
+  end_time          TIME,
+  agenda            JSONB,
+  ministers         JSONB,
+  attendees         JSONB,
+  embedding_input   TEXT,
+  scraped_at        TIMESTAMPTZ  DEFAULT now()
+);
