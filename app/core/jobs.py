@@ -128,7 +128,7 @@ def _send_newsletter(frequency: str, stop_event: multiprocessing.synchronize.Eve
                 Newsletters not sent: {len(user_ids) - user_ids.index(user_id)}"""
             )
             return
-        Newsletter.send_newsletter_to_user(user_id, frequency=frequency)  # ✅ Fixed: Pass frequency
+        Newsletter.send_newsletter_to_user(user_id, frequency=frequency)  # Pass frequency
 
 
 def send_daily_newsletter(stop_event: multiprocessing.synchronize.Event):
