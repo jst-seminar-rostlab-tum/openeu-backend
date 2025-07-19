@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 from openai import OpenAI
 from postgrest import SyncSelectRequestBuilder
 from pydantic import BaseModel, ValidationError
-
+from app.core.cohere_client import co
 
 from app.core.config import Settings
 from app.core.supabase_client import supabase
@@ -44,12 +44,37 @@ def fetch_relevant_meetings(
         profile_embedding_input = resp.data["embedding_input"]
         newsletter_frequency = resp.data.get("newsletter_frequency", "daily")
         allowed_topic_ids = resp.data["topic_ids"]
+        allowed_countries = resp.data["countries"]
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
         return RelevantMeetingsResponse(meetings=[])
 
     # 2) call `get_top_k_neighbors`
+    
+    try:
+        completion = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that reformulates text for semantic search."
+                    "Your task is to generate a meeting title for a legislative/institutional meeting concerning the user. "
+                    + "For example: User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals."
+                    + "Output: Meeting on Infrastructure and Technology"  
+                },
+                {"role": "user", "content": profile_embedding_input},
+            ],
+            temperature=0,
+            max_tokens=128,
+        )
+        reformulated_query = (completion.choices[0].message.content or profile_embedding_input).strip()
+
+    except Exception as e:
+        reformulated_query = profile_embedding_input
+        logger.error(f"An error occurred: {e}")
+    
+    
     try:
         start_date_time = None
         end_date_time = None
@@ -69,14 +94,33 @@ def fetch_relevant_meetings(
                 end_date_time = datetime.combine(today, time.max)
  
         neighbors = get_top_k_neighbors(
-            query=profile_embedding_input,
+            query=reformulated_query,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
-            allowed_countries=[],
+            allowed_countries=allowed_countries,
             start_date = start_date_time,
             end_date = end_date_time,
             k=1000,
         )
+        
+        docs = [n["content_text"] for n in neighbors]
+
+        rerank_resp = co.rerank(
+            model="rerank-v3.5",
+            query=reformulated_query,
+            documents=docs,
+            top_n=min(k, len(docs)),
+        )
+
+        neighbors_re = []
+        for result in rerank_resp.results:
+            idx = result.index
+            new_score = result.relevance_score
+            neighbors[idx]["similarity"] = new_score
+            if new_score > 0.05:
+                neighbors_re.append(neighbors[idx])
+
+        neighbors = neighbors_re
 
         sorted_neighbors = sorted(neighbors, key=lambda n: n["similarity"], reverse=True)[:k]
 
@@ -138,3 +182,4 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
+

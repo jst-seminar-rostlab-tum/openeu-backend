@@ -90,7 +90,7 @@ def fetch_relevant_legislative_files(
             model="rerank-v3.5",
             query=profile_embedding_input,
             documents=docs,
-            top_n=min(10, len(docs)),
+            top_n=min(k, len(docs)),
         )
 
         neighbors_re = []
