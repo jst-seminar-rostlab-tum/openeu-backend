@@ -1,1 +1,1 @@
-alter table "public"."notifications" add column "message_subject" text;
+alter table "public"."notifications" add column "message_subject" text default null;
