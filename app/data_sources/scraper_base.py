@@ -127,9 +127,7 @@ class ScraperBase(ABC):
                     mapped = {
                         "source_id": meeting_data["id"],
                         "source_table": self.table_name,
-                        "meeting_start_datetime": meeting_data["datetime"],
                         "title": meeting_data["title"],
-                        "meeting_id": meeting_data["id"],
                     }
                     meeting = Meeting(**mapped)
                     extractor = TopicExtractor()
