@@ -51,7 +51,7 @@ def fetch_relevant_meetings(
         return RelevantMeetingsResponse(meetings=[])
 
     # 2) call `get_top_k_neighbors`
-    
+
     try:
         completion = openai.chat.completions.create(
             model="gpt-4o-mini",
@@ -59,9 +59,11 @@ def fetch_relevant_meetings(
                 {
                     "role": "system",
                     "content": "You are a helpful assistant that reformulates text for semantic search."
-                    "Your task is to generate a meeting title for a legislative/institutional meeting concerning the user. "
-                    + "For example: User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals."
-                    + "Output: Meeting on Infrastructure and Technology"  
+                    "Your task is to generate a meeting title for a legislative"+ "/institutional meeting concerning the user. "
+                    + "For example: User Input: As the CEO of Transport"
+                    +"Logistics, a company pioneering the integration of AI in transportation, I am steering a dynamic growth-stage"
+                    +"enterprise with a team of 21-50 professionals."
+                    + "Output: Meeting on Infrastructure and Technology",
                 },
                 {"role": "user", "content": profile_embedding_input},
             ],
@@ -73,12 +75,11 @@ def fetch_relevant_meetings(
     except Exception as e:
         reformulated_query = profile_embedding_input
         logger.error(f"An error occurred: {e}")
-    
-    
+
     try:
         start_date_time = None
         end_date_time = None
-        
+
         if consider_frequency:
             today = datetime.now().date()
 
@@ -92,17 +93,17 @@ def fetch_relevant_meetings(
                 # Start and end are just today
                 start_date_time = datetime.combine(today, time.min)
                 end_date_time = datetime.combine(today, time.max)
- 
+
         neighbors = get_top_k_neighbors(
             query=reformulated_query,
             sources=["meeting_embeddings"],
             allowed_topic_ids=allowed_topic_ids,
             allowed_countries=allowed_countries,
-            start_date = start_date_time,
-            end_date = end_date_time,
+            start_date=start_date_time,
+            end_date=end_date_time,
             k=1000,
         )
-        
+
         docs = [n["content_text"] for n in neighbors]
 
         rerank_resp = co.rerank(
@@ -182,4 +183,3 @@ def fetch_relevant_meetings(
             logger.warning("Skipping invalid row %s: %s", row.get("source_id"), ve)
 
     return RelevantMeetingsResponse(meetings=meetings)
-
