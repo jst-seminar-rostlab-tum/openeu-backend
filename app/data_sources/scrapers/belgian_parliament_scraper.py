@@ -1,9 +1,11 @@
 import logging
-from datetime import date, timedelta, datetime
 import multiprocessing
+import re
+from datetime import date, datetime, time, timedelta
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, Tag
+from dateutil.parser import parse as parse_date
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
@@ -113,9 +115,6 @@ class BelgianParliamentScraper(ScraperBase):
                             page.wait_for_selector(".meeting-card", timeout=10000)
                         except PlaywrightTimeoutError:
                             logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
-                            logger.info(
-                                f"\n#####################\nWEBPAGE CONTENT: {page.content()}\n#####################\n"
-                                )
                             current_date += timedelta(days=1)
                             continue
 
@@ -260,10 +259,25 @@ class BelgianParliamentScraper(ScraperBase):
             raise ValueError("Date element not found")
         date_location = date_element.text.strip()
         # Split on " - " to separate time and location
-        time = date_location.split(" - ", 1)[0]
+        time_str = date_location.split(" - ", 1)[0].replace("uur", "").strip()
         location = date_location.split(" - ", 1)[1]
 
-        meeting_date = datetime.strptime(f"{self.current_date} {time}", "%d-%m-%Y %H:%M")
+        # Normalize separators (convert 9.30 → 9:30)
+        time_str = time_str.replace('.', ':')
+
+        # Regex to handle bare hours/minutes (like "9", "14", "9:30")
+        match = re.match(r'^(\d{1,2})(?::(\d{1,2}))?$', time_str)
+
+        if match:
+            hour = int(match.group(1))
+            minute = int(match.group(2) or 0)
+            parsed_time = time(hour=hour, minute=minute)
+        else:
+            # Fallback to midnight if totally invalid
+            logger.warning(f"Could not parse time '{time_str}', using current date at midnight")
+            parsed_time = datetime.time(0, 0)
+
+        meeting_date = datetime.combine(self.current_date, parsed_time)
 
         # create embedding input
         embedding_input = f"{title_en} {description_en} {meeting_date} {location}"
