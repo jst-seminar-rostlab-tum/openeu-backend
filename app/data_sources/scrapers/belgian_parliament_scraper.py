@@ -78,7 +78,16 @@ class BelgianParliamentScraper(ScraperBase):
             with sync_playwright() as p:
                 # Launch browser
                 try:
-                    browser = p.chromium.launch(headless=True)
+                    browser = p.chromium.launch(
+                        headless=True,
+                        args=[
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox",
+                            "--disable-gpu",
+                            "--disable-dev-shm-usage",
+                        ],
+                    )
+
                     page = browser.new_page()
                 except Exception as e:
                     logger.error(f"Failed to launch browser: {e}")
@@ -103,7 +112,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Navigate to the page
                         try:
-                            page.goto(day_url)
+                            page.goto(day_url, wait_until="networkidle")
                         except Exception as e:
                             logger.error(f"Failed to navigate to {day_url}: {e}")
                             # Major error: abort scraping
@@ -111,7 +120,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Wait for the content to load, but skip if no meetings
                         try:
-                            page.wait_for_selector(".meeting-card", timeout=10000)
+                            page.wait_for_selector(".meeting-card", timeout=20000)
                         except PlaywrightTimeoutError:
                             logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
                             current_date += timedelta(days=1)
