@@ -9,6 +9,7 @@ class Notification(BaseModel):
     id: int
     user_id: UUID
     sent_at: datetime
+    message_subject: Optional[str]
     type: str
     message: Optional[str]
     relevance_score: Optional[float]

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -109,10 +109,11 @@ class SmartAlertMailer:
             supabase.table("notifications").insert(
                 {
                     "user_id": alert["user_id"],
-                    "sent_at": datetime.utcnow().isoformat(),
+                    "sent_at": datetime.now(timezone.utc).isoformat(),
                     "type": "smart_alert",
                     "message": mail_body,  # Save the HTML email here
                     "relevance_score": max_similarity,
+                    "message_subject": subject,
                 }
             ).execute()
             mark_alert_ran(alert["id"])
