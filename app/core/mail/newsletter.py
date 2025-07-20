@@ -130,10 +130,7 @@ class Newsletter:
         mail_body, mean_sim = build_email_for_user(user_id=user_id)
 
         # Adjust subject based on frequency
-        if frequency.lower() == "weekly":
-            subject = "OpenEU Weekly Newsletter"
-        else:  # default to daily
-            subject = "OpenEU Daily Newsletter"
+        subject = "OpenEU Weekly Newsletter" if frequency.lower() == "weekly" else "OpenEU Daily Newsletter"
 
         mail = Email(
             subject=subject + " - "  + str(datetime.now().date()),
