@@ -27,20 +27,20 @@ router = APIRouter()
 @cache(namespace="legislative", expire=3600)
 def get_legislative_files(
     limit: int = Query(500, gt=1),
-    query: Optional[str] = Query(None, description="Semantic search query"),
+    db_query: Optional[str] = Query(None, description="Semantic search query"),
     year: Optional[int] = Query(None, description="Filter by reference year (e.g. 2025)"),
     committee: Optional[str] = Query(None, description="Filter by committee name"),
     rapporteur: Optional[str] = Query(None, description="Filter by rapporteur name"),
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
 ):
     try:
-        if query:
+        if db_query:
             if user_id:
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
-                    query = query + "Profile information: " + str(resp.data)
+                    db_query = db_query + "Profile information: " + str(resp.data)
 
-            reformulated_query = query
+            reformulated_query = db_query
             try:
                 # 1. Use the correct Chat Completions endpoint
                 completion = openai.chat.completions.create(
@@ -56,14 +56,14 @@ def get_legislative_files(
                             + "Use a formal tone, and try to vary the phrasing and details based on the query context. "
                             + "Keep the summary within three sentences, with a clear title and a brief description.",
                         },
-                        {"role": "user", "content": query},
+                        {"role": "user", "content": db_query},
                     ],
                     temperature=0,
                     max_tokens=128,
                 )
 
                 # 4. Access the response correctly via .message.content
-                reformulated_query = (completion.choices[0].message.content or query).strip()
+                reformulated_query = (completion.choices[0].message.content or db_query).strip()
 
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
@@ -106,18 +106,18 @@ def get_legislative_files(
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
 
-            query = supabase.table("legislative_files").select("*").in_("id", ids)
+            db_query = supabase.table("legislative_files").select("*").in_("id", ids)
             if year:
                 year_prefix = f"{year}%"
-                query = query.like("id", year_prefix)
+                db_query = db_query.like("id", year_prefix)
 
             if committee:
-                query = query.eq("committee", committee)
+                db_query = db_query.eq("committee", committee)
 
             if rapporteur:
-                query = query.eq("rapporteur", rapporteur)
+                db_query = db_query.eq("rapporteur", rapporteur)
 
-            response = query.execute()
+            response = db_query.execute()
             records = response.data or []
 
             # Add similarity info
