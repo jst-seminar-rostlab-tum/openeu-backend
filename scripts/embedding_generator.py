@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from postgrest.exceptions import APIError
@@ -10,7 +10,7 @@ from app.core.supabase_client import supabase
 
 
 class EmbeddingGenerator:
-    def __init__(self):
+    def __init__(self, max_tokens: int = MAX_TOKENS, overlap: int = 100):
         try:
             response = supabase.rpc("get_meeting_tables").execute().data
             self.known_meeting_sources = [row["source_table"] for row in response]
@@ -22,8 +22,8 @@ class EmbeddingGenerator:
         self.settings = Settings()
 
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=MAX_TOKENS,
-            chunk_overlap=100,
+            chunk_size=max_tokens,
+            chunk_overlap=overlap,
         )
 
         self.META_DELIM = "::META::"
@@ -33,7 +33,7 @@ class EmbeddingGenerator:
             "meeting_embeddings": "source_table, source_id",
         }
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         resp = openai.embeddings.create(model=EMBED_MODEL, input=texts)
         return [d.embedding for d in resp.data]
 
@@ -70,7 +70,7 @@ class EmbeddingGenerator:
         conflicts = self.conflict_map.get(destination_table, "")
 
         chunks = self.text_splitter.split_text(content_text)
-        upsert_rows: List[Dict] = []
+        upsert_rows: list[dict] = []
 
         for chunk in chunks:
             full_text = base_meta + chunk

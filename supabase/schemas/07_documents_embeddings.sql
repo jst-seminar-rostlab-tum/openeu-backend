@@ -24,7 +24,8 @@ create or replace function public.match_filtered(
   query_embedding vector,
   match_count     int,
   src_tables      text[] DEFAULT NULL,
-  content_columns text[] DEFAULT NULL
+  content_columns text[] DEFAULT NULL,
+  source_id_param text DEFAULT NULL
 )
 returns table(
   source_table  text,
@@ -51,6 +52,9 @@ begin
       and (
         content_columns is null
         or e.content_column = any(content_columns))
+      and (
+        source_id_param is null
+        or e.source_id = source_id_param)
     order by e.embedding <#> query_embedding
     limit match_count;
 end;
