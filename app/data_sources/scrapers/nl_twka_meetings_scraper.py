@@ -15,7 +15,7 @@ from app.data_sources.translator.translator import Translator
 from scripts.embedding_generator import EmbeddingGenerator
 
 
-class MeetingModel(BaseModel):
+class NlMeetingModel(BaseModel):
     id: str
     meeting_type: Optional[str] = None
     title: str
@@ -452,7 +452,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         }
 
         try:
-            meeting_item = MeetingModel(**data_dict)
+            meeting_item = NlMeetingModel(**data_dict)
         except Exception as e:
             self.logger.error(f"Pydantic validation error for meeting {meeting_id}: {e}")
             return
@@ -460,7 +460,7 @@ class NetherlandsTwkaMeetingsScraper(scrapy.Spider, ScraperBase):
         # ── 9) Upsert into Supabase (no duplicates, compare fields, embed if changed)
         self.upsert_meeting(meeting_item)
 
-    def upsert_meeting(self, item: MeetingModel) -> None:
+    def upsert_meeting(self, item: NlMeetingModel) -> None:
         """
         Insert or update the "nl_twka_meetings" row in Supabase for this meeting.
         Compare every field except “id” to decide update.
