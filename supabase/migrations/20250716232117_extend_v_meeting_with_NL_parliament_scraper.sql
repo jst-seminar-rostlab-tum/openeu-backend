@@ -1,3 +1,13 @@
+-- 1. Add NL Tweede Kamer -> Netherlands mapping to country_map_meetings
+insert into public.country_map_meetings (source_table, country, iso2) values
+  ('nl_twka_meetings',               'Netherlands',    'NL')
+on conflict (source_table) do update
+  set country = excluded.country,
+      iso2    = excluded.iso2;
+
+-- 2. Rebuild the view with the new schema (adding: nl_twka_meetings)
+drop view if exists public.v_meetings cascade;
+
 CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings
@@ -280,6 +290,56 @@ with base as (
         null::text                                   as attendees,
         r.scraped_at                                 as scraped_at
     from public.ec_res_inno_meetings r
+
+        union all
+
+    -- NL Tweede Kamer (Dutch House of Representatives) meetings
+    select
+        n.id || '_nl_twka_meetings'                                        as meeting_id,
+        n.id                                                               as source_id,
+        'nl_twka_meetings'                                                 as source_table,
+        coalesce(nullif(n.translated_title, ''), nullif(n.original_title, ''), n.title) 
+                                                                           as title,
+        n.start_datetime                                                   as meeting_start_datetime,
+        n.end_datetime                                                     as meeting_end_datetime,
+        n.location                                                         as exact_location,
+
+        /* simple human-readable description built from meeting_type + commission */
+        nullif(concat_ws(' | ',
+                         nullif(n.meeting_type, ''),
+                         nullif(n.commission, '')
+        ), '')                                                             as description,
+
+        n.link                                                             as meeting_url,
+        null::text                                                         as status,
+        null::text                                                         as source_url,
+
+        /* tags: include meeting_type & commission when present */
+        (
+            select coalesce(array_agg(tag_txt), '{}')::text[]
+            from unnest(array[
+                    nullif(n.meeting_type, ''),
+                    nullif(n.commission, '')
+                 ]) as t(tag_txt)
+            where tag_txt is not null
+        )                                                                  as tags,
+        n.ministers::json                                                  as member,
+
+        /* flatten attendees JSONB (array of objs or strings) to semicolon-sep names */
+        (
+            select string_agg(
+                case
+                    when jsonb_typeof(elem) = 'object'
+                        then coalesce(elem->>'name', elem->>'full_name')
+                    else trim(both '"' from elem::text)
+                end,
+                ';'
+            )
+            from jsonb_array_elements(n.attendees) elem
+        )                                                                  as attendees,
+
+        n.scraped_at                                                       as scraped_at
+    from public.nl_twka_meetings n
 
 ),
 base_with_location AS (
