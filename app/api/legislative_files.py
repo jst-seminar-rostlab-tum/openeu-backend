@@ -39,6 +39,8 @@ def get_legislative_files(
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
+
+            reformulated_query = query
             try:
                 # 1. Use the correct Chat Completions endpoint
                 completion = openai.chat.completions.create(
@@ -104,7 +106,18 @@ def get_legislative_files(
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
 
-            response = supabase.table("legislative_files").select("*").in_("id", ids).execute()
+            query_builder = supabase.table("legislative_files").select("*").in_("id", ids)
+            if year:
+                year_prefix = f"{year}%"
+                query_builder = query_builder.like("id", year_prefix)
+
+            if committee:
+                query_builder = query_builder.eq("committee", committee)
+
+            if rapporteur:
+                query_builder = query_builder.eq("rapporteur", rapporteur)
+
+            response = query_builder.execute()
             records = response.data or []
 
             # Add similarity info
@@ -112,26 +125,26 @@ def get_legislative_files(
                 r["similarity"] = similarity_map.get(r["id"])
 
         else:
-            db_query = supabase.table("legislative_files").select("*")
+            query_builder = supabase.table("legislative_files").select("*")
 
             if year:
                 year_prefix = f"{year}%"
-                db_query = db_query.like("id", year_prefix)
+                query_builder = query_builder.like("id", year_prefix)
 
             if committee:
-                db_query = db_query.eq("committee", committee)
+                query_builder = query_builder.eq("committee", committee)
 
             if rapporteur:
-                db_query = db_query.eq("rapporteur", rapporteur)
+                query_builder = query_builder.eq("rapporteur", rapporteur)
 
             if user_id:
-                relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=db_query, k=limit)
+                relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=query_builder, k=limit)
                 data = []
                 for m in relevant.legislative_files:
                     data.append(m.model_dump(mode="json"))
                 return JSONResponse(status_code=200, content={"data": data})
 
-            res = db_query.limit(limit).execute()
+            res = query_builder.limit(limit).execute()
             records = res.data or []
 
         return JSONResponse(status_code=200, content={"data": records[:limit]})
