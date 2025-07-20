@@ -5,7 +5,6 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, Tag
-from dateutil.parser import parse as parse_date
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
@@ -263,10 +262,10 @@ class BelgianParliamentScraper(ScraperBase):
         location = date_location.split(" - ", 1)[1]
 
         # Normalize separators (convert 9.30 → 9:30)
-        time_str = time_str.replace('.', ':')
+        time_str = time_str.replace(".", ":")
 
         # Regex to handle bare hours/minutes (like "9", "14", "9:30")
-        match = re.match(r'^(\d{1,2})(?::(\d{1,2}))?$', time_str)
+        match = re.match(r"^(\d{1,2})(?::(\d{1,2}))?$", time_str)
 
         if match:
             hour = int(match.group(1))
@@ -275,7 +274,7 @@ class BelgianParliamentScraper(ScraperBase):
         else:
             # Fallback to midnight if totally invalid
             logger.warning(f"Could not parse time '{time_str}', using current date at midnight")
-            parsed_time = datetime.time(0, 0)
+            parsed_time = time(0, 0)
 
         meeting_date = datetime.combine(self.current_date, parsed_time)
 
