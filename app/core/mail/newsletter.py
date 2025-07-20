@@ -125,28 +125,18 @@ class Newsletter:
     email_client = EmailService()
 
     @staticmethod
-    def send_newsletter_to_user(user_id, frequency=None):
-        if frequency is None:
-            # Fetch user's newsletter frequency preference
-            try:
-                response = (
-                    supabase.table("profiles").select("newsletter_frequency").eq("id", user_id).single().execute()
-                )
-                frequency = response.data.get("newsletter_frequency", "weekly") if response.data else "weekly"
-            except Exception:
-                frequency = "weekly"  # fallback
-
+    def send_newsletter_to_user(user_id, frequency: str):
         user_mail = get_user_email(user_id=user_id)
         mail_body, mean_sim = build_email_for_user(user_id=user_id)
 
         # Adjust subject based on frequency
         if frequency.lower() == "weekly":
-            subject = "OpenEU Weekly Newsletter - " + str(datetime.now().date())
+            subject = "OpenEU Weekly Newsletter"
         else:  # default to daily
-            subject = "OpenEU Daily Newsletter - " + str(datetime.now().date())
+            subject = "OpenEU Daily Newsletter"
 
         mail = Email(
-            subject=subject,
+            subject=subject + " - "  + str(datetime.now().date()),
             html_body=mail_body,
             recipients=[user_mail],
         )
@@ -159,7 +149,7 @@ class Newsletter:
 
         notification_payload = {
             "user_id": user_id,
-            "type": f"newsletter_{frequency}",
+            "type": "newsletter",
             "message": str(mail_body),
             "relevance_score": mean_sim,
             "message_subject": subject,
