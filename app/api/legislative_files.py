@@ -27,20 +27,20 @@ router = APIRouter()
 @cache(namespace="legislative", expire=3600)
 def get_legislative_files(
     limit: int = Query(500, gt=1),
-    db_query: Optional[str] = Query(None, description="Semantic search query"),
+    query: Optional[str] = Query(None, description="Semantic search query"),
     year: Optional[int] = Query(None, description="Filter by reference year (e.g. 2025)"),
     committee: Optional[str] = Query(None, description="Filter by committee name"),
     rapporteur: Optional[str] = Query(None, description="Filter by rapporteur name"),
     user_id: Optional[str] = Query(None, description="User ID for personalized meeting recommendations"),
 ):
     try:
-        if db_query:
+        if query:
             if user_id:
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
-                    db_query = db_query + "Profile information: " + str(resp.data)
+                    query = query + "Profile information: " + str(resp.data)
 
-            reformulated_query = db_query
+            reformulated_query = query
             try:
                 # 1. Use the correct Chat Completions endpoint
                 completion = openai.chat.completions.create(
@@ -56,14 +56,14 @@ def get_legislative_files(
                             + "Use a formal tone, and try to vary the phrasing and details based on the query context. "
                             + "Keep the summary within three sentences, with a clear title and a brief description.",
                         },
-                        {"role": "user", "content": db_query},
+                        {"role": "user", "content": query},
                     ],
                     temperature=0,
                     max_tokens=128,
                 )
 
                 # 4. Access the response correctly via .message.content
-                reformulated_query = (completion.choices[0].message.content or db_query).strip()
+                reformulated_query = (completion.choices[0].message.content or query).strip()
 
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
@@ -106,18 +106,18 @@ def get_legislative_files(
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
 
-            db_query = supabase.table("legislative_files").select("*").in_("id", ids)
+            query_builder = supabase.table("legislative_files").select("*").in_("id", ids)
             if year:
                 year_prefix = f"{year}%"
-                db_query = db_query.like("id", year_prefix)
+                query_builder = query_builder.like("id", year_prefix)
 
             if committee:
-                db_query = db_query.eq("committee", committee)
+                query_builder = query_builder.eq("committee", committee)
 
             if rapporteur:
-                db_query = db_query.eq("rapporteur", rapporteur)
+                query_builder = query_builder.eq("rapporteur", rapporteur)
 
-            response = db_query.execute()
+            response = query_builder.execute()
             records = response.data or []
 
             # Add similarity info
@@ -125,26 +125,26 @@ def get_legislative_files(
                 r["similarity"] = similarity_map.get(r["id"])
 
         else:
-            db_query = supabase.table("legislative_files").select("*")
+            query_builder = supabase.table("legislative_files").select("*")
 
             if year:
                 year_prefix = f"{year}%"
-                db_query = db_query.like("id", year_prefix)
+                query_builder = query.like("id", year_prefix)
 
             if committee:
-                db_query = db_query.eq("committee", committee)
+                query_builder = query.eq("committee", committee)
 
             if rapporteur:
-                db_query = db_query.eq("rapporteur", rapporteur)
+                query_builder = query.eq("rapporteur", rapporteur)
 
             if user_id:
-                relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=db_query, k=limit)
+                relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=query_builder, k=limit)
                 data = []
                 for m in relevant.legislative_files:
                     data.append(m.model_dump(mode="json"))
                 return JSONResponse(status_code=200, content={"data": data})
 
-            res = db_query.limit(limit).execute()
+            res = query_builder.limit(limit).execute()
             records = res.data or []
 
         return JSONResponse(status_code=200, content={"data": records[:limit]})
