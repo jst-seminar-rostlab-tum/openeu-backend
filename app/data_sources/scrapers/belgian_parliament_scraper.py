@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import multiprocessing
 from typing import Any, Optional
 
@@ -66,7 +66,9 @@ class BelgianParliamentScraper(ScraperBase):
         try:
             # If we have a last_entry, start from the day after its date
             if last_entry and hasattr(last_entry, "meeting_date") and last_entry.meeting_date:
-                current_date = last_entry.meeting_date + timedelta(days=1)
+                # Extract just the date part from the datetime for comparison
+                last_entry_date = last_entry.meeting_date.date()
+                current_date = last_entry_date + timedelta(days=1)
                 if current_date > self.end_date:
                     return ScraperResult(success=True, last_entry=last_entry)
             else:
@@ -111,6 +113,9 @@ class BelgianParliamentScraper(ScraperBase):
                             page.wait_for_selector(".meeting-card", timeout=10000)
                         except PlaywrightTimeoutError:
                             logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
+                            logger.info(
+                                f"\n#####################\nWEBPAGE CONTENT: {page.content()}\n#####################\n"
+                                )
                             current_date += timedelta(days=1)
                             continue
 
@@ -255,9 +260,10 @@ class BelgianParliamentScraper(ScraperBase):
             raise ValueError("Date element not found")
         date_location = date_element.text.strip()
         # Split on " - " to separate time and location
+        time = date_location.split(" - ", 1)[0]
         location = date_location.split(" - ", 1)[1]
 
-        meeting_date = self.current_date.strftime("%Y-%m-%d")
+        meeting_date = datetime.strptime(f"{self.current_date} {time}", "%d-%m-%Y %H:%M")
 
         # create embedding input
         embedding_input = f"{title_en} {description_en} {meeting_date} {location}"
@@ -268,7 +274,7 @@ class BelgianParliamentScraper(ScraperBase):
             title_en=title_en,
             description=description,
             description_en=description_en,
-            meeting_date=meeting_date,
+            meeting_date=meeting_date.isoformat(),
             location=location,
             meeting_url=meeting_url,
             embedding_input=embedding_input,
@@ -292,4 +298,4 @@ def run_scraper(
 
 if __name__ == "__main__":
     # Example usage
-    run_scraper(start_date=date(2025, 5, 13), stop_event=multiprocessing.Event())
+    run_scraper(start_date=date(2025, 7, 16), end_date=date(2025, 7, 17), stop_event=multiprocessing.Event())

@@ -102,7 +102,7 @@ with base as (
         b.id::text                      as source_id,
         'belgian_parliament_meetings'   as source_table,
         coalesce(b.title_en, b.title)   as title,
-        b.meeting_date::timestamptz     as meeting_start_datetime,
+        b.meeting_date::timestamptz as meeting_start_datetime,
         null::timestamptz               as meeting_end_datetime,
         b.location                      as exact_location,
         coalesce(b.description_en, b.description) as description,
