@@ -132,23 +132,24 @@ class Newsletter:
         # Adjust subject based on frequency
         subject = "OpenEU Weekly Newsletter" if frequency.lower() == "weekly" else "OpenEU Daily Newsletter"
 
-        mail = Email(
-            subject=subject + " - "  + str(datetime.now().date()),
-            html_body=mail_body,
-            recipients=[user_mail],
-        )
-        try:
-            logger.info(f"Attempting to send {frequency} email to {user_mail}...")
-            Newsletter.email_client.send_email(mail)
-            logger.info(f"{frequency.capitalize()} newsletter sent successfully to user_id={user_id}")
-        except Exception as e:
-            logger.error(f"Failed to send {frequency} newsletter for user_id={user_id}: {e}")
+        if user_mail is not None:
+            mail = Email(
+                subject=subject + " - " + str(datetime.now().date()),
+                html_body=mail_body,
+                recipients=[user_mail],
+            )
+            try:
+                logger.info(f"Attempting to send {frequency} email to {user_mail}...")
+                Newsletter.email_client.send_email(mail)
+                logger.info(f"{frequency.capitalize()} newsletter sent successfully to user_id={user_id}")
+            except Exception as e:
+                logger.error(f"Failed to send {frequency} newsletter for user_id={user_id}: {e}")
 
-        notification_payload = {
-            "user_id": user_id,
-            "type": "newsletter",
-            "message": str(mail_body),
-            "relevance_score": mean_sim,
-            "message_subject": subject,
-        }
-        supabase.table("notifications").insert(notification_payload).execute()
+            notification_payload = {
+                "user_id": user_id,
+                "type": "newsletter",
+                "message": str(mail_body),
+                "relevance_score": mean_sim,
+                "message_subject": subject,
+            }
+            supabase.table("notifications").insert(notification_payload).execute()
