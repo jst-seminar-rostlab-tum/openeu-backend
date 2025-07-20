@@ -129,13 +129,13 @@ def get_legislative_files(
 
             if year:
                 year_prefix = f"{year}%"
-                query_builder = query.like("id", year_prefix)
+                query_builder = query_builder.like("id", year_prefix)
 
             if committee:
-                query_builder = query.eq("committee", committee)
+                query_builder = query_builder.eq("committee", committee)
 
             if rapporteur:
-                query_builder = query.eq("rapporteur", rapporteur)
+                query_builder = query_builder.eq("rapporteur", rapporteur)
 
             if user_id:
                 relevant = fetch_relevant_legislative_files(user_id=user_id, query_to_compare=query_builder, k=limit)
