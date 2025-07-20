@@ -116,8 +116,11 @@ def scrape_mec_sum_minist_meetings(stop_event: multiprocessing.synchronize.Event
 
 
 def scrape_belgian_parliament_meetings(stop_event: multiprocessing.synchronize.Event):
-    today = datetime.now().date()
-    end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    # today = datetime.now().date()
+    # end_date = today + timedelta(days=LOOKAHEAD_DAYS)
+    # DEBUG
+    today = datetime(2025, 7, 14).date()
+    end_date = datetime(2025, 7, 25).date()
     return run_belgian_parliament_scraper(start_date=today, end_date=end_date, stop_event=stop_event)
 
 
