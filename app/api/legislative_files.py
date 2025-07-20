@@ -39,6 +39,8 @@ def get_legislative_files(
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
+
+            reformulated_query = query
             try:
                 # 1. Use the correct Chat Completions endpoint
                 completion = openai.chat.completions.create(
@@ -104,7 +106,18 @@ def get_legislative_files(
             ids = [n["source_id"] for n in neighbors]
             similarity_map = {n["source_id"]: n["similarity"] for n in neighbors}
 
-            response = supabase.table("legislative_files").select("*").in_("id", ids).execute()
+            query = supabase.table("legislative_files").select("*").in_("id", ids)
+            if year:
+                year_prefix = f"{year}%"
+                query = query.like("id", year_prefix)
+
+            if committee:
+                query = query.eq("committee", committee)
+
+            if rapporteur:
+                query = query.eq("rapporteur", rapporteur)
+
+            response = query.execute()
             records = response.data or []
 
             # Add similarity info
