@@ -190,7 +190,7 @@ def get_meetings(
 
             # build something like:
             #   or=(location.ilike.*germany*,location.ilike.*france*,location.ilike.*spain*)
-            or_clauses = ",".join(f"location.ilike.*{c}*" for c in lower_countries)
+            or_clauses = ",".join(f"location.ilike.\"*{c}*\"" for c in lower_countries)
 
             db_query = db_query.or_(or_clauses)
 
