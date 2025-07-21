@@ -36,6 +36,13 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
+def parse_query_list(param: Optional[list[str]]) -> Optional[list[str]]:
+    if param is None:
+        return None
+    result = []
+    for item in param:
+        result.extend([x.strip() for x in item.split(",")])
+    return result
 
 @router.get("/meetings", response_model=dict[str, list[Meeting]])
 def get_meetings(
@@ -67,6 +74,10 @@ def get_meetings(
         country,
         source_tables,
     )
+    source_tables = parse_query_list(source_tables)
+    topics = parse_query_list(topics)
+    country = parse_query_list(country)
+
     try:
         start = to_utc_aware(start)
         end = to_utc_aware(end)
