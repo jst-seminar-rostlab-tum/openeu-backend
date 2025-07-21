@@ -20,7 +20,7 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, user_
 
     if not context_text:
         context = get_top_k_neighbors(
-            query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
+            query=f"User profile: {user_profile}\n\nQuestion: {prompt}", allowed_sources={}, k=20
         )
         context_text = ""
         for element in context:
@@ -95,7 +95,7 @@ def get_response(prompt: str, session_id: str, user_id: str = "", context_text: 
             .execute()
         )
 
-        user_profile = get_profile_embedding_input(user_id) if user_id == "" else ""
+        user_profile = get_profile_embedding_input(user_id) if user_id != "" else ""
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
