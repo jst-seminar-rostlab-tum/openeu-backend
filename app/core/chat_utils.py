@@ -44,7 +44,8 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, user_
     You will say that you can't help on this topic if the CONTEXT BLOCK is empty.
     You will not invent anything that is not drawn directly from the context.
     You will not answer questions that are not related to the context.
-    Ensure all responses are tailored to the user's profile; if tailoring is not possible, provide a general response without forced personalization.
+    Ensure all responses are tailored to the user's profile
+    If tailoring is not possible, provide a general response without forced personalization.
     The user profile is provided between ***START USER PROFILE*** and ***END USER PROFILE***.
     More information on how OpenEU works is between ***START CONTEXT BLOCK*** and ***END CONTEXT BLOCK***
     ***START USER PROFILE***
