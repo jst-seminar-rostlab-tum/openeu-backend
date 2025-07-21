@@ -136,8 +136,10 @@ async def create_profile(request: Request, profile: ProfileCreate) -> JSONRespon
     user_id = payload["id"]
 
     topic_ids = payload.pop("topic_ids")
+    topics = supabase.table("meeting_topics").select("id, topic").in_("id", topic_ids).execute()
+    topics = [item["topic"] for item in topics.data] if topics.data else []
 
-    embedding_input = get_basic_embedding_input(payload)
+    embedding_input = generate_user_interest_embedding_input(payload, topics)
     payload["embedding_input"] = embedding_input
     embedding = await create_embeddings(user_id, embedding_input)
     payload["embedding"] = embedding
@@ -230,12 +232,14 @@ async def update_user_profile(request: Request, user_id: str, profile: ProfileUp
     # Update profile embedding
     if should_update_embeddings:
         existing_profile = get_profile(user_id)
+        if existing_profile is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
         # Build input text for embedding
         topics = supabase.table("meeting_topics").select("id, topic").in_("id", existing_profile["topic_ids"]).execute()
         topics = [item["topic"] for item in topics.data] if topics.data else []
 
-        embedding_input = get_basic_embedding_input(existing_profile)
+        embedding_input = generate_user_interest_embedding_input(existing_profile, topics)
         embedding = await create_embeddings(user_id, embedding_input)
         embedding_payload = {"embedding_input": embedding_input, "embedding": embedding}
         result = supabase.table("profiles").update(embedding_payload).eq("id", user_id).execute()
