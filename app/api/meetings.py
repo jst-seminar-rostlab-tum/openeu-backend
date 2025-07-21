@@ -36,7 +36,7 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
-def parse_query_list(param: Optional[list[str]] = Query(None)) -> Optional[list[str]]:
+def parse_query_list(param: Optional[list[str]]) -> Optional[list[str]]:
     if param is None:
         return None
     result = []
