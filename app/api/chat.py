@@ -44,7 +44,7 @@ async def get_chat_response(chat_message_item: ChatMessageItem):
     if chat_message_item.legislation_id:
         return StreamingResponse(process_legislation(chat_message_item), media_type="text/event-stream")
     return StreamingResponse(
-        get_response(chat_message_item.message, chat_message_item.user_id, chat_message_item.session_id),
+        get_response(chat_message_item.message, chat_message_item.session_id, user_id=chat_message_item.user_id),
         media_type="text/event-stream"
     )
 

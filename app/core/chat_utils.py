@@ -67,7 +67,7 @@ def get_profile_embedding_input(user_id: str) -> str:
         return ""
 
 
-def get_response(prompt: str, user_id: str, session_id: str, context_text: str = ""):
+def get_response(prompt: str, session_id: str, user_id: str = "", context_text: str = ""):
     try:
         database_messages = (
             supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
@@ -95,7 +95,7 @@ def get_response(prompt: str, user_id: str, session_id: str, context_text: str =
             .execute()
         )
 
-        user_profile = get_profile_embedding_input(user_id)
+        user_profile = get_profile_embedding_input(user_id) if user_id == "" else ""
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
