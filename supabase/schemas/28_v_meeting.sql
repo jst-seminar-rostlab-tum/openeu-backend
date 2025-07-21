@@ -392,3 +392,16 @@ AS $$
   FROM public.v_meetings
   ORDER BY source_table;
 $$;
+
+-- ------------------------------------------------------------
+-- Function: public.get_countries()
+-- Description: returns all distinct countries from v_meetings
+-- Usage (RPC): SELECT * FROM get_countries();
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_countries()
+  RETURNS text[]
+  LANGUAGE sql
+AS $$
+  SELECT array_agg(DISTINCT location)
+  FROM public.v_meetings;
+$$;
