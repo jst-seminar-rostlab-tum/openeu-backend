@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS belgian_parliament_meetings (
     title_en text NOT NULL,
     description text,
     description_en text,
-    meeting_date date NOT NULL,
+    meeting_date timestamp NOT NULL,
     location text NOT NULL,
     meeting_url text NOT NULL,
     embedding_input text NOT NULL,
