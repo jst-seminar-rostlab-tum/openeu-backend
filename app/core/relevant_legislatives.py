@@ -67,7 +67,6 @@ def fetch_relevant_legislative_files(
             .execute()
         )
         profile_embedding_input = resp.data["embedding_input"]
-        profile_embedding = resp.data["embedding"]
 
     except Exception as e:
         logger.exception(f"Unexpected error loading profile embedding or profile doesnt exist: {e}")
@@ -75,8 +74,34 @@ def fetch_relevant_legislative_files(
 
     # 2) call `get_top_k_neighbors`
     try:
+        completion = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant that reformulates text for semantic search. "
+                        "Your task is to generate a title for a legislative concerning the user. "
+                        "For example:\n"
+                        "User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, "
+                        "I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals.\n"
+                        "Output 1: Infrastructure and Technology Rules"
+                        "Output 2: Implementaion of the Infrastructure and Technology Package"
+                    ),
+                },
+                {"role": "user", "content": profile_embedding_input},
+            ],
+            temperature=0,
+            max_tokens=128,
+        )
+        reformulated_query = (completion.choices[0].message.content or profile_embedding_input).strip()
+
+    except Exception as e:
+        reformulated_query = profile_embedding_input
+        logger.error(f"An error occurred: {e}")
+
         neighbors = get_top_k_neighbors(
-            embedding=profile_embedding,
+            embedding=reformulated_query,
             allowed_sources={"legislative_files": "embedding_input"},
             sources=["document_embeddings"],
             k=1000,

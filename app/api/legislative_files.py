@@ -39,38 +39,39 @@ def get_legislative_files(
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
-            try:
-                # 1. Use the correct Chat Completions endpoint
-                completion = openai.chat.completions.create(
-                    # 2. Use a valid, current model name (e.g., gpt-4o-mini)
-                    model="gpt-4o-mini",
-                    # 3. Structure the input as a 'messages' list
-                    #    This is the most important change.
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a helpful assistant that reformulates text for semantic search."
-                            "Your task is to generate a meeting summary document based on the user's question. "
-                            + "Use a formal tone, and try to vary the phrasing and details based on the query context. "
-                            + "Keep the summary within three sentences, with a clear title and a brief description.",
-                        },
-                        {"role": "user", "content": query},
-                    ],
-                    temperature=0,
-                    max_tokens=128,
-                )
+                try:
+                    completion = openai.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a helpful assistant that reformulates text for semantic search. "
+                                    "Your task is to generate a title for a legislative concerning the user. "
+                                    "For example:\n"
+                                    "User Input: As the CEO of Transport Logistics, a company pioneering the    integration        of AI in transportation, "
+                                    "I am steering a dynamic growth-stage enterprise with a team of 21-50   professionals.\n"
+                                    "Output 1: Infrastructure and Technology Rules"
+                                    "Output 2: Implementaion of the Infrastructure and Technology Package"
+                                ),
+                            },
+                            {"role": "user", "content": resp.data},
+                        ],
+                        temperature=0,
+                        max_tokens=128,
+                    )
 
-                # 4. Access the response correctly via .message.content
-                reformulated_query = (completion.choices[0].message.content or query).strip()
+                    reformulated_query = (completion.choices[0].message.content or query).strip()
 
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
+                except Exception as e:
+                    reformulated_query = resp.data
+                    logger.error(f"An error occurred: {e}")
 
             neighbors = get_top_k_neighbors(
                 query=reformulated_query,
                 allowed_sources={"legislative_files": "embedding_input"},
                 k=1000,
-                sources=["document_embeddings"],  # triggers match_filtered
+                sources=["document_embeddings"],
             )
 
             if not neighbors:
@@ -145,7 +146,7 @@ def get_legislative_files(
 def get_legislative_file(
     request: Request,
     id: str = Query(..., description="Legislative file ID"),
-    user_id: Optional[str] = Query(None, description="User ID to check subscription status")
+    user_id: Optional[str] = Query(None, description="User ID to check subscription status"),
 ):
     """Get a single legislative file by ID"""
     try:
@@ -155,16 +156,12 @@ def get_legislative_file(
             raise HTTPException(status_code=404, detail=f"Legislative file with ID '{id}' not found")
 
         legislative_file = response.data[0]
-        
+
         # Check subscription status if user_id is provided
         if user_id:
             check_request_user_id(request, user_id)
             subscription_response = (
-                supabase.table("subscriptions")
-                .select("id")
-                .eq("user_id", user_id)
-                .eq("legislation_id", id)
-                .execute()
+                supabase.table("subscriptions").select("id").eq("user_id", user_id).eq("legislation_id", id).execute()
             )
             legislative_file["subscribed"] = len(subscription_response.data) > 0
         else:

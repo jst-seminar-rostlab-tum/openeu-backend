@@ -59,12 +59,13 @@ def fetch_relevant_meetings(
                 {
                     "role": "system",
                     "content": (
-                    "You are a helpful assistant that reformulates text for semantic search. "
-                    "Your task is to generate a meeting title for a legislative/institutional meeting concerning the user. "
-                    "For example:\n"
-                    "User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, "
-                    "I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals.\n"
-                    "Output: Meeting on Infrastructure and Technology")
+                        "You are a helpful assistant that reformulates text for semantic search. "
+                        "Your task is to generate a meeting title for a legislative/institutional meeting concerning the user. "
+                        "For example:\n"
+                        "User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, "
+                        "I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals.\n"
+                        "Output: Meeting on Infrastructure and Technology"
+                    ),
                 },
                 {"role": "user", "content": profile_embedding_input},
             ],
