@@ -83,7 +83,8 @@ def fetch_relevant_legislative_files(
                         "You are a helpful assistant that reformulates text for semantic search. "
                         "Your task is to generate a title for a legislative concerning the user. "
                         "For example:\n"
-                        "User Input: As the CEO of Transport Logistics, a company pioneering the integration of AI in transportation, "
+                        "User Input: As the CEO of Transport Logistics, a company pioneering the"
+                        "integration of AI in transportation, "
                         "I am steering a dynamic growth-stage enterprise with a team of 21-50 professionals.\n"
                         "Output 1: Infrastructure and Technology Rules"
                         "Output 2: Implementaion of the Infrastructure and Technology Package"
@@ -95,10 +96,6 @@ def fetch_relevant_legislative_files(
             max_tokens=128,
         )
         reformulated_query = (completion.choices[0].message.content or profile_embedding_input).strip()
-
-    except Exception as e:
-        reformulated_query = profile_embedding_input
-        logger.error(f"An error occurred: {e}")
 
         neighbors = get_top_k_neighbors(
             embedding=reformulated_query,

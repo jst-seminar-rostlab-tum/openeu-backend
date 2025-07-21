@@ -46,11 +46,15 @@ def get_legislative_files(
                             {
                                 "role": "system",
                                 "content": (
-                                    "You are a helpful assistant that reformulates text for semantic search. "
-                                    "Your task is to generate a title for a legislative concerning the user. "
+                                    "You are a helpful assistant that reformulates text for "
+                                    "semantic search. "
+                                    "Your task is to generate a title for a legislative"
+                                    "concerning the user. "
                                     "For example:\n"
-                                    "User Input: As the CEO of Transport Logistics, a company pioneering the    integration        of AI in transportation, "
-                                    "I am steering a dynamic growth-stage enterprise with a team of 21-50   professionals.\n"
+                                    "User Input: As the CEO of Transport Logistics, a company pioneering"
+                                    "the integration of AI in transportation, "
+                                    "I am steering a dynamic growth-stage enterprise with a team of"
+                                    "21-50   professionals.\n"
                                     "Output 1: Infrastructure and Technology Rules"
                                     "Output 2: Implementaion of the Infrastructure and Technology Package"
                                 ),
