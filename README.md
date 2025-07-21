@@ -1,3 +1,5 @@
+[📖 OpenEU Documentation](https://docs-openeu.netlify.app/)
+
 # ProjectEurope - OpenEU - Backend
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
