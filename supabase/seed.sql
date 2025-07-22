@@ -221,7 +221,7 @@ VALUES
     'Committee Meeting on Digital Transformation',
     'Bespreking van het nationale plan voor digitale transformatie',
     'Discussion of the national digital transformation plan',
-    '2025-07-15',
+    '2025-07-15 09:00:00',
     'Kamer van Volksvertegenwoordigers, Brussel',
     'https://www.dekamer.be/meeting/001',
     'Committee Meeting on Digital Transformation - Discussion of the national digital transformation plan'
@@ -232,7 +232,7 @@ VALUES
     'Plenary Session: Climate Policy',
     'Debat over nieuwe klimaatwetgeving',
     'Debate on new climate legislation',
-    '2025-07-18',
+    '2025-07-18 10:00:00',
     'Belgisch Parlement, Brussel',
     'https://www.dekamer.be/meeting/002',
     'Plenary Session: Climate Policy - Debate on new climate legislation'
@@ -243,7 +243,7 @@ VALUES
     'Hearing on Cybersecurity',
     'Expertpanel over nationale cyberveiligheid',
     'Expert panel on national cybersecurity',
-    '2025-07-20',
+    '2025-07-20 11:00:00',
     'Senaat, Brussel',
     'https://www.dekamer.be/meeting/003',
     'Hearing on Cybersecurity - Expert panel on national cybersecurity'
@@ -254,7 +254,7 @@ VALUES
     'Budget Committee',
     'Analyse van de federale begroting 2026',
     'Analysis of the 2026 federal budget',
-    '2025-07-22',
+    '2025-07-22 12:00:00',
     'Kamer van Volksvertegenwoordigers, Brussel',
     'https://www.dekamer.be/meeting/004',
     'Budget Committee - Analysis of the 2026 federal budget'
@@ -265,7 +265,7 @@ VALUES
     'Social Affairs Committee',
     'Hervorming van het sociale zekerheidsstelsel',
     'Reform of the social security system',
-    '2025-07-25',
+    '2025-07-25 13:00:00',
     'Belgisch Parlement, Brussel',
     'https://www.dekamer.be/meeting/005',
     'Social Affairs Committee - Reform of the social security system'

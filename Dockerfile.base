@@ -5,11 +5,15 @@ WORKDIR /code
 # Install minimal system dependencies for Chromium and crawl4ai
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gnupg wget unzip xvfb libgbm1 \
+    locales \
+    ca-certificates xdg-utils \
+    fonts-liberation libdrm2 libexpat1 \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
     libxkbcommon0 libatspi2.0-0 libxdamage1 libpango-1.0-0 \
     libcairo2 libasound2 libsecret-1-0 libgles2 \
     libgtk-3-0 libgdk-pixbuf2.0-0 libpangocairo-1.0-0 libcairo-gobject2 \
     nodejs npm \
+ && locale-gen en_US.UTF-8 \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry (only needed to resolve crawl4ai dep tree if required)
@@ -19,7 +23,7 @@ RUN pip install --no-cache-dir poetry==2.1.3
 RUN pip install --no-cache-dir playwright crawl4ai
 
 # Install Chromium browser for Playwright
-RUN playwright install chromium
+RUN playwright install --with-deps chromium
 
 RUN crawl4ai-setup
 # Optional: Remove npm to reduce size (only if not needed later)
@@ -27,3 +31,8 @@ RUN rm -rf /usr/lib/node_modules /usr/bin/npm
 
 # Sanity check
 RUN playwright --version && crawl4ai-doctor || echo "⚠️ Crawl4AI check failed but continuing..."
+
+# Set locale for render fallback
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8

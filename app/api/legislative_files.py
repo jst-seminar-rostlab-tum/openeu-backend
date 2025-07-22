@@ -154,7 +154,6 @@ def get_legislative_files(
 
 
 @router.get("/legislative-file", response_model=LegislativeFileResponse)
-@cache(namespace="legislative", expire=86400)
 def get_legislative_file(
     request: Request,
     id: str = Query(..., description="Legislative file ID"),

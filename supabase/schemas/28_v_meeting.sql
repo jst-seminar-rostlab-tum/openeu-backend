@@ -102,7 +102,7 @@ with base as (
         b.id::text                      as source_id,
         'belgian_parliament_meetings'   as source_table,
         coalesce(b.title_en, b.title)   as title,
-        b.meeting_date::timestamptz     as meeting_start_datetime,
+        b.meeting_date::timestamptz as meeting_start_datetime,
         null::timestamptz               as meeting_end_datetime,
         b.location                      as exact_location,
         coalesce(b.description_en, b.description) as description,
@@ -391,4 +391,17 @@ AS $$
   SELECT DISTINCT source_table
   FROM public.v_meetings
   ORDER BY source_table;
+$$;
+
+-- ------------------------------------------------------------
+-- Function: public.get_countries()
+-- Description: returns all distinct countries from v_meetings
+-- Usage (RPC): SELECT * FROM get_countries();
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_countries()
+  RETURNS text[]
+  LANGUAGE sql
+AS $$
+  SELECT array_agg(DISTINCT location)
+  FROM public.v_meetings;
 $$;
