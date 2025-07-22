@@ -1495,10 +1495,19 @@ VALUES
 
 
 insert into meeting_topics
-values(
-  '99b5631f-c0ea-407c-8036-213f63cde130',
-  'AI'
-);
+values('08eebc82-7794-4517-af32-45b1615bc8be', 'Green Transition'),
+      ('419faf61-0985-4df5-a0d5-0fb077dc44a9', 'Digital Transformation'),
+      ('4fcb66aa-b85f-4127-b11b-afe48022986f', 'Defence'),
+      ('f856685d-c791-437b-8f5d-99d1664d0388', 'Migration'),
+      ('d42f4287-32ad-4eae-86fb-228208f5b64d', 'Energy Security'),
+      ('90c04376-e3f1-461f-a21b-d59964b97b5b', 'Strategic Autonomy'),
+      ('4794f97a-454c-4494-a463-c5dcfca43086', 'Social Fairness'),
+      ('1edcd7c1-e96d-476a-9cde-1a7e8522aa86', 'Cybersecurity'),
+      ('9734715b-650b-4474-bcbc-afbb0a566fc1', 'Agriculture'),
+      ('ccd40a98-3d45-4058-b9fa-c16f0afe6f79', 'Trade Relations'),
+      ('3fba3fe9-1c4f-475e-bef6-c660b232d95a', 'Innovation'),
+      ('37f2614a-2e1a-48c9-8c2b-7830becc968c', 'EU Budget'),
+      ('874820b0-17c2-4ccb-8d20-a2e1042951af', 'Other');
 
 insert into meeting_topic_assignments
 values
@@ -1539,6 +1548,6 @@ insert into profiles_to_topics
 values
 (
   'f82dc603-3148-4ba3-af07-89a34ef3162a',
-  'AI',
-  '99b5631f-c0ea-407c-8036-213f63cde130'
+  'Defence',
+  '4fcb66aa-b85f-4127-b11b-afe48022986f'
 );

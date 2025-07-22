@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from app.core.extract_topics import TopicExtractor
 from app.core.supabase_client import supabase
-from app.models.meeting import Meeting
+from app.models.meeting import MeetingTopicAssignment
 from scripts.embedding_generator import EmbeddingGenerator
 from app.core.mail.notify_job_failure import notify_job_failure
 
@@ -129,11 +129,11 @@ class ScraperBase(ABC):
                         "source_table": self.table_name,
                         "title": meeting_data["title"],
                     }
-                    meeting = Meeting(**mapped)
+                    meeting = MeetingTopicAssignment(**mapped)
                     extractor = TopicExtractor()
                     extractor.assign_meeting_to_topic(meeting)
                 except Exception as e:
-                    logger.info(f"Could not assign topic for meeting: {e}")
+                    logger.info(f"Could not assign topic for meeting: {entry} with: {e}")
 
             return None
         except Exception as e:
