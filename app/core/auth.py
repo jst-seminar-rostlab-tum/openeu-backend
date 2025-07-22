@@ -72,6 +72,6 @@ def get_name_fields(user_id: str) -> Optional[dict]:
                 "first_name": first_name,
                 "last_name": last_name,
             }
-        return None
+        return {}
     except Exception:
         return None
