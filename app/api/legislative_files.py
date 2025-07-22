@@ -39,37 +39,37 @@ def get_legislative_files(
                 resp = supabase.table("profiles").select("embedding_input").eq("id", user_id).single().execute()
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
-                try:
-                    completion = openai.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You are a helpful assistant that reformulates text for "
-                                    "semantic search. "
-                                    "Your task is to generate a title for a legislative"
-                                    "concerning the user. "
-                                    "For example:\n"
-                                    "User Input: As the CEO of Transport Logistics, a company pioneering"
-                                    "the integration of AI in transportation, "
-                                    "I am steering a dynamic growth-stage enterprise with a team of"
-                                    "21-50   professionals.\n"
-                                    "Output 1: Infrastructure and Technology Rules"
-                                    "Output 2: Implementaion of the Infrastructure and Technology Package"
-                                ),
-                            },
-                            {"role": "user", "content": resp.data},
-                        ],
-                        temperature=0,
-                        max_tokens=128,
-                    )
 
-                    query = (completion.choices[0].message.content or query).strip()
+            try:
+                completion = openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a helpful assistantthat reformulates text for "
+                                "semantic search. "
+                                "Your task is to generate atitle for a legislative"
+                                "concerning the user. "
+                                "For example:\n"
+                                "User Input: As the CEO ofTransport Logistics, acompany pioneering"
+                                "the integration of AI intransportation, "
+                                "I am steering a dynamicgrowth-stage enterprise witha team of"
+                                "21-50   professionals.\n"
+                                "Output 1: Infrastructureand Technology Rules"
+                                "Output 2: Implementaion ofthe Infrastructure andTechnology Package"
+                            ),
+                        },
+                        {"role": "user", "content": respdata},
+                    ],
+                    temperature=0,
+                    max_tokens=128,
+                )
 
-                except Exception as e:
-                    query = resp.data
-                    logger.error(f"An error occurred: {e}")
+                query = (completion.choices[0].message.content or query).strip()
+
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
 
             neighbors = get_top_k_neighbors(
                 query=query,
@@ -88,7 +88,7 @@ def get_legislative_files(
 
             rerank_resp = co.rerank(
                 model="rerank-v3.5",
-                query=reformulated_query,
+                query=query,
                 documents=docs,
                 top_n=min(limit, len(docs)),
             )
