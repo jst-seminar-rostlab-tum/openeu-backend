@@ -105,7 +105,7 @@ def fetch_relevant_meetings(
             allowed_countries=allowed_countries,
             start_date=start_date_time,
             end_date=end_date_time,
-            k=1000,
+            k=3000,
         )
 
         docs = [n["content_text"] for n in neighbors]
