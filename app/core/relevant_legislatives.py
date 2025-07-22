@@ -98,7 +98,7 @@ def fetch_relevant_legislative_files(
         reformulated_query = (completion.choices[0].message.content or profile_embedding_input).strip()
 
         neighbors = get_top_k_neighbors(
-            embedding=reformulated_query,
+            query=reformulated_query,
             allowed_sources={"legislative_files": "embedding_input"},
             sources=["document_embeddings"],
             k=1000,
