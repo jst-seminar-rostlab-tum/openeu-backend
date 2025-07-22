@@ -65,14 +65,14 @@ def get_legislative_files(
                         max_tokens=128,
                     )
 
-                    reformulated_query = (completion.choices[0].message.content or query).strip()
+                    query = (completion.choices[0].message.content or query).strip()
 
                 except Exception as e:
-                    reformulated_query = resp.data
+                    query = resp.data
                     logger.error(f"An error occurred: {e}")
 
             neighbors = get_top_k_neighbors(
-                query=reformulated_query,
+                query=query,
                 allowed_sources={"legislative_files": "embedding_input"},
                 k=1000,
                 sources=["document_embeddings"],
