@@ -11,6 +11,7 @@ from scrapy_playwright.page import PageMethod
 
 from app.core.supabase_client import supabase
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from zoneinfo import ZoneInfo
 
 BASE = "https://law-tracker.europa.eu"
 API = f"{BASE}/api/procedures/search"
@@ -171,6 +172,7 @@ class LawTrackerSpider(scrapy.Spider, ScraperBase):
         if data.get("started_date"):
             data["started_date"] = data["started_date"].isoformat()
         pid = data["id"]
+        data["scraped_at"] = datetime.now(ZoneInfo("Europe/Brussels")).isoformat()
 
         # ── 1. fetch if exists ─────────────────────────────
         res = (
