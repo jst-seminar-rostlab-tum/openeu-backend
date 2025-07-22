@@ -2,18 +2,18 @@ CREATE or REPLACE VIEW public.v_meetings as
 with base as (
     -- MEP meetings
     select
-        m.id || '_mep_meetings'      as meeting_id, 
-        m.id                         as source_id,
-        'mep_meetings'               as source_table,
-        m.title                      as title,
-        m.meeting_date::timestamptz  as meeting_start_datetime,
-        null::timestamptz            as meeting_end_datetime,
-        m.meeting_location           as exact_location,
-        null::text                   as description,
-        null::text                   as meeting_url,
-        null::text                   as status,
-        null::text                   as source_url,
-        null::text[]                 as tags,
+        m.id || '_mep_meetings'       as meeting_id, 
+        m.id                          as source_id,
+        'mep_meetings'                as source_table,
+        coalesce(m.title_en, m.title) as title,
+        m.meeting_date::timestamptz   as meeting_start_datetime,
+        null::timestamptz             as meeting_end_datetime,
+        m.meeting_location            as exact_location,
+        null::text                    as description,
+        null::text                    as meeting_url,
+        null::text                    as status,
+        null::text                    as source_url,
+        null::text[]                  as tags,
         (
             SELECT row_to_json(p) FROM public.meps p
             WHERE (
@@ -28,7 +28,7 @@ with base as (
             JOIN mep_meeting_attendees attendees ON mapping.attendee_id = attendees.id
             WHERE mapping.meeting_id = m.id
         ) as attendees,
-        m.scraped_at                 as scraped_at
+        m.scraped_at                  as scraped_at
     from public.mep_meetings m
 
     union all

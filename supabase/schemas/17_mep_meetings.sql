@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS mep_meetings (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     title text NOT NULL,
+    title_en text,
     member_name text NOT NULL,
     meeting_date date NOT NULL,
     meeting_location text NOT NULL,

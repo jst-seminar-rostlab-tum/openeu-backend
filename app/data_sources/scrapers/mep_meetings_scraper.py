@@ -18,6 +18,7 @@ from app.core.supabase_client import supabase
 
 # type: ignore[attr-defined]
 from app.data_sources.scraper_base import ScraperBase, ScraperResult
+from app.data_sources.translator.translator import Translator
 
 """
 This file contains a Scrapy spider to scrape MEP meetings from the European Parliament website.
@@ -35,6 +36,8 @@ MEP_MEETINGS_BASE_URL = "https://www.europarl.europa.eu/meps/en/search-meetings"
 MEP_MEETINGS_TABLE_NAME = "mep_meetings"
 MEP_MEETING_ATTENDEES_TABLE_NAME = "mep_meeting_attendees"
 MEP_MEETING_ATTENDEE_MAPPING_TABLE_NAME = "mep_meeting_attendee_mapping"
+MAX_DUPLICATE_CHECK_RETRIES = 3
+DUPLICATE_ERROR_SKIP_TAG = "SKIP"  # Special value to skip entry if duplicate check fails
 
 
 # ------------------------------
@@ -51,7 +54,8 @@ class MEPMeeting(BaseModel):
     """
     Represents a meeting of a European Parliament member.
     Attributes:
-        title: The title or subject of the meeting.
+        title: The original title or subject of the meeting.
+        title_en: The translated title of the meeting in English.
         member_name: The name of the European Parliament member involved in the meeting.
         meeting_date: Date of the meeting in "YYYY-MM-DD" format.
         meeting_location: The location where the meeting took place.
@@ -63,6 +67,7 @@ class MEPMeeting(BaseModel):
     """
 
     title: str
+    title_en: str
     member_name: str
     meeting_date: str
     meeting_location: str
@@ -96,6 +101,7 @@ class MEPMeetingsSpider(scrapy.Spider):
         self.result_callback: Optional[Callable[[list[MEPMeeting]], None]] = result_callback
         self.meetings: list[MEPMeeting] = []
         self.stop_event = stop_event
+        self.translator = Translator()
 
     async def start(self) -> AsyncGenerator[scrapy.Request, None]:
         """
@@ -223,8 +229,11 @@ class MEPMeetingsSpider(scrapy.Spider):
         elif associated_cmte_name:
             associated_cmte_embedding = associated_cmte_name
 
+        translated_title = self.translator.translate(title)
+
         return MEPMeeting(
             title=title,
+            title_en=translated_title,
             member_name=member_name,
             meeting_date=meeting_date,
             meeting_location=meeting_location,
@@ -233,7 +242,8 @@ class MEPMeetingsSpider(scrapy.Spider):
             associated_committee_or_delegation_code=associated_cmte_code if associated_cmte_code else None,
             associated_committee_or_delegation_name=associated_cmte_name if associated_cmte_name else None,
             attendees=attendees,
-            embedding_input=f'"{title}", on {meeting_date}, at {meeting_location}, by {member_name} ({member_capacity})'
+            embedding_input=f'"{translated_title}", on {meeting_date},'
+            f" at {meeting_location}, by {member_name} ({member_capacity})"
             + f"{(', referenced procedure: ' + procedure_code) if procedure_code else ''}"
             + f"{(', committee: ' + associated_cmte_embedding) if associated_cmte_embedding else ''}"
             + f", attendees: [{', '.join(att.name for att in attendees)}]",
@@ -281,7 +291,11 @@ class MEPMeetingsScraper(ScraperBase):
 
     def _collect_entry(self, entries: list[MEPMeeting]):
         for entry in entries:
-            upsert_id = self._check_for_duplicate(entry)
+            upsert_id = self._check_for_duplicate_with_retries(entry)
+
+            if upsert_id == DUPLICATE_ERROR_SKIP_TAG:
+                self.logger.error(f"Skipping entry due to duplicate check failure: {entry.title}")
+                continue
 
             try:
                 self._insert_meeting(entry, upsert_id=upsert_id)
@@ -296,29 +310,39 @@ class MEPMeetingsScraper(ScraperBase):
         Check if a MEPMeeting already exists in Supabase for the same date and very similar title.
         Returns the ID of the duplicate if found, None otherwise.
         """
-        try:
-            # Query Supabase for existing entries with the same date
-            result = (
-                supabase.table(MEP_MEETINGS_TABLE_NAME)
-                .select("id, title")
-                .eq("meeting_date", entry.meeting_date)
-                .execute()
-            )
-            existing_entries = result.data or []
 
-            # Check for fuzzy match
-            for existing in existing_entries:
-                existing_title = existing["title"]
-                if fuzz.token_sort_ratio(existing_title, entry.title) > 90:
-                    self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
-                    return existing["id"]  # Duplicate found
+        # Query Supabase for existing entries with the same date
+        result = (
+            supabase.table(MEP_MEETINGS_TABLE_NAME).select("id, title").eq("meeting_date", entry.meeting_date).execute()
+        )
 
-            # No duplicates found
-            return None
+        if not hasattr(result, "data"):
+            raise Exception("Supabase query did not return expected 'data' attribute")
 
-        except Exception as e:
-            self.logger.error(f"Error checking for duplicates: {e}")
-            return None
+        existing_entries = result.data or []
+
+        # Check for fuzzy match
+        for existing in existing_entries:
+            existing_title = existing["title"]
+            if existing_title == entry.title:
+                self.logger.info(f"Exact duplicate found: {entry.title}")
+                return existing["id"]
+            elif fuzz.token_sort_ratio(existing_title, entry.title) > 90:
+                self.logger.info(f"Duplicate found: {entry.title} matches {existing_title}")
+                return existing["id"]  # Duplicate found
+
+        # No duplicates found
+        return None
+
+    def _check_for_duplicate_with_retries(self, entry: MEPMeeting) -> Optional[str]:
+        for attempt in range(MAX_DUPLICATE_CHECK_RETRIES):
+            try:
+                return self._check_for_duplicate(entry)
+            except Exception as e:
+                self.logger.warning(f"Attempt {attempt + 1} failed: {e}")
+
+        self.logger.error("All duplicate check attempts failed - skipping entry to avoid duplicates")
+        return DUPLICATE_ERROR_SKIP_TAG
 
     def _insert_meeting(self, meeting: MEPMeeting, upsert_id: Optional[str] = None) -> None:
         """
