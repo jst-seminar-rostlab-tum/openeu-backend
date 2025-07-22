@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.supabase_client import supabase
-from app.models.meeting import Meeting
+from app.models.meeting import MeetingTopicAssignment
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +28,15 @@ def clear_assignments():
     # supabase.table(TOPICS_TABLE).delete().not_.is_("id", None).execute()
 
 
-def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[Meeting]:
+def fetch_meetings_batch(offset: int, batch_size: int = BATCH_SIZE) -> list[MeetingTopicAssignment]:
     """
     Fetch a batch of meetings from v_meetings.
     """
     resp = supabase.table("v_meetings").select("*").range(offset, offset + batch_size - 1).execute()
-    return [Meeting(**item) for item in resp.data]
+    return [MeetingTopicAssignment(**item) for item in resp.data]
 
 
-def fetch_and_prepare_meetings() -> list[Meeting]:
+def fetch_and_prepare_meetings() -> list[MeetingTopicAssignment]:
     """
     Fetches all meetings in batches from the database.
 
@@ -44,10 +44,10 @@ def fetch_and_prepare_meetings() -> list[Meeting]:
         A list of all Meeting objects.
     """
     offset = 0
-    all_meetings: list[Meeting] = []
+    all_meetings: list[MeetingTopicAssignment] = []
     # all_texts: list[tuple[str, str]] = []
     while True:
-        batch: list[Meeting] = fetch_meetings_batch(offset)
+        batch: list[MeetingTopicAssignment] = fetch_meetings_batch(offset)
         if not batch:
             break
         for m in batch:
@@ -143,7 +143,7 @@ class TopicExtractor:
         add_other_topic()
     '''
 
-    def assign_meeting_to_topic(self, meeting: Meeting):
+    def assign_meeting_to_topic(self, meeting: MeetingTopicAssignment):
         """
         Assigns a single meeting to the closest existing topic based on cosine similarity.
 

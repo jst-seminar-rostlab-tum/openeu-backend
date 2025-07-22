@@ -54,3 +54,10 @@ class LegislativeMeeting(BaseModel):
 
 class LegislativeMeetingsResponse(BaseModel):
     data: list[LegislativeMeeting]
+
+
+class MeetingTopicAssignment(BaseModel):
+    source_table: str
+    source_id: str
+    title: str
+    description: Optional[str] = None
