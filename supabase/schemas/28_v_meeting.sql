@@ -102,7 +102,7 @@ with base as (
         b.id::text                      as source_id,
         'belgian_parliament_meetings'   as source_table,
         coalesce(b.title_en, b.title)   as title,
-        b.meeting_date::timestamptz     as meeting_start_datetime,
+        b.meeting_date::timestamptz as meeting_start_datetime,
         null::timestamptz               as meeting_end_datetime,
         b.location                      as exact_location,
         coalesce(b.description_en, b.description) as description,
@@ -281,6 +281,56 @@ with base as (
         r.scraped_at                                 as scraped_at
     from public.ec_res_inno_meetings r
 
+        union all
+
+    -- NL Tweede Kamer (Dutch House of Representatives) meetings
+    select
+        n.id || '_nl_twka_meetings'                                        as meeting_id,
+        n.id                                                               as source_id,
+        'nl_twka_meetings'                                                 as source_table,
+        coalesce(nullif(n.translated_title, ''), nullif(n.original_title, ''), n.title) 
+                                                                           as title,
+        n.start_datetime                                                   as meeting_start_datetime,
+        n.end_datetime                                                     as meeting_end_datetime,
+        n.location                                                         as exact_location,
+
+        /* simple human-readable description built from meeting_type + commission */
+        nullif(concat_ws(' | ',
+                         nullif(n.meeting_type, ''),
+                         nullif(n.commission, '')
+        ), '')                                                             as description,
+
+        n.link                                                             as meeting_url,
+        null::text                                                         as status,
+        null::text                                                         as source_url,
+
+        /* tags: include meeting_type & commission when present */
+        (
+            select coalesce(array_agg(tag_txt), '{}')::text[]
+            from unnest(array[
+                    nullif(n.meeting_type, ''),
+                    nullif(n.commission, '')
+                 ]) as t(tag_txt)
+            where tag_txt is not null
+        )                                                                  as tags,
+        n.ministers::json                                                  as member,
+
+        /* flatten attendees JSONB (array of objs or strings) to semicolon-sep names */
+        (
+            select string_agg(
+                case
+                    when jsonb_typeof(elem) = 'object'
+                        then coalesce(elem->>'name', elem->>'full_name')
+                    else trim(both '"' from elem::text)
+                end,
+                ';'
+            )
+            from jsonb_array_elements(n.attendees) elem
+        )                                                                  as attendees,
+
+        n.scraped_at                                                       as scraped_at
+    from public.nl_twka_meetings n
+
 ),
 base_with_location AS (
     SELECT
@@ -341,4 +391,17 @@ AS $$
   SELECT DISTINCT source_table
   FROM public.v_meetings
   ORDER BY source_table;
+$$;
+
+-- ------------------------------------------------------------
+-- Function: public.get_countries()
+-- Description: returns all distinct countries from v_meetings
+-- Usage (RPC): SELECT * FROM get_countries();
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_countries()
+  RETURNS text[]
+  LANGUAGE sql
+AS $$
+  SELECT array_agg(DISTINCT location)
+  FROM public.v_meetings;
 $$;

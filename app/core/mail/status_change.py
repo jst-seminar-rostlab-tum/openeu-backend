@@ -15,7 +15,6 @@ _TEMPLATE_NAME = "status_change_mailbody.html.j2"
 _BASE_DIR = Path(__file__).parent
 _LOGO_PATH = _BASE_DIR / "logo1.b64"
 
-
 def build_email_body(user_id: str, legislation: dict, old_status: str) -> str:
     """Render HTML for status change email."""
     template_path = _BASE_DIR / _TEMPLATE_NAME
@@ -56,6 +55,7 @@ def notify_status_change(user_id: str, legislation: dict, old_status: str) -> bo
                 "user_id": user_id,
                 "type": "status_change",
                 "message": html_body,
+                "message_subject": subject,
                 "relevance_score": None,
                 "sent_at": datetime.utcnow().isoformat(),
             }

@@ -1,6 +1,7 @@
 import logging
-from datetime import date, timedelta
 import multiprocessing
+import re
+from datetime import date, datetime, time, timedelta
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, Tag
@@ -66,7 +67,9 @@ class BelgianParliamentScraper(ScraperBase):
         try:
             # If we have a last_entry, start from the day after its date
             if last_entry and hasattr(last_entry, "meeting_date") and last_entry.meeting_date:
-                current_date = last_entry.meeting_date + timedelta(days=1)
+                # Extract just the date part from the datetime for comparison
+                last_entry_date = last_entry.meeting_date.date()
+                current_date = last_entry_date + timedelta(days=1)
                 if current_date > self.end_date:
                     return ScraperResult(success=True, last_entry=last_entry)
             else:
@@ -75,7 +78,16 @@ class BelgianParliamentScraper(ScraperBase):
             with sync_playwright() as p:
                 # Launch browser
                 try:
-                    browser = p.chromium.launch(headless=True)
+                    browser = p.chromium.launch(
+                        headless=True,
+                        args=[
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox",
+                            "--disable-gpu",
+                            "--disable-dev-shm-usage",
+                        ],
+                    )
+
                     page = browser.new_page()
                 except Exception as e:
                     logger.error(f"Failed to launch browser: {e}")
@@ -100,7 +112,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Navigate to the page
                         try:
-                            page.goto(day_url)
+                            page.goto(day_url, wait_until="networkidle")
                         except Exception as e:
                             logger.error(f"Failed to navigate to {day_url}: {e}")
                             # Major error: abort scraping
@@ -108,7 +120,7 @@ class BelgianParliamentScraper(ScraperBase):
 
                         # Wait for the content to load, but skip if no meetings
                         try:
-                            page.wait_for_selector(".meeting-card", timeout=10000)
+                            page.wait_for_selector(".meeting-card", timeout=20000)
                         except PlaywrightTimeoutError:
                             logger.info(f"No meetings found for {current_date.isoformat()}, skipping.")
                             current_date += timedelta(days=1)
@@ -255,9 +267,25 @@ class BelgianParliamentScraper(ScraperBase):
             raise ValueError("Date element not found")
         date_location = date_element.text.strip()
         # Split on " - " to separate time and location
+        time_str = date_location.split(" - ", 1)[0].replace("uur", "").strip()
         location = date_location.split(" - ", 1)[1]
 
-        meeting_date = self.current_date.strftime("%Y-%m-%d")
+        # Normalize separators (convert 9.30 → 9:30)
+        time_str = time_str.replace(".", ":")
+
+        # Regex to handle bare hours/minutes (like "9", "14", "9:30")
+        match = re.match(r"^(\d{1,2})(?::(\d{1,2}))?$", time_str)
+
+        if match:
+            hour = int(match.group(1))
+            minute = int(match.group(2) or 0)
+            parsed_time = time(hour=hour, minute=minute)
+        else:
+            # Fallback to midnight if totally invalid
+            logger.warning(f"Could not parse time '{time_str}', using current date at midnight")
+            parsed_time = time(0, 0)
+
+        meeting_date = datetime.combine(self.current_date, parsed_time)
 
         # create embedding input
         embedding_input = f"{title_en} {description_en} {meeting_date} {location}"
@@ -268,7 +296,7 @@ class BelgianParliamentScraper(ScraperBase):
             title_en=title_en,
             description=description,
             description_en=description_en,
-            meeting_date=meeting_date,
+            meeting_date=meeting_date.isoformat(),
             location=location,
             meeting_url=meeting_url,
             embedding_input=embedding_input,
@@ -292,4 +320,4 @@ def run_scraper(
 
 if __name__ == "__main__":
     # Example usage
-    run_scraper(start_date=date(2025, 5, 13), stop_event=multiprocessing.Event())
+    run_scraper(start_date=date(2025, 7, 16), end_date=date(2025, 7, 17), stop_event=multiprocessing.Event())

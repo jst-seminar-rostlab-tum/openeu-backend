@@ -6,7 +6,7 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.email import Email, EmailService
-from app.core.relevant_meetings import fetch_relevant_meetings
+from app.core.relevant_meetings import RelevantMeetingsResponse, fetch_relevant_meetings
 from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def get_user_name(user_id: str) -> Optional[str]:
         return ""
 
 
-def build_email_for_user(user_id: str) -> tuple[str, float]:
+def build_email_for_user(user_id: str, meetings_response: RelevantMeetingsResponse) -> tuple[str, float]:
     """
     Renders and returns an HTML email (as a string) for the given user_id.
     This function will:
@@ -83,8 +83,6 @@ def build_email_for_user(user_id: str) -> tuple[str, float]:
     """
 
     base_dir = Path(__file__).parent
-
-    response_obj = fetch_relevant_meetings(user_id=user_id, k=10)
 
     name_of_recipient = get_user_name(user_id=user_id)
 
@@ -107,11 +105,11 @@ def build_email_for_user(user_id: str) -> tuple[str, float]:
 
     template = env.get_template("newsletter_mailbody.html.j2")
 
-    similarities = [m.similarity for m in response_obj.meetings if m.similarity is not None]
+    similarities = [m.similarity for m in meetings_response.meetings if m.similarity is not None]
     mean_similarity = sum(similarities) / len(similarities) if similarities else 0.0
 
     context = {
-        "meetings": response_obj.meetings,
+        "meetings": meetings_response.meetings,
         "image1_base64": image1_b64,
         "current_year": datetime.now().year,
         "recipient": name_of_recipient,
@@ -125,26 +123,37 @@ class Newsletter:
     email_client = EmailService()
 
     @staticmethod
-    def send_newsletter_to_user(user_id):
+    def send_newsletter_to_user(user_id, frequency: str):
         user_mail = get_user_email(user_id=user_id)
-        mail_body, mean_sim = build_email_for_user(user_id=user_id)
+        meetings_response = fetch_relevant_meetings(user_id=user_id, k=10)
 
-        mail = Email(
-            subject="OpenEU Meeting Newsletter - " + str(datetime.now().date()),
-            html_body=mail_body,
-            recipients=[user_mail],
-        )
-        try:
-            logger.info(f"Attempting to send email to {user_mail}...")
-            Newsletter.email_client.send_email(mail)
-            logger.info(f"Newsletter sent successfully to user_id={user_id}")
-        except Exception as e:
-            logger.error(f"Failed to send newsletter for user_id={user_id}: {e}")
+        if len(meetings_response.meetings) == 0:
+            logger.info(f"No relevant meetings found for user_id={user_id}. No newsletter sent.")
+            return
 
-        notification_payload = {
-            "user_id": user_id,
-            "type": "newsletter",
-            "message": str(mail_body),
-            "relevance_score": mean_sim,
-        }
-        supabase.table("notifications").insert(notification_payload).execute()
+        mail_body, mean_sim = build_email_for_user(user_id=user_id, meetings_response=meetings_response)
+
+        # Adjust subject based on frequency
+        subject = "OpenEU Weekly Newsletter" if frequency.lower() == "weekly" else "OpenEU Daily Newsletter"
+
+        if user_mail is not None:
+            mail = Email(
+                subject=subject + " - " + str(datetime.now().date()),
+                html_body=mail_body,
+                recipients=[user_mail],
+            )
+            try:
+                logger.info(f"Attempting to send {frequency} email to {user_mail}...")
+                Newsletter.email_client.send_email(mail)
+                logger.info(f"{frequency.capitalize()} newsletter sent successfully to user_id={user_id}")
+            except Exception as e:
+                logger.error(f"Failed to send {frequency} newsletter for user_id={user_id}: {e}")
+
+            notification_payload = {
+                "user_id": user_id,
+                "type": "newsletter",
+                "message": str(mail_body),
+                "relevance_score": mean_sim,
+                "message_subject": subject,
+            }
+            supabase.table("notifications").insert(notification_payload).execute()

@@ -19,6 +19,7 @@ from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
 from app.api.scheduler import router as api_scheduler
 from app.api.topics import router as api_topics
+from app.api.countries import router as api_countries
 from app.api.subscriber import router as api_subscriber
 
 from app.core.auth import User, decode_supabase_jwt
@@ -56,6 +57,7 @@ app.include_router(api_crawler)
 app.include_router(api_scheduler)
 app.include_router(api_chat)
 app.include_router(api_topics)
+app.include_router(api_countries)
 app.include_router(api_legislative_files)
 app.include_router(api_subscriber)
 
@@ -72,6 +74,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             r"^/redoc$",
             r"^/openapi.json$",
             r"^/topics",
+            r"^/countries",
         ]
 
     async def dispatch(self, request: Request, call_next):
