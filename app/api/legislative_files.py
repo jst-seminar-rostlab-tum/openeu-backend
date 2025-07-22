@@ -40,36 +40,65 @@ def get_legislative_files(
                 if resp.data:
                     query = query + "Profile information: " + str(resp.data)
 
-            try:
-                completion = openai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a helpful assistantthat reformulates text for "
-                                "semantic search. "
-                                "Your task is to generate atitle for a legislative"
-                                "concerning the user. "
-                                "For example:\n"
-                                "User Input: As the CEO ofTransport Logistics, acompany pioneering"
-                                "the integration of AI intransportation, "
-                                "I am steering a dynamicgrowth-stage enterprise witha team of"
-                                "21-50   professionals.\n"
-                                "Output 1: Infrastructureand Technology Rules"
-                                "Output 2: Implementaion ofthe Infrastructure andTechnology Package"
-                            ),
-                        },
-                        {"role": "user", "content": respdata},
-                    ],
-                    temperature=0,
-                    max_tokens=128,
-                )
+                try:
+                    completion = openai.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a helpful assistantthat reformulates text for "
+                                    "semantic search. "
+                                    "Your task is to generate a title for a legislative"
+                                    "concerning the user and his query. "
+                                    "For example:\n"
+                                    "User Input: Infrastrucure, User Profile: As the CEO of Transport Logistics, acompany pioneering"
+                                    "the integration of AI intransportation "
+                                    "I am steering a dynamicgrowth-stage enterprise witha team of"
+                                    "21-50   professionals.\n"
+                                    "Output 1: Infrastructureand Technology Rules"
+                                    "Output 2: Implementaion of the Infrastructure and Technology Package"
+                                ),
+                            },
+                            {"role": "user", "content": query},
+                        ],
+                        temperature=0,
+                        max_tokens=128,
+                    )
 
-                query = (completion.choices[0].message.content or query).strip()
+                    query = (completion.choices[0].message.content or query).strip()
 
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
+                except Exception as e:
+                    logger.error(f"An error occurred: {e}")
+            else:      
+                try:
+                    completion = openai.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a helpful assistantthat reformulates text for "
+                                    "semantic search. "
+                                    "Your task is to generate a title for a legislative"
+                                    "concerning the user and his query. "
+                                    "For example:\n"
+                                    "User Input: Infrastrucure"
+                                    "Output 1: Infrastructureand Technology Rules"
+                                    "Output 2: Implementaion of the Infrastructure and Technology Package"
+                                ),
+                            },
+                            {"role": "user", "content": query},
+                        ],
+                        temperature=0,
+                        max_tokens=128,
+                    )
+    
+                    query = (completion.choices[0].message.content or query).strip()
+    
+                except Exception as e:
+                    logger.error(f"An error occurred: {e}")
+                    
 
             neighbors = get_top_k_neighbors(
                 query=query,
