@@ -29,7 +29,7 @@ def _download_file(url: str) -> str:
             # Fallback: try to get extension from content-type header
             response = requests.head(url, timeout=10)
             content_type = response.headers.get('content-type')
-            ext = mimetypes.guess_extension(content_type) or ''
+            ext = mimetypes.guess_extension(content_type) or '' if content_type else ''
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             temp_file_path = tmp.name
             response = requests.get(url, timeout=30)
