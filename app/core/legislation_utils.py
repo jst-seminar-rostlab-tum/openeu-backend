@@ -1,9 +1,10 @@
 import os
 import tempfile
 import requests
+import mimetypes
 from fastapi import HTTPException
 from postgrest.exceptions import APIError
-from app.core.pdf_extractor import extract_text_from_pdf
+from app.core.file_extractor import extract_text_from_file
 from app.core.supabase_client import supabase
 import logging
 import json
@@ -15,36 +16,46 @@ from app.core.cohere_client import co
 from app.models.chat import ChatMessageItem
 
 
-def _download_pdf(url: str) -> str:
-    """Download the PDF from the given URL to a temp file. Returns the file path."""
-    temp_pdf_path = None
+def _download_file(url: str) -> str:
+    """
+    Download a file from the given URL to a temp file. Returns the file path.
+    The file extension is inferred from the URL if possible.
+    """
+    temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            temp_pdf_path = tmp.name
+        # Try to get the extension from the URL
+        ext = os.path.splitext(url)[1]
+        if not ext:
+            # Fallback: try to get extension from content-type header
+            response = requests.head(url, timeout=10)
+            content_type = response.headers.get('content-type')
+            ext = mimetypes.guess_extension(content_type) or ''
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            temp_file_path = tmp.name
             response = requests.get(url, timeout=30)
             if response.status_code != 200:
-                raise HTTPException(status_code=404, detail=f"Failed to download PDF: HTTP {response.status_code}")
+                raise HTTPException(status_code=404, detail=f"Failed to download file: HTTP {response.status_code}")
             tmp.write(response.content)
-        return temp_pdf_path
+        return temp_file_path
     except HTTPException as e:
         logging.error(f"HTTPException: {e}")
-        if temp_pdf_path and os.path.exists(temp_pdf_path):
-            os.remove(temp_pdf_path)
-        raise HTTPException(503, "Failed to download PDF, try again later") from None
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(503, "Failed to download file, try again later") from None
     except Exception as e:
         logging.error(f"Exception: {e}")
-        if temp_pdf_path and os.path.exists(temp_pdf_path):
-            os.remove(temp_pdf_path)
-        raise HTTPException(503, "Failed to download PDF, try again later") from None
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(503, "Failed to download file, try again later") from None
 
 
 def _extract_and_store_legislation_text(legislation_id: str, pdf_url: str) -> str:
     """
     Download the PDF, extract text, and store it in the DB. Returns the extracted text.
     """
-    temp_pdf_path = _download_pdf(pdf_url)
+    temp_pdf_path = _download_file(pdf_url)
     try:
-        extracted_text = extract_text_from_pdf(temp_pdf_path)
+        extracted_text = extract_text_from_file(temp_pdf_path)
     except Exception:
         raise HTTPException(500, "Failed to extract text from PDF, try again later") from None
     finally:
@@ -286,3 +297,5 @@ def process_legislation(legislation_request: ChatMessageItem):
     except Exception as e:
         logging.error(f"Unexpected error during legislation processing: {e}")
         raise HTTPException(503, "Failed to get legislative file, try again later") from None
+    
+    
