@@ -90,7 +90,8 @@ begin
         SELECT vm.location
         FROM public.v_meetings vm
         WHERE vm.source_table = e.source_table
-          AND vm.source_id = e.source_id)) = ANY (
+        AND vm.source_id = e.source_id
+        LIMIT 1)) = ANY (
         SELECT LOWER(country) FROM unnest(allowed_countries) AS country
       )
     )
