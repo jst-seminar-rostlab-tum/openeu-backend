@@ -70,6 +70,8 @@ class EmbeddingGenerator:
         conflicts = self.conflict_map.get(destination_table, "")
 
         chunks = self.text_splitter.split_text(content_text)
+
+        chunks = [chunks[0]] if destination_table == "meeting_embeddings" else chunks
         upsert_rows: list[dict] = []
 
         for chunk in chunks:

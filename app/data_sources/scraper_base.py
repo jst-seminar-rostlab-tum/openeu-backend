@@ -111,7 +111,7 @@ class ScraperBase(ABC):
                 )
 
     def store_entry(
-        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True, assing_topic: bool = True
+        self, entry, on_conflict: Optional[str] = None, embedd_entries: bool = True, assign_topic: bool = True
     ) -> Optional[ScraperResult]:
         try:
             # add/update scraped_at timestamp
@@ -121,36 +121,49 @@ class ScraperBase(ABC):
                 self.embedd_entries(response)
             self.lines_added += len(response.data) if response.data else 0
 
-            if assing_topic:
-                try:
-                    meeting_data = response.data[0]
-                    mapped = {
-                        "source_id": meeting_data["id"],
-                        "source_table": self.table_name,
-                        "title": meeting_data["title"],
-                    }
-                    meeting = MeetingTopicAssignment(**mapped)
-                    extractor = TopicExtractor()
-                    extractor.assign_meeting_to_topic(meeting)
-                except Exception as e:
-                    logger.info(f"Could not assign topic for meeting: {entry} with: {e}")
+            if assign_topic:
+                self.assign_meeting_topic(entry, response)
 
             return None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
             return ScraperResult(False, self.lines_added, e, self.last_entry)
 
-    def store_entry_returning_id(self, entry: Any, on_conflict: Optional[str] = None) -> Optional[str]:
+    def store_entry_returning_id(
+        self,
+        entry: Any,
+        on_conflict: Optional[str] = None,
+        embedd_entries: Optional[bool] = True,
+        assign_topic: bool = True
+    ) -> Optional[str]:
         """
         Store an entry in the database and return the ID of the stored entry.
         """
         try:
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
+            if embedd_entries:
+                self.embedd_entries(response)
             self.lines_added += 1
+            if assign_topic:
+                self.assign_meeting_topic(entry, response)
             return response.data[0].get("id") if response.data else None
         except Exception as e:
             logger.error(f"Error storing entry in Supabase: {e}")
             return None
+
+    def assign_meeting_topic(self, entry, response: APIResponse[dict[str, Any]]):
+        try:
+            meeting_data = response.data[0]
+            mapped = {
+                "source_id": meeting_data["id"],
+                "source_table": self.table_name,
+                "title": meeting_data["title"],
+            }
+            meeting = MeetingTopicAssignment(**mapped)
+            extractor = TopicExtractor()
+            extractor.assign_meeting_to_topic(meeting)
+        except Exception as e:
+            logger.info(f"Could not assign topic for meeting: {entry} with: {e}")
 
     @abstractmethod
     def scrape_once(self, last_entry: Any, **args) -> ScraperResult:

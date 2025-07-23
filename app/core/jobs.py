@@ -32,6 +32,8 @@ from app.data_sources.scrapers.tweets import TweetScraper
 from app.data_sources.scrapers.weekly_agenda_scraper import WeeklyAgendaScraper
 from app.data_sources.scrapers.nl_twka_meetings_scraper import NetherlandsTwkaMeetingsScraper
 from scripts.embedding_cleanup import embedding_cleanup
+from scripts.meeting_cleanup import embedd_missing_entries
+
 
 LOOKAHEAD_DAYS = 7  # Number of days in future to scrape data for
 
@@ -290,6 +292,7 @@ def setup_scheduled_jobs():
         send_smart_alerts,
         schedule.every().hour.at(":15"),  # hourly
     )
+    scheduler.register("embed_meetings", embedd_missing_entries, schedule.every().day.at("01:00"), run_in_process=True)
     scheduler.register(
         "scrape_netherlands_twka_meetings",
         scrape_netherlands_twka_meetings,
