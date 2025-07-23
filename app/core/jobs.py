@@ -223,6 +223,10 @@ def clean_up_embeddings(stop_event: multiprocessing.synchronize.Event):
 # Ignoring the stop_event as it is a non-iterative job
 def fetch_and_store_current_meps(_: multiprocessing.synchronize.Event):
     scrape_meps()
+    
+    
+def clean_up_meetings(stop_event: multiprocessing.synchronize.Event):
+    embedd_missing_entries()
 
 
 def setup_scheduled_jobs():
@@ -292,7 +296,7 @@ def setup_scheduled_jobs():
         send_smart_alerts,
         schedule.every().hour.at(":15"),  # hourly
     )
-    scheduler.register("embed_meetings", embedd_missing_entries, schedule.every().day.at("01:00"), run_in_process=True)
+    scheduler.register("embed_meetings", clean_up_meetings, schedule.every().day.at("01:00"), run_in_process=True)
     scheduler.register(
         "scrape_netherlands_twka_meetings",
         scrape_netherlands_twka_meetings,
