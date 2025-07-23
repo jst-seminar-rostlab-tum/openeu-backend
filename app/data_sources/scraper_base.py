@@ -130,7 +130,11 @@ class ScraperBase(ABC):
             return ScraperResult(False, self.lines_added, e, self.last_entry)
 
     def store_entry_returning_id(
-        self, entry: Any, on_conflict: Optional[str] = None, embedd_entries: Optional[bool] = True, assign_topic: bool = True
+        self,
+        entry: Any,
+        on_conflict: Optional[str] = None,
+        embedd_entries: Optional[bool] = True,
+        assign_topic: bool = True
     ) -> Optional[str]:
         """
         Store an entry in the database and return the ID of the stored entry.
