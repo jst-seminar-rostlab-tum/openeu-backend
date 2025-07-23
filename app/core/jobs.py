@@ -292,11 +292,7 @@ def setup_scheduled_jobs():
         send_smart_alerts,
         schedule.every().hour.at(":15"),  # hourly
     )
-    scheduler.register(
-        "embed_meetings", embedd_missing_entries,
-        schedule.every().day.at("01:00"),
-        run_in_process=True
-    )
+    scheduler.register("embed_meetings", embedd_missing_entries, schedule.every().day.at("01:00"), run_in_process=True)
     scheduler.register(
         "scrape_netherlands_twka_meetings",
         scrape_netherlands_twka_meetings,
