@@ -41,11 +41,11 @@ class SessionsResponseModel(BaseModel):
 
 @router.post("/")
 async def get_chat_response(request: Request, chat_message_item: ChatMessageItem):
-    if chat_message_item.legislation_id:
-        return StreamingResponse(process_legislation(chat_message_item), media_type="text/event-stream")
     user = get_current_user(request)
+    if chat_message_item.legislation_id:
+        return StreamingResponse(process_legislation(chat_message_item, user.id), media_type="text/event-stream")
     return StreamingResponse(
-        get_response(chat_message_item.message, chat_message_item.session_id, user_id=user.id),
+        get_response(chat_message_item.message, chat_message_item.session_id, user.id),
         media_type="text/event-stream"
     )
 

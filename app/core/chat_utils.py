@@ -67,7 +67,7 @@ def get_profile_embedding_input(user_id: str) -> str:
         return ""
 
 
-def get_response(prompt: str, session_id: str, user_id: str = "", context_text: str = ""):
+def get_response(prompt: str, session_id: str, user_id: str, context_text: str = ""):
     try:
         database_messages = (
             supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
