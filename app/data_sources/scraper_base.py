@@ -140,12 +140,16 @@ class ScraperBase(ABC):
             logger.error(f"Error storing entry in Supabase: {e}")
             return ScraperResult(False, self.lines_added, e, self.last_entry)
 
-    def store_entry_returning_id(self, entry: Any, on_conflict: Optional[str] = None) -> Optional[str]:
+    def store_entry_returning_id(
+        self, entry: Any, on_conflict: Optional[str] = None, embedd_entries: Optional[bool] = False
+    ) -> Optional[str]:
         """
         Store an entry in the database and return the ID of the stored entry.
         """
         try:
             response = supabase.table(self.table_name).upsert(entry, on_conflict=on_conflict).execute()
+            if embedd_entries:
+                self.embedd_entries(response)
             self.lines_added += 1
             return response.data[0].get("id") if response.data else None
         except Exception as e:
