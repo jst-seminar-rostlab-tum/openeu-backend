@@ -13,7 +13,6 @@ from fastapi_cache.backends.inmemory import InMemoryBackend
 from app.api import profile
 from app.api.alerts import router as api_alerts
 from app.api.chat import router as api_chat
-from app.api.crawler import router as api_crawler
 from app.api.legislative_files import router as api_legislative_files  # <- make sure this import is correct
 from app.api.meetings import router as api_meetings
 from app.api.notifications import router as notifications_router
@@ -53,7 +52,6 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 app.include_router(profile.router)
 app.include_router(api_meetings)
-app.include_router(api_crawler)
 app.include_router(api_scheduler)
 app.include_router(api_chat)
 app.include_router(api_topics)
