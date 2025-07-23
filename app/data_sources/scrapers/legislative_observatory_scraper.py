@@ -271,7 +271,7 @@ class LegislativeObservatoryScraper(ScraperBase):
     def _collect_entry(self, entries: list[LegislativeObservatory]):
         for entry in entries:
             scraper_error_result = self.store_entry(
-                entry.model_dump(), on_conflict="id", embedd_entries=True, assing_topic=False
+                entry.model_dump(), on_conflict="id", embedd_entries=True, assign_topic=False
             )
             if scraper_error_result is None:
                 self.entries.append(entry)
