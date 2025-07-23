@@ -2,7 +2,7 @@ import logging
 import time
 
 from app.core.supabase_client import supabase
-from embedding_generator import EmbeddingGenerator
+from scripts.embedding_generator import EmbeddingGenerator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
