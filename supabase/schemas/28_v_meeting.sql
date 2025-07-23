@@ -405,3 +405,21 @@ AS $$
   SELECT array_agg(DISTINCT location)
   FROM public.v_meetings;
 $$;
+
+
+-- ------------------------------------------------------------
+-- Function: public.get_meetings_without_embeddings()
+-- Description: returns meetings from v_meetings that do not have corresponding entries in meeting_embeddings
+-- Usage (RPC): SELECT * FROM get_meetings_without_embeddings();
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_meetings_without_embeddings()
+RETURNS SETOF v_meetings
+LANGUAGE sql
+AS $$
+    SELECT vm.*
+    FROM v_meetings vm
+    LEFT JOIN meeting_embeddings me
+      ON vm.source_table = me.source_table
+     AND vm.source_id = me.source_id
+    WHERE me.source_id IS NULL;
+$$;
