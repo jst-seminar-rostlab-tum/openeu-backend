@@ -286,8 +286,6 @@ def process_legislation(legislation_request: ChatMessageItem, user_id: str):
                 source_table = element.get("source_table")
                 table_desc = get_table_description(source_table) if source_table else "Unspecified data"
                 context_text += f"[Source: {table_desc}]\n{element.get('content_text')}\n\n"
-            if proposal_link:
-                context_text += f"\nFor the complete document, see: [Full Proposal Document]({proposal_link})"
             yield from get_response(
                 legislation_request.message, legislation_request.session_id, user_id, context_text=context_text
             )
