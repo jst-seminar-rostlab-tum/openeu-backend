@@ -249,7 +249,24 @@ def get_legislative_unique_values() -> LegislativeFileUniqueValuesResponse:
 
         years = set()
         committees = set()
-        statuses = set()
+        sorted_statuses = [
+            "Preparatory phase in Parliament",
+            "Awaiting Parliament's position in 1st reading",
+            "Awaiting Council's 1st reading position",
+            "Political agreement in Council on its 1st reading position",
+            "Awaiting Parliament 2nd reading",
+            "Awaiting committee decision",
+            "Awaiting plenary debate/vote",
+            "Awaiting Parliament's vote",
+            "Awaiting final decision",
+            "Awaiting signature of act",
+            "Awaiting Parliament's position on the draft budget",
+            "Procedure completed",
+            "Procedure completed, awaiting publication in Official Journal",
+            "Procedure completed - delegated act enters into force",
+            "Procedure rejected",
+            "Procedure lapsed or withdrawn"
+        ]
 
         for row in data:
             if row.get("id"):
@@ -258,13 +275,11 @@ def get_legislative_unique_values() -> LegislativeFileUniqueValuesResponse:
                     years.add(year_part)
             if row.get("committee"):
                 committees.add(row["committee"])
-            if row.get("status"):
-                statuses.add(row["status"])
 
         return LegislativeFileUniqueValuesResponse(
             years=sorted(list(years)),
             committees=sorted(list(committees)),
-            statuses=sorted(list(statuses)),
+            statuses=sorted_statuses,
         )
     except Exception as e:
         logger.error("Something went wrong: %s", e)
