@@ -147,7 +147,7 @@ def get_meetings(
                 idx = result.index
                 new_score = result.relevance_score
                 neighbors[idx]["similarity"] = new_score
-                if new_score > 0.1:
+                if new_score > 0.05:
                     neighbors_re.append(neighbors[idx])
 
             neighbors = neighbors_re
