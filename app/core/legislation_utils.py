@@ -168,7 +168,7 @@ def _build_legislation_context_message(main_message: str, proposal_link: str | N
     return main_message
 
 
-def process_legislation(legislation_request: ChatMessageItem):
+def process_legislation(legislation_request: ChatMessageItem, user_id: str):
     """
     Process a legislative procedure: use RAG if embeddings exist, otherwise extract PDF text and store in DB.
     Returns a streaming LLM response with appropriate context (including errors or missing files).
@@ -205,7 +205,10 @@ def process_legislation(legislation_request: ChatMessageItem):
                 else:
                     context_text = "No legislative proposal document was found for this procedure."
                 yield from get_response(
-                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                    legislation_request.message,
+                    legislation_request.session_id,
+                    user_id,
+                    context_text=context_text
                 )
                 return
             success = _embed_legislation_text_sync(legislation_request.legislation_id, extracted_text)
@@ -216,7 +219,10 @@ def process_legislation(legislation_request: ChatMessageItem):
                     proposal_link,
                 )
                 yield from get_response(
-                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                    legislation_request.message,
+                    legislation_request.session_id,
+                    user_id,
+                    context_text=context_text
                 )
                 return
             # After embedding, check again for embedding (should exist now)
@@ -234,7 +240,10 @@ def process_legislation(legislation_request: ChatMessageItem):
                     proposal_link,
                 )
                 yield from get_response(
-                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                    legislation_request.message,
+                    legislation_request.session_id,
+                    user_id,
+                    context_text=context_text
                 )
                 return
         # RAG flow (embedding exists)
@@ -266,7 +275,10 @@ def process_legislation(legislation_request: ChatMessageItem):
                 # fallback logic
                 context_text = str(extracted_text)
                 yield from get_response(
-                    legislation_request.message, legislation_request.session_id, context_text=context_text
+                    legislation_request.message,
+                    legislation_request.session_id,
+                    user_id,
+                    context_text=context_text
                 )
                 return
             context_text = ""
@@ -277,7 +289,7 @@ def process_legislation(legislation_request: ChatMessageItem):
             if proposal_link:
                 context_text += f"\nFor the complete document, see: [Full Proposal Document]({proposal_link})"
             yield from get_response(
-                legislation_request.message, legislation_request.session_id, context_text=context_text
+                legislation_request.message, legislation_request.session_id, user_id, context_text=context_text
             )
             return
         except Exception as e:
@@ -288,7 +300,7 @@ def process_legislation(legislation_request: ChatMessageItem):
                 proposal_link,
             )
             yield from get_response(
-                legislation_request.message, legislation_request.session_id, context_text=context_text
+                legislation_request.message, legislation_request.session_id, user_id, context_text=context_text
             )
             return
     except APIError as e:

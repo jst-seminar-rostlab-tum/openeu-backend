@@ -12,14 +12,15 @@ from app.core.vector_search import get_top_k_neighbors
 client = OpenAI()
 
 
-def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, context_text: str = "") -> str:
+def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, user_profile: str = "",
+                        context_text: str = "") -> str:
     messages_text = ""
     for message in messages:
         messages_text += f"{message['author']}: {message['content']}\n"
 
     if not context_text:
         context = get_top_k_neighbors(
-            query=f"Previous conversation: {messages_text}\n\nQuestion: {prompt}", allowed_sources={}, k=20
+            query=f"User profile: {user_profile}\n\nQuestion: {prompt}", allowed_sources={}, k=20
         )
         context_text = ""
         for element in context:
@@ -43,7 +44,13 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, conte
     You will say that you can't help on this topic if the CONTEXT BLOCK is empty.
     You will not invent anything that is not drawn directly from the context.
     You will not answer questions that are not related to the context.
+    Ensure all responses are tailored to the user's profile
+    If tailoring is not possible, provide a general response without forced personalization.
+    The user profile is provided between ***START USER PROFILE*** and ***END USER PROFILE***.
     More information on how OpenEU works is between ***START CONTEXT BLOCK*** and ***END CONTEXT BLOCK***
+    ***START USER PROFILE***
+    {user_profile}
+    ***END USER PROFILE***
     ***START CONTEXT BLOCK***
     {context_text}
     ***END CONTEXT BLOCK***`,
@@ -52,7 +59,15 @@ def build_system_prompt(messages: list[dict[str, str | int]], prompt: str, conte
     return assistant_system_prompt
 
 
-def get_response(prompt: str, session_id: str, context_text: str = ""):
+def get_profile_embedding_input(user_id: str) -> str:
+    result = supabase.table("profiles").select("embedding_input").eq("id", user_id).execute().data
+    if result and len(result) == 1:
+        return result[0]["embedding_input"]
+    else:
+        return ""
+
+
+def get_response(prompt: str, session_id: str, user_id: str, context_text: str = ""):
     try:
         database_messages = (
             supabase.table("chat_messages").select("*").limit(10).eq("chat_session", session_id).execute()
@@ -80,11 +95,12 @@ def get_response(prompt: str, session_id: str, context_text: str = ""):
             .execute()
         )
 
+        user_profile = get_profile_embedding_input(user_id) if user_id != "" else ""
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
                 ChatCompletionAssistantMessageParam(
-                    content=build_system_prompt(messages, prompt, context_text), role="assistant"
+                    content=build_system_prompt(messages, prompt, user_profile, context_text), role="assistant"
                 ),
                 ChatCompletionUserMessageParam(
                     content=f"Please answer the following question regarding OpenEU: {prompt}", role="user"

@@ -226,6 +226,8 @@ async def update_user_profile(request: Request, user_id: str, profile: ProfileUp
     # Update profile embedding
     if should_update_embeddings:
         existing_profile = get_profile(user_id)
+        if existing_profile is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
         # Build input text for embedding
         topics = supabase.table("meeting_topics").select("id, topic").in_("id", existing_profile["topic_ids"]).execute()

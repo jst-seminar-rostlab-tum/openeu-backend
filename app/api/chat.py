@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
-from app.core.auth import check_request_user_id
+from app.core.auth import check_request_user_id, get_current_user
 from app.core.supabase_client import supabase
 from app.core.legislation_utils import process_legislation
 from app.models.chat import ChatMessageItem
@@ -40,11 +40,13 @@ class SessionsResponseModel(BaseModel):
 
 
 @router.post("/")
-async def get_chat_response(chat_message_item: ChatMessageItem):
+async def get_chat_response(request: Request, chat_message_item: ChatMessageItem):
+    user = get_current_user(request)
     if chat_message_item.legislation_id:
-        return StreamingResponse(process_legislation(chat_message_item), media_type="text/event-stream")
+        return StreamingResponse(process_legislation(chat_message_item, user.id), media_type="text/event-stream")
     return StreamingResponse(
-        get_response(chat_message_item.message, chat_message_item.session_id), media_type="text/event-stream"
+        get_response(chat_message_item.message, chat_message_item.session_id, user.id),
+        media_type="text/event-stream"
     )
 
 
