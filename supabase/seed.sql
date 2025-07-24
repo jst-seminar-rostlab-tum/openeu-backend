@@ -4,6 +4,7 @@
 INSERT INTO mep_meetings (
     id,
     title,
+    title_en,
     member_name,
     meeting_date,
     meeting_location,
@@ -16,6 +17,7 @@ INSERT INTO mep_meetings (
 VALUES 
 (
     'mep_meeting_001',
+    'Meeting on Digital Markets Act',
     'Meeting on Digital Markets Act',
     'Alexandra Geese',
     '2025-05-25',
@@ -30,6 +32,7 @@ VALUES
 (
     'mep_meeting_002',
     'Hearing on Green Transition Policies',
+    'Hearing on Green Transition Policies',
     'Bas Eickhout',
     '2025-06-03',
     'Strasbourg, Room A3G-2',
@@ -41,6 +44,7 @@ VALUES
 ),
 (
     'mep_meeting_003',
+    'AI Act Implementation Discussion',
     'AI Act Implementation Discussion',
     'Dragos Tudorache',
     '2025-06-10',
@@ -54,6 +58,7 @@ VALUES
 (
     'mep_meeting_004',
     'Data Privacy Framework Review',
+    'Data Privacy Framework Review',
     'Birgit Sippel',
     '2025-06-15',
     'Brussels, Room JAN 4Q1',
@@ -65,6 +70,7 @@ VALUES
 ),
 (
     'mep_meeting_005',
+    'Cybersecurity Strategy Meeting',
     'Cybersecurity Strategy Meeting',
     'Bart Groothuis',
     '2025-06-20',
