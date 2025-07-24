@@ -8,5 +8,6 @@ create table if not exists public.eu_law_procedures (
     topic_codes     text[]      not null,
     topic_labels    text[]      not null,
     embedding_input text,
-    updated_at      timestamptz default now()
+    updated_at      timestamptz default now(),
+    scraped_at      timestamptz default now()
 );
